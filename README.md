@@ -9,6 +9,7 @@ App de escritorio para **macOS y Windows** con **Tauri 2 + React + TypeScript**.
 pnpm install
 pnpm tauri dev      # app nativa (SQLite)
 pnpm dev            # solo la UI en el navegador (guarda en localStorage)
+pnpm test           # tests (Vitest)
 pnpm tauri build    # instalador para la plataforma actual
 ```
 
@@ -34,14 +35,14 @@ src/
   domain/      Lógica pura, sin UI
     types.ts        Quest, Condition, Reward, Player
     events.ts       Eventos inmutables (quest_created, quest_accepted, progress_added, quest_completed…)
-    projection.ts   eventos → estado (quests, XP, nivel, oro, inventario, almanaque)
+    projection.ts   eventos → estado (quests, XP, nivel, oro, inventario, almanaque), de uno en uno (applyEvent)
     leveling.ts     Curva de XP, rangos F→S, huecos de quest activa
     seed.ts         Quests de ejemplo del primer arranque
   storage/
     eventStore.ts   SQLite (Tauri) o localStorage (navegador), append-only
     blobStore.ts    Archivos adjuntos por su SHA-256: tabla blobs (Tauri) o IndexedDB (navegador)
   store/
-    game.ts         Estado global (zustand): eventos + proyección + estado de UI
+    game.ts         Estado global (zustand): proyección incremental + estado de UI
     actions.ts      Aceptar / progreso / reportar / abandonar
   components/      Header, Tabs, QuestCard, QuestDetail, CreateQuestModal, ClearOverlay, Footer
   lib/             sfx (WebAudio sintetizado), ids, tiempo
@@ -53,6 +54,8 @@ src/
     temporal/       Encargos temporales: tablón aparte con calaveras, adjuntos PDF/imagen, quests enlazadas y sus animaciones
     complex/        Quests complejas: repetición tras completarlas (cualquier categoría) y requisitos
     horizon/        Plazos: clasificar quests y encargos por lo que falta (1 día, 7 días, 2 semanas, 1 mes, +1 mes)
+    snapshot/       Snapshot de la proyección: cada clic aplica solo su evento y el arranque no reproduce todo el historial
+  test/            Utilidades de los tests (historiales aleatorios con semilla)
 src-tauri/         Backend Rust (plugin SQL)
 ```
 
@@ -60,6 +63,7 @@ src-tauri/         Backend Rust (plugin SQL)
 
 **Event sourcing:** nunca se guarda "XP = 1150"; se guardan los hechos y el estado se recalcula.
 Así, fusionar datos de varios dispositivos consiste solo en unir eventos por `id` y ordenarlos por `ts`.
+Para no reproducir todo el historial en cada arranque, cada 100 eventos se guarda un *snapshot* del estado calculado (una caché: se puede borrar sin perder nada). Detalles: [src/features/snapshot/README.md](src/features/snapshot/README.md).
 
 ## Animaciones
 
@@ -107,6 +111,7 @@ En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · 
 - [x] Objetos con rareza, inventario, almanaque y drops (`src/features/items/`)
 - [x] Encargos temporales con calaveras, adjuntos PDF/imagen y recordatorios (`src/features/temporal/`)
 - [x] Quests complejas: repetición y requisitos (`src/features/complex/`); plazos (`src/features/horizon/`); encargos enlazados con quests
+- [x] Snapshot de la proyección (`src/features/snapshot/`) y 231 tests con Vitest del dominio y el store
 - [ ] **Fase 2:** sincronización con Google Drive
   - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`
   - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`

@@ -1,6 +1,6 @@
 import type Database from "@tauri-apps/plugin-sql";
 import type { GameEvent } from "../domain/events";
-import { compareEvents } from "../domain/events";
+import { compareEvents, comparePos, type EventPos } from "../domain/events";
 import { uid } from "../lib/id";
 
 /**
@@ -11,6 +11,10 @@ import { uid } from "../lib/id";
 export interface EventStore {
   deviceId: string;
   all(): Promise<GameEvent[]>;
+  /** Eventos posteriores a `pos` en el orden de la proyección (ts, id): la cola de un snapshot. */
+  since(pos: EventPos): Promise<GameEvent[]>;
+  /** Cuántos eventos hay hasta `pos`, incluido. Si no cuadra con el snapshot, este no vale. */
+  countUpTo(pos: EventPos): Promise<number>;
   append(event: GameEvent): Promise<void>;
   /** Inserta eventos remotos ignorando los que ya existen. Devuelve cuántos eran nuevos. */
   merge(events: GameEvent[]): Promise<number>;
@@ -72,6 +76,20 @@ async function openSqliteStore(): Promise<EventStore> {
       const r = await db.select<Row[]>("SELECT id, device_id, ts, body FROM events ORDER BY ts, id");
       return r.map(toEvent);
     },
+    async since(pos) {
+      const r = await db.select<Row[]>(
+        "SELECT id, device_id, ts, body FROM events WHERE ts > $1 OR (ts = $1 AND id > $2) ORDER BY ts, id",
+        [pos.ts, pos.id],
+      );
+      return r.map(toEvent);
+    },
+    async countUpTo(pos) {
+      const r = await db.select<{ n: number }[]>(
+        "SELECT count(*) AS n FROM events WHERE ts < $1 OR (ts = $1 AND id <= $2)",
+        [pos.ts, pos.id],
+      );
+      return r[0]?.n ?? 0;
+    },
     async append(e) {
       await insert(e, 0);
     },
@@ -114,6 +132,14 @@ async function openLocalStore(): Promise<EventStore> {
     deviceId,
     async all() {
       return read().sort(compareEvents);
+    },
+    async since(pos) {
+      return read()
+        .filter((e) => comparePos(e, pos) > 0)
+        .sort(compareEvents);
+    },
+    async countUpTo(pos) {
+      return read().filter((e) => comparePos(e, pos) <= 0).length;
     },
     async append(e) {
       write([...read(), e]);

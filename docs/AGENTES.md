@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo J
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex` y `horizon`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon` y `snapshot`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -33,6 +33,7 @@ pnpm install            # dependencias
 pnpm tauri dev          # app nativa con recarga en caliente (Vite en el puerto 1420, fijo)
 pnpm dev                # solo la UI en el navegador; los datos van a localStorage
 npx tsc --noEmit        # comprobar tipos
+pnpm test               # tests (Vitest)
 pnpm build              # tipos + build del frontend a dist/
 pnpm tauri build        # instalador para el sistema actual
 ```
@@ -50,14 +51,14 @@ src/
   domain/            Dominio PURO (sin React, Zustand, Tauri ni DOM)
     types.ts           QuestDef, QuestState, ConditionDef (contador | pomodoro), PlayerState…
     events.ts          Unión EventBody (eventos de quest + PomodoroEventBody)
-    projection.ts      project(eventos) → GameState; conditionProgress, conditionsMet(q, now)…
+    projection.ts      project(eventos) → GameState (newProjectionAcc / applyEvent / finishProjection), PROJECTION_VERSION; conditionProgress, conditionsMet(q, now)…
     leveling.ts        Curva de XP, rangos F→S, huecos de quest activa
     seed.ts            Quests de ejemplo del primer arranque (en el idioma activo)
   storage/
-    eventStore.ts      Interfaz EventStore + SQLite (Tauri) + localStorage (navegador)
+    eventStore.ts      Interfaz EventStore (all, since, countUpTo, append…) + SQLite (Tauri) + localStorage (navegador)
     blobStore.ts       Almacén de binarios de los adjuntos: tabla blobs (Tauri) / IndexedDB (navegador)
   store/
-    game.ts            Store Zustand: eventos, estado proyectado, estado de UI (sección, pestaña…), dispatch()
+    game.ts            Store Zustand: proyección incremental, estado proyectado, estado de UI (sección, pestaña…), dispatch(), rebuild()
     actions.ts         Casos de uso: aceptar, progresar, reportar, abandonar
   components/        Interfaz (Header, Tabs, QuestCard, QuestDetail, CreateQuestModal, ClearOverlay, Footer)
   features/          UNA CARPETA POR FUNCIONALIDAD, cada una con su README.md
@@ -67,7 +68,9 @@ src/
     temporal/          Encargos temporales: tablón aparte, calaveras, adjuntos y quests enlazadas (eventos temporal_*)
     complex/           Quests complejas: repetición en cualquier categoría y requisitos (sin eventos propios)
     horizon/           Plazos: clasificación por lo que falta y fecha límite de las quests (sin eventos)
+    snapshot/          Snapshot de la proyección: dispatch incremental y arranque sin reproducirlo todo (sin eventos)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
+  test/              Utilidades de los tests (historiales aleatorios con semilla)
   lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), useMuted, id/PRNG, time (useNow, formatRemaining)
   styles/            theme.css (tokens), app.css (componentes)
 public/music/        Pistas de música (Vite las copia a dist/music/)
@@ -93,6 +96,9 @@ components ──▶ store ──▶ domain ◀── storage
 - **Los eventos guardados son inmutables.** Nunca se reescriben, se borran ni se «arreglan» en la base de datos.
 - **Cambiar la forma de un evento o de `QuestDef` exige compatibilidad hacia atrás**: los datos antiguos se convierten **al leerlos** (*upcasting*). Sigue el patrón de `src/features/pomodoro/legacy.ts`, que convierte el pomodoro antiguo en una condición de 1 ronda, y documéntalo en el README de la funcionalidad.
 - **La proyección es tolerante:** cada `case` de `project()` tiene una **guarda** que ignora eventos imposibles (por ejemplo, completar una quest que no está activa). Así se fusionan eventos de varios dispositivos sin duplicar XP.
+- **Sube `PROJECTION_VERSION`** (`src/domain/projection.ts`) si cambias el resultado de `project()` para eventos ya guardados: un `case`, una guarda, un *upcaster* o un `apply*Event` de una funcionalidad. Si no, la app nativa arrancará desde un snapshot calculado con la lógica vieja. Ver [src/features/snapshot/README.md](../src/features/snapshot/README.md).
+- **El acumulador de la proyección (`ProjectionAcc`) solo guarda datos serializables** (`Map`, `Set`, objetos planos; nada de funciones ni clases), porque se guarda como snapshot y se copia con `structuredClone` en cada `dispatch`. Lo que depende del conjunto (nivel, `temporalId`…) va en `finishProjection` y se recalcula entero.
+- **El `ts` de un evento lo pone `dispatch`**, con `nextTs` (`src/domain/events.ts`): va al menos 1 ms después del último aplicado, para que los eventos que emite una acción seguida no se reordenen por su `id` aleatorio. No construyas eventos con `ts` propio fuera de los tests.
 - **Prefiere deltas a valores absolutos** (`progress_added { amount: +1 }`), para que dos dispositivos sumen en vez de pisarse.
 - **Copia en el evento lo que no debe cambiar a posteriori**, como la recompensa en `quest_completed`.
 
@@ -138,7 +144,7 @@ src/features/<nombre>/
 
 - **La integración fuera de la carpeta debe ser mínima:** tipos (`domain/types.ts`), la unión de eventos (`domain/events.ts`), la proyección (`domain/projection.ts`), los diccionarios (`i18n/locales/{es,ja}.ts`, montando `xxxEs` / `xxxJa`) y el componente que la aloja. Enuméralo en la tabla «Puntos de integración» del README.
 - **El dominio nunca importa el `index.ts` de una funcionalidad**: ese archivo reexporta `actions.ts`, que importa el store, y se crearía un ciclo.
-- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras.
+- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`).
 
 - **Una funcionalidad puede importar el `model.ts` de otra** (`horizon` usa `daysUntil` de `temporal`), pero si su lógica necesita la proyección (`effectiveStatus`), va en otro archivo (como `temporal/links.ts`): `model.ts` lo importa el dominio y se crearía un ciclo.
 
@@ -176,14 +182,17 @@ src/features/<nombre>/
 
 ## 9. Norma: verificar antes de dar algo por terminado
 
-1. `npx tsc --noEmit` sin errores y `pnpm build` correcto.
+1. `npx tsc --noEmit` sin errores, `pnpm test` en verde y `pnpm build` correcto.
 2. **Probarlo en ejecución**, no solo compilar: `pnpm dev` en el navegador o `pnpm tauri dev` si toca Rust o algo nativo.
-3. **Lógica de dominio:** comprueba casos concretos con marcas de tiempo fijas, importando el módulo puro (`await import('/src/features/x/model.ts')`). Hasta que haya Vitest, es la forma de verificar.
+3. **Lógica de dominio:** escribe tests con Vitest (`*.test.ts` junto al módulo) con marcas de tiempo fijas. `src/test/streams.ts` tiene constructores (`questDef`, `temporalDef`, `withMeta`) y `randomStream(semilla, n)`, que genera historiales con todos los tipos de evento. Si añades un tipo de evento, añádelo también a `randomStream`. Para probar algo en la app abierta, importa el módulo puro (`await import('/src/features/x/model.ts')`).
 4. **Lo que depende del tiempo** (horas o minutos): no esperes. Inyecta eventos con `ts` en el pasado en el `localStorage` de pruebas del navegador y recarga.
 5. **Datos antiguos:** si cambias un formato, comprueba que los datos existentes se siguen viendo bien.
 6. **Informa con honestidad:** di qué verificaste y cómo, y qué **no** (por ejemplo, el sonido, Windows o la app empaquetada). Nunca presentes como probado algo que no lo está.
 
 ### Trampas conocidas del entorno de pruebas
+
+- **Tests y zona horaria:** `vitest.config.ts` fija `TZ=Europe/Madrid`. Si un test de fechas pasa en tu equipo y falla en otro, es que crea fechas sin pasar por la zona horaria; usa `new Date(año, mes, día)` (hora local) o `deadlineIn`.
+- **Tests del store:** usan `// @vitest-environment happy-dom` (un navegador simulado con `localStorage`) y `vi.mock("../lib/sfx", …)` con `src/test/sfxMock.ts`, porque en Node no hay `AudioContext`. Para simular que se cierra y se vuelve a abrir la app, `vi.resetModules()` y vuelve a importar `store/game.ts` (ver `boot()` en `game.test.ts`).
 
 - **Recarga en caliente de Vite:** un módulo editado se sirve como `archivo.ts?t=…`. Importar `/src/store/game.ts` a mano puede dar **otra instancia** del store. Recarga la página antes de inspeccionar estado.
 - **Recargas que fallan a medias** al crear varios archivos seguidos: pueden dejar módulos viejos vivos. Recarga entera (⌘R) antes de concluir nada.
@@ -222,7 +231,7 @@ Lo mismo vale para los otros diagramas (arquitectura, ciclo de vida, hoja de rut
 ## 11. Deuda conocida: no la empeores
 
 Prioridad alta, pendiente (fase 1.5 de la hoja de ruta):
-- **Sin tests automáticos** (falta Vitest para `projection`, `leveling`, `pomodoro/model` y `legacy`).
+- **Tests: el dominio y el store están cubiertos** (231 tests, prueba de mutación 19/20). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones. Tampoco hay CI que los ejecute.
 - **Eventos sin campo `v`.** El *upcasting* ya existe en `legacy.ts`, pero falta versión explícita.
 - **Orden por reloj local** (`ts`): falta un reloj lógico híbrido.
 - **Sin error boundary:** un fallo de React deja la ventana en negro.
@@ -243,12 +252,14 @@ Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, 
 ## 13. Checklist final de cada tarea
 
 - [ ] La lógica nueva está en el dominio o en `actions.ts`, no en componentes.
+- [ ] Si cambia el resultado de `project()` para eventos ya guardados, `PROJECTION_VERSION` está subida.
 - [ ] Toda escritura de estado pasa por `dispatch`, y los eventos nuevos tienen guardas en `project()`.
 - [ ] Los cambios de formato tienen *upcaster* y se ha probado con datos antiguos.
 - [ ] Cada funcionalidad nueva está en `src/features/<nombre>/` con su README.
 - [ ] Los textos están en `es.ts` y `ja.ts`.
 - [ ] Los assets están en `public/`.
-- [ ] `tsc` y `build` pasan, se ha probado en ejecución y se ha dicho qué no se probó.
+- [ ] La lógica nueva tiene sus tests (`*.test.ts` junto al módulo) y los tipos de evento nuevos están en `randomStream`.
+- [ ] `tsc`, `pnpm test` y `build` pasan, se ha probado en ejecución y se ha dicho qué no se probó.
 - [ ] Documentación actualizada (sección 10), con el diagrama de clases redibujado si cambió el modelo.
 - [ ] El trabajo está en su rama `feature/<nombre>` y se une a `main` solo cuando todo lo anterior está hecho (sección 14).
 - [ ] Servidores de pruebas parados y viewport del navegador restaurado.

@@ -46,8 +46,8 @@ sequenceDiagram
     Act->>Act: ¿disponible? ¿hay huecos?
     Act->>Store: dispatch({type: "quest_accepted", questId})
     Store->>Store: añade id, deviceId y ts al evento
-    Store->>Dom: project(todosLosEventos)
-    Dom-->>Store: nuevo GameState
+    Store->>Dom: applyEvent(copia del acumulador, evento)
+    Dom-->>Store: nuevo GameState (finishProjection)
     Store-->>Card: React vuelve a pintar (status = "active")
     Card->>Card: GSAP: sello + temblor + grietas + sonido
     Store->>DB: append(evento) (asíncrono)
@@ -177,7 +177,7 @@ TypeScript trata `EventBody` como una *unión discriminada*: dentro de un `switc
 
 ### La proyección, línea a línea
 
-`project(events)` recorre los eventos en orden y va construyendo el estado:
+`project(events)` recorre los eventos en orden y va construyendo el estado. Por dentro son tres funciones: `newProjectionAcc()` crea un acumulador vacío, `applyEvent(acc, e)` aplica **un** evento (el `switch` de abajo) y `finishProjection(acc)` calcula lo que depende del conjunto (nivel, rango, huecos y el encargo de cada quest). Así el store puede aplicar solo el evento nuevo y el arranque puede partir de un snapshot (sección 7). Simplificado:
 
 ```ts
 for (const e of events) {
@@ -224,7 +224,7 @@ Algunas guardas no dependen solo de la entidad del evento, sino del estado de ot
 
 `applyTemporalEvent` no conoce las quests: `project()` le pasa una función que las consulta. Así el modelo de los encargos sigue siendo puro y la regla vive en un solo sitio. Como las guardas se evalúan en el orden de los eventos, el resultado es el mismo en todos los dispositivos.
 
-Al terminar el recorrido, `project()` calcula además **a qué encargo pendiente pertenece cada quest** (`QuestState.temporalId`, con `questOwners`). No se guarda en ningún evento: sale de los enlaces de los encargos.
+Al terminar el recorrido, `finishProjection()` calcula además **a qué encargo pendiente pertenece cada quest** (`QuestState.temporalId`, con `questOwners`). No se guarda en ningún evento: sale de los enlaces de los encargos. Lo recalcula entero, poniéndolo o quitándolo, porque se ejecuta tras cada evento sobre un estado que ya lo tenía.
 
 ### Lo que depende de la hora, en la interfaz
 
@@ -237,6 +237,8 @@ Los drops de objetos son aleatorios, pero la proyección no puede tirar dados: d
 ### El orden
 
 Los eventos se ordenan por `ts` y, en caso de empate, por `id` (`compareEvents`). Así el orden es **determinista**: todos los dispositivos reproducen exactamente la misma secuencia. Su punto débil es que `ts` viene del reloj de cada equipo; el informe técnico propone sustituirlo por un reloj lógico híbrido.
+
+El `id` es un UUID aleatorio, así que el desempate no respeta el orden en que se hicieron las cosas. Una acción que emite varios eventos seguidos los produce en el mismo milisegundo, y podían quedar al revés: un `quest_completed` antes de su `quest_accepted`, que la guarda ignoraba. Por eso `dispatch` usa `nextTs(now, último)`: si el reloj no ha avanzado desde el último evento aplicado, o va por detrás menos de 1 s, el nuevo va 1 ms después de él. Es un primer paso hacia el reloj híbrido, solo dentro de cada equipo.
 
 ---
 
@@ -280,6 +282,8 @@ Para cambiar el ritmo del juego basta con tocar el exponente `1.4` o la base `10
 interface EventStore {
   deviceId: string;
   all(): Promise<GameEvent[]>;          // todos, ordenados
+  since(pos): Promise<GameEvent[]>;      // los posteriores a { ts, id }: la cola de un snapshot
+  countUpTo(pos): Promise<number>;       // cuántos hay hasta { ts, id }: ¿sigue valiendo el snapshot?
   append(event): Promise<void>;          // uno nuevo, local
   merge(events): Promise<number>;        // remotos (fase 2): inserta solo los nuevos
   unsynced(): Promise<GameEvent[]>;      // los que faltan por subir (fase 2)
@@ -312,7 +316,7 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 ```
 
 - `body` guarda el JSON con el `type` y sus datos. Los metadatos (`id`, `device_id`, `ts`) van en columnas propias para poder indexar y ordenar.
-- `meta` guarda el `device_id`, generado la primera vez que se abre la app en ese equipo.
+- `meta` guarda el `device_id`, generado la primera vez que se abre la app en ese equipo, y el `snapshot` de la proyección (sección 7).
 - Se inserta con **`INSERT OR IGNORE`**: si llega un evento cuyo `id` ya existe, no pasa nada. Fusionar dos veces lo mismo es inofensivo (*idempotente*).
 - `synced` distingue los eventos ya subidos a Drive (fase 2).
 
@@ -351,9 +355,9 @@ Si la base está vacía al arrancar, `seedEvents()` (`src/domain/seed.ts`) crea 
 
 ```ts
 {
-  events: GameEvent[];  // la fuente de verdad en memoria
-  state: GameState;     // project(events): quests + jugador
-  store?: EventStore;   // el almacén abierto
+  projected: Projected; // acumulador de la proyección + último evento aplicado + cuántos lleva
+  state: GameState;     // finishProjection(projected.acc): quests + jugador
+  store?: EventStore;   // el almacén abierto (la fuente de verdad)
   // estado de UI:
   tab, selectedId, creating, clear, toast
 }
@@ -364,13 +368,21 @@ Si la base está vacía al arrancar, `seedEvents()` (`src/domain/seed.ts`) crea 
 ```ts
 async dispatch(body) {
   const e = { ...body, id: uid(), deviceId: store.deviceId, ts: Date.now() };
-  const next = [...events, e].sort(compareEvents);
-  set({ events: next, state: project(next) });  // 1. la UI se actualiza ya
-  await store.append(e);                          // 2. se guarda después
+  if (!goesAfter(projected, e)) { await store.append(e); return rebuild(); } // reloj atrasado
+  const next = applyAll({ ...projected, acc: cloneAcc(projected.acc) }, [e]);
+  set({ projected: next, state: finishProjection(next.acc) }); // 1. la UI se actualiza ya
+  await store.append(e);                                        // 2. se guarda después
+  maybeSnapshot(next);                                          // 3. cada 100 eventos
 }
 ```
 
 Primero se actualiza la memoria y **después** se escribe en disco (actualización *optimista*): la animación arranca sin esperar a SQLite.
+
+Solo se aplica **el evento nuevo**, sobre una copia del acumulador (`structuredClone`): el estado anterior no cambia y React ve objetos nuevos. Hasta octubre de 2026 se reproducían todos los eventos en cada clic. Si el reloj del equipo va atrasado y el evento cae en medio del historial, se recalcula todo (`rebuild()`).
+
+### Snapshot: arrancar sin reproducirlo todo
+
+Cada 100 eventos se guarda el acumulador en la tabla `meta` (en el navegador, en `localStorage`). Al arrancar, `restore()` lo carga, comprueba que es de la misma `PROJECTION_VERSION` y que la base tiene exactamente `count` eventos hasta `upTo`, y aplica solo los posteriores. Si algo no cuadra, reproduce todos. Es una caché: los eventos siguen siendo la verdad. **Si cambias el resultado de `project()` para eventos ya guardados, sube `PROJECTION_VERSION`.** En desarrollo, cada arranque desde un snapshot se compara con la proyección completa y avisa en la consola si no coinciden. Detalles en [src/features/snapshot/README.md](../src/features/snapshot/README.md).
 
 ### Acciones fuera de React
 
@@ -633,6 +645,18 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 
 - **Navegador integrado** con `pnpm dev`: capturas durante las animaciones, inspección del DOM y llamadas directas a las acciones importando los módulos desde Vite (`await import('/src/store/actions.ts')`).
 - **App nativa** con `pnpm tauri dev`: lectura de los logs y comprobación de la base real con `sqlite3`.
+- **Tests** con Vitest (`pnpm test`): 231 tests en 13 archivos, en menos de un segundo. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
+
+| Archivo | Qué protege |
+|---|---|
+| `src/domain/projection.test.ts` | Contabilidad (XP y oro cobrados una vez, recompensa copiada), cada guarda de las quests, fusión de dispositivos en cualquier orden, determinismo e invariantes sobre 40 historiales aleatorios (progreso dentro de su rango, inventario solo con objetos del almanaque, una quest en un solo encargo pendiente…). Además, la XP total se recalcula a mano y tiene que coincidir |
+| `src/domain/events.test.ts`, `leveling.test.ts` | Orden de los eventos y `nextTs`; curva de XP, rangos y huecos |
+| `src/features/*/model.test.ts`, `legacy.test.ts` | Reglas de cada funcionalidad: fases del pomodoro, pity y tiradas (200.000 tiradas con semilla), requisitos y repetición, plazos con sus bordes y los cambios de hora de 2026, guardas de los encargos, y los formatos antiguos (`pomodoroConfig`, `item` de texto) |
+| `src/features/snapshot/*.test.ts` | Snapshot + cola = reproducirlo todo, serialización y arranque |
+| `src/storage/eventStore.test.ts` | El almacén del navegador: orden, `since` / `countUpTo` y `merge` idempotente |
+| `src/store/game.test.ts` | El store tal como lo usa la app (happy-dom): arranque, `dispatch` incremental, snapshot, reloj atrasado y las acciones de quests, encargos, objetos y pomodoro |
+
+`src/test/streams.ts` genera historiales aleatorios con semilla que mezclan todos los tipos de evento (también imposibles y antiguos); `src/test/sfxMock.ts` silencia el sonido, porque en Node no hay `AudioContext`. Para comprobar que los tests sirven, se hizo una prueba de mutación: de 20 errores introducidos a propósito, detectan 19, y el que queda está en una rama inalcanzable (ver el README del snapshot).
 
 ### Fallos encontrados y corregidos
 
@@ -649,6 +673,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | Con el selector de tablón, toda la ventana se ensanchaba y se cortaba por la derecha | La cabecera no cabía y la columna implícita de la rejilla de `.app` crecía hasta su contenido | `grid-template-columns: minmax(0, 1fr)` y una cabecera más compacta por debajo de 1.180 px (ya se desbordaba a 1.024 px antes) |
 | Los recordatorios no se veían con el tablón de quests vacío | El aviso (`Toast`) solo se pintaba con una quest seleccionada | Pintarlo también en el estado vacío |
 | La campana del recordatorio al abrir la app daba avisos de autoplay | El WebView bloquea el audio antes de la primera interacción | Sin interacción previa (`navigator.userActivation`), solo el aviso |
+| Eventos del mismo milisegundo en orden inverso: un `quest_completed` antes de su `quest_accepted` se ignoraba (lo destaparon los tests del store) | El desempate de `ts` es el `id`, un UUID aleatorio; las acciones que emiten varios eventos seguidos los producían en el mismo milisegundo | `nextTs`: cada evento nuevo va al menos 1 ms después del último aplicado |
 
 ### Trampas del entorno de pruebas (no son fallos de la app)
 
@@ -667,7 +692,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
    ```ts
    | { type: "quest_updated"; questId: string; changes: Partial<QuestDef> }
    ```
-2. **`src/domain/projection.ts`**: añade el `case` con su guarda:
+2. **`src/domain/projection.ts`**: añade el `case` a `applyEvent`, con su guarda, y sube `PROJECTION_VERSION`:
    ```ts
    case "quest_updated":
      if (q) Object.assign(q, e.changes);
@@ -712,6 +737,7 @@ pnpm tauri dev          # app nativa con recarga en caliente
 pnpm dev                # solo la UI en el navegador (datos en localStorage)
 pnpm build              # comprobar tipos y compilar el frontend a dist/
 npx tsc --noEmit        # solo comprobar tipos
+pnpm test               # tests (Vitest): proyección, snapshot y niveles
 pnpm tauri build        # instalador para el sistema actual
 ```
 

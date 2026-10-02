@@ -2,13 +2,13 @@
 
 > **Copia del informe técnico a fecha de 2026-10-02.** El original vive como documento colaborativo en Claude: [Quests — Informe técnico de arquitectura](https://claude.ai/code/artifact/1cb3618f-d1e6-483e-a198-a1998279827b). Los diagramas de esta copia son capturas de ese documento (`docs/img/`).
 >
-> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`), los objetos con rareza y drops (`src/features/items/`), los encargos temporales con archivos adjuntos y quests enlazadas (`src/features/temporal/`), las quests complejas con repetición y requisitos (`src/features/complex/`) y los plazos (`src/features/horizon/`). El diagrama de clases (imagen, redibujado el 2026-10-02) ya incluye el pomodoro, la música, los objetos (`ItemDef`, `Rarity`, `Drop`, `Pity`, `DropTable`), los encargos temporales (`TemporalDef`, `TemporalState`, `TemporalKind`, `AttachmentRef`, `BlobStore`), sus quests enlazadas (`questIds`, `linkedAt`, `QuestState.temporalId`), los requisitos y la fecha límite de las quests (`requires`, `dueAt`, `lastCompletedAt`) y los plazos (`Horizon`). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
+> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`), los objetos con rareza y drops (`src/features/items/`), los encargos temporales con archivos adjuntos y quests enlazadas (`src/features/temporal/`), las quests complejas con repetición y requisitos (`src/features/complex/`), los plazos (`src/features/horizon/`) y el snapshot de la proyección con los primeros tests de Vitest (`src/features/snapshot/`). El diagrama de clases (imagen, redibujado el 2026-10-02) ya incluye el pomodoro, la música, los objetos (`ItemDef`, `Rarity`, `Drop`, `Pity`, `DropTable`), los encargos temporales (`TemporalDef`, `TemporalState`, `TemporalKind`, `AttachmentRef`, `BlobStore`), sus quests enlazadas (`questIds`, `linkedAt`, `QuestState.temporalId`), los requisitos y la fecha límite de las quests (`requires`, `dueAt`, `lastCompletedAt`), los plazos (`Horizon`) y el snapshot de la proyección (`ProjectionAcc`, `Snapshot`, el módulo `snapshot`, `GameStore.projected` y `EventStore.since` / `countUpTo`). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
 
 ---
 
 ## Resumen
 
-La fase 1 está terminada: Quests ya funciona como app de escritorio en macOS (Tauri 2 + React 19 + TypeScript), con datos persistentes en SQLite y todas las animaciones del tablón. Son unas 1.930 líneas de TypeScript y 1.160 de CSS. Windows no se ha probado todavía y no hay tests automáticos.
+La fase 1 está terminada: Quests ya funciona como app de escritorio en macOS (Tauri 2 + React 19 + TypeScript), con datos persistentes en SQLite y todas las animaciones del tablón. Son unas 1.930 líneas de TypeScript y 1.160 de CSS. Windows no se ha probado todavía y hay 231 tests automáticos del dominio y el store.
 
 Tres decisiones sostienen la escalabilidad del proyecto:
 
@@ -16,7 +16,7 @@ Tres decisiones sostienen la escalabilidad del proyecto:
 2. **Dominio puro y separado de la UI.** Las reglas del juego (niveles, recompensas, estados) viven en `src/domain/` sin depender de React ni de Tauri. Se pueden testear y reutilizar en móvil o en un servidor.
 3. **Almacenamiento detrás de una interfaz.** `EventStore` aísla SQLite. La fase 2 (Google Drive) y un posible backend futuro se enchufan ahí sin tocar la UI.
 
-Para crecer con seguridad hay que resolver antes cuatro deudas: tests del dominio, versionado de eventos, orden por reloj híbrido en lugar del reloj de cada dispositivo, y snapshots para no recalcular todo el historial.
+Para crecer con seguridad hay que resolver antes dos deudas: versionar los eventos y ordenar con un reloj híbrido en lugar del reloj de cada dispositivo. Los snapshots, para no recalcular todo el historial (ADR-16), y los tests del dominio y el store ya están hechos.
 
 ## Estado del proyecto
 
@@ -38,8 +38,9 @@ Todas las funciones de la fase 1 están hechas; la verificación ha sido manual 
 | Quests complejas: repetición en cualquier categoría (también «cada 3 días») y requisitos con candado | Hecho | Comprobaciones del dominio con marcas de tiempo fijas en tres zonas horarias y prueba en navegador (Playwright) |
 | Plazos: filtro de 1 día, 7 días, 2 semanas, 1 mes y más de un mes en los dos tablones; fecha límite de las quests | Hecho | Bordes de cada plazo, cambio de hora y prueba en navegador, también en japonés y a 1.024 px |
 | Encargos con quests enlazadas: se crean en el Quest Board y hay que terminarlas para cumplir el encargo | Hecho | Guardas de la proyección, datos antiguos proyectados idénticos y flujo completo en navegador |
+| Snapshot de la proyección: cada acción aplica solo su evento y el arranque parte del último snapshot | Hecho | Tests con 25 historiales aleatorios cortados en 10 puntos y prueba en navegador (snapshot falseado, evento antiguo, reloj atrasado); app nativa: arranque, cola, evento antiguo y snapshot falseado sobre la base real |
 | Build y prueba en Windows | Pendiente | — |
-| Tests automáticos | Pendiente | — |
+| Tests automáticos | Hecho | 231 tests en 13 archivos (dominio y store); prueba de mutación: detectan 19 de 20 errores introducidos. Sin tests del almacén de binarios ni de la interfaz |
 | Sincronización con Google Drive (fase 2) | Pendiente | Interfaz preparada en `EventStore` |
 
 La base de datos de la app nativa está en `~/Library/Application Support/com.quests.app/quests.db` (macOS) y en `%APPDATA%\com.quests.app\` (Windows).
@@ -89,6 +90,8 @@ Una condición es de dos tipos: **contador** (`target` = cantidad, avanza con +1
 
 **Quests complejas, plazos y encargos con quests.** `QuestDef` gana dos campos opcionales: `requires` (quests que hay que completar antes de poder aceptarla) y `dueAt` (fecha límite de todo el día); `cooldownMinutes` ya vale para cualquier categoría, no solo para las repetibles. `QuestState` añade `lastCompletedAt` y `temporalId`, el encargo pendiente al que pertenece, calculado a partir de los enlaces. `TemporalDef.questIds` enlaza las quests que hay que terminar antes de cumplir el encargo, y `TemporalState.linkedAt` guarda cuándo se enlazó cada una. El plazo (`Horizon`: 1 día, 7 días, 2 semanas, 1 mes o más) se calcula con la hora actual, sin eventos. El detalle está en [src/features/complex/README.md](../src/features/complex/README.md) y [src/features/horizon/README.md](../src/features/horizon/README.md).
 
+**Snapshot de la proyección.** `project()` se parte en `applyEvent(acc, e)`, que aplica un evento sobre el acumulador `ProjectionAcc`, y `finishProjection(acc)`, que calcula nivel, rango, huecos y `temporalId`. El store ya no guarda la lista de eventos: `GameStore.projected` lleva el acumulador y el último evento aplicado, y `dispatch` aplica solo el evento nuevo sobre una copia. Cada 100 eventos se guarda un `Snapshot` en la tabla `meta`. Al arrancar se usa si es de la misma `PROJECTION_VERSION` y `EventStore.countUpTo(upTo)` coincide con su `count`; entonces solo se aplican los eventos de `EventStore.since(upTo)`. Si no, se reproduce todo. Detalle en [src/features/snapshot/README.md](../src/features/snapshot/README.md).
+
 ## Modelo de eventos y persistencia
 
 Cada acción del usuario se registra como un evento inmutable. El estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. Hay seis tipos de evento de quest, que son estos. El pomodoro añade otros cinco (`pomodoro_started`, `_paused`, `_resumed`, `_stopped` y `_break_skipped`), documentados en [src/features/pomodoro/README.md](../src/features/pomodoro/README.md). Los objetos añaden tres (`item_created`, `item_updated` e `item_deleted`), documentados en [src/features/items/README.md](../src/features/items/README.md). Los encargos temporales añaden ocho (`temporal_created`, `_updated`, `_attached`, `_detached`, `_linked`, `_unlinked`, `_completed` y `_deleted`), documentados en [src/features/temporal/README.md](../src/features/temporal/README.md); `temporal_completed` se ignora mientras quede alguna quest enlazada sin terminar. Las quests complejas y los plazos no añaden eventos: solo campos opcionales de `QuestDef`.
@@ -101,6 +104,8 @@ Cada acción del usuario se registra como un evento inmutable. El estado se obti
 | `quest_abandoned` | `questId` | `active` → `available` (o `cooldown` si aún no venció) | Solo aplica si está activa |
 | `progress_added` | `questId`, `conditionId`, `amount` (±1) | Suma al contador, limitado a [0, objetivo] | Delta, no valor absoluto: dos dispositivos suman en vez de pisarse |
 | `quest_completed` | `questId`, `reward` (copia, con `itemId` garantizado), `drops` (botín ya tirado) | Suma XP, oro, objeto garantizado y drops; avanza el pity; si se repite (repetible o con repetición) → `cooldown`, resto → `done` | Si dos dispositivos la completan sin conexión, solo cuenta la primera, botín incluido |
+
+El `ts` de cada evento nuevo lo pone `dispatch` con `nextTs`: si el reloj no ha avanzado desde el último evento aplicado, o va por detrás menos de 1 s, el nuevo va 1 ms después. Sin eso, los eventos que una acción emite en el mismo milisegundo se ordenaban por su `id` aleatorio y podían quedar al revés (ADR-17).
 
 La recompensa se copia dentro de `quest_completed`. Así, editar una quest en el futuro no cambia la XP ya ganada. Lo mismo con el botín: se tira al reportar y el resultado se guarda en el evento, así que la proyección no depende del azar.
 
@@ -195,11 +200,11 @@ Convenciones a mantener:
 
 ## Escalabilidad
 
-La arquitectura escala bien en dispositivos y plataformas; el primer límite real será el volumen de eventos, y se resuelve con snapshots sin cambiar el modelo. Las cifras de capacidad son estimaciones, no mediciones.
+La arquitectura escala bien en dispositivos y plataformas; el primer límite real era el volumen de eventos, y ya se resuelve con snapshots sin cambiar el modelo (ADR-16). Las cifras de capacidad son estimaciones, no mediciones.
 
 | Dimensión | Situación actual | Cuándo se nota | Medida propuesta |
 | --- | --- | --- | --- |
-| Volumen de eventos | Cada acción recalcula todo el historial (O(n)) y la carga lee todos los eventos | Estimado: a partir de ~50.000 eventos (años de uso intenso) | Snapshot de la proyección cada N eventos + reproducir solo los posteriores; aplicar eventos de forma incremental en `dispatch` |
+| Volumen de eventos | Cada acción aplica solo su evento; el arranque carga el último snapshot (cada 100 eventos) y lee solo los posteriores | Resuelto (ADR-16). Queda: cada acción copia el estado entero, y un evento antiguo fusionado obliga a reproducirlo todo | Hecho en src/features/snapshot. Pendiente: medirlo en la app nativa con un historial grande, porque el ahorro real está en no leer todo SQLite por el puente de Tauri; cambios en `dispatch` |
 | Evolución del esquema | Los eventos no llevan versión | En el primer cambio de un evento ya sincronizado | Campo `v` en cada evento y funciones de migración (upcasters) al leer |
 | Varios dispositivos | Orden por `ts` del reloj local | Si los relojes de dos equipos difieren varios minutos | Reloj lógico híbrido (HLC): `ts` + contador + `deviceId` |
 | Sincronización | Interfaz lista (`unsynced`, `merge`, `markSynced`), sin implementación | Fase 2 | Un fichero JSONL por dispositivo en Drive; compactar a snapshot cuando superen ~1 MB |
@@ -207,7 +212,7 @@ La arquitectura escala bien en dispositivos y plataformas; el primer límite rea
 | Plataformas | macOS probado; Windows sin probar | Ahora | CI con GitHub Actions y `tauri-action` que compile y pruebe en ambos |
 | Móvil | No soportado | Si se decide sacar app móvil | Tauri 2 compila a iOS y Android; el dominio y el store se reutilizan tal cual |
 | Backend propio | No hay | Si se quieren cuentas, social o web | Sustituir el sync de Drive por un servidor detrás de la misma interfaz `EventStore` |
-| Equipo | Una persona, sin tests ni CI | Al entrar un segundo desarrollador | Tests del dominio con Vitest, lint, CI obligatorio antes de fusionar |
+| Equipo | Una persona; tests con Vitest, sin CI | Al entrar un segundo desarrollador | Tests del dominio con Vitest, lint, CI obligatorio antes de fusionar |
 | Funcionalidad | Store único mezcla dominio y UI | Al pasar de ~10 pantallas | Separar `uiStore` del `gameStore`; un módulo por feature (quests, inventario, estadísticas). Los encargos temporales ya tienen su propio store de UI (`features/temporal/ui.ts`) |
 | Archivos adjuntos | Tabla `blobs` en SQLite, por SHA-256; se borran los que nadie usa; sin sincronizar | Al sincronizar (fase 2) o con muchos PDF grandes | Subir cada archivo una sola vez por su hash (`unsynced` / `markSynced` en `BlobStore`); avisar del espacio ocupado |
 
@@ -217,9 +222,9 @@ Cinco puntos son de prioridad alta y conviene cerrarlos antes de empezar la sinc
 
 | Prioridad | Problema | Riesgo | Solución |
 | --- | --- | --- | --- |
-| Alta | No hay tests automáticos | Romper las reglas de XP o de estados sin enterarse | Vitest sobre `projection` y `leveling` |
+| Media | Faltan tests del almacén de binarios, de los adjuntos y de la interfaz (dominio y store: 231 tests) | Romper los adjuntos o la interfaz sin enterarse | Tests de `blobStore` (IndexedDB y SQLite) y de los componentes; CI que los ejecute |
 | Alta | Los eventos no tienen versión | Datos antiguos ilegibles tras cambiar un evento | Campo `v` + upcasters |
-| Alta | Orden por reloj local | Eventos mal ordenados entre dispositivos | Reloj lógico híbrido (HLC) |
+| Alta | Orden por reloj local | Eventos mal ordenados entre dispositivos | Reloj lógico híbrido (HLC); dentro de cada equipo, nextTs ya mantiene el orden (ADR-17) |
 | Alta | Sin error boundary en React | Un fallo deja la ventana en negro (ocurrió durante las pruebas) | Error boundary con pantalla de recuperación |
 | Alta | Tokens OAuth de la fase 2 sin destino seguro definido | Credenciales de Google expuestas en disco | Guardarlos en el llavero del sistema (crate `keyring`) |
 | Media | Content Security Policy desactivada (`csp: null`) | Superficie de ataque si se carga contenido externo | CSP estricta en `tauri.conf.json`, con `blob:` en `img-src` y `frame-src` para el visor de adjuntos |
@@ -251,6 +256,8 @@ Cada decisión queda registrada con la alternativa que se descartó, para no rea
 | ADR-13 | Repetición (en cualquier categoría) y requisitos como campos opcionales de `QuestDef`, con una guarda en la proyección: `quest_accepted` se ignora si faltan requisitos | Eventos nuevos para los requisitos; una categoría «cadena»; comprobarlo solo en la acción | La definición ya viaja entera en `quest_created` y los datos antiguos se leen igual; con la guarda, todos los dispositivos llegan al mismo estado | Repetición y requisitos no se editan hasta que exista `quest_updated`; un requisito retirado deja de bloquear |
 | ADR-14 | Quests enlazadas a un encargo con `TemporalDef.questIds` y los eventos `temporal_linked` / `temporal_unlinked`; `temporal_completed` se ignora mientras quede alguna sin terminar | `QuestDef.temporalId` fijado al crear la quest; borrar las quests al retirar el encargo | Se pueden enlazar y desenlazar después, como deltas que se suman entre dispositivos; `linkedAt` hace que una repetible cuente solo si se completa tras enlazarla | Con el reloj de cada equipo, un encargo cumplido justo tras la última quest podría volver a pendiente al fusionar (lo resuelve el reloj híbrido); retirar un encargo deja sus quests en el tablón |
 | ADR-15 | Plazos calculados con la hora actual (`horizonOf`), excluyentes y con «1 mes» (de 15 a 30 días) para no dejar huecos; fecha límite opcional en `QuestDef` | Guardar el plazo en un evento; plazos acumulativos; solo los cuatro plazos pedidos | Cambia solo con el paso del tiempo, sin eventos; cada fecha cae en un plazo y los contadores suman el total | Una quest sin fecha propia ni encargo sale en «sin fecha»; las que se repiten no tienen fecha límite |
+| ADR-16 | Snapshot del acumulador de la proyección en la tabla meta cada 100 eventos, válido si coinciden PROJECTION_VERSION y el número de eventos hasta upTo; dispatch aplica solo el evento nuevo sobre una copia (structuredClone) | Guardar GameState; validar con un hash de todos los eventos; actualizaciones inmutables a mano en cada case; guardar en cada evento | Arrancar sin leer todo el historial; el recuento detecta cualquier evento que entre en medio, porque nunca se borran; la copia no obliga a tocar el switch ni los modelos | Hay que subir PROJECTION_VERSION al cambiar project() (en desarrollo se avisa si se olvida); el snapshot es una caché local que no se sincroniza |
+| ADR-17 | El ts de un evento nuevo es como mínimo el del último aplicado + 1 ms si el reloj no ha avanzado o va por detrás menos de 1 s (nextTs) | Ids ordenables en el tiempo (UUID v7, ULID); un contador por equipo; esperar al reloj híbrido | Las acciones que emiten varios eventos lo hacen en el mismo milisegundo y el desempate por id aleatorio los reordenaba (un quest_completed antes de su quest_accepted). Es el arreglo más pequeño y no cambia el formato de los eventos | El ts puede adelantarse unos milisegundos al reloj; un retraso de más de 1 s sigue recalculándolo todo. El reloj híbrido sigue pendiente para varios dispositivos |
 
 ## Hoja de ruta
 
@@ -262,7 +269,7 @@ No hay fechas comprometidas: cada fase termina cuando se cumple su puerta, no en
 
 **Siguientes pasos concretos:**
 
-- [ ] Añadir Vitest y tests de `project()` y `levelFromXp()`
+- [x] Añadir Vitest y tests de `project()` y `levelFromXp()`
 - [ ] Añadir el campo `v` a `EventMeta` y un upcaster vacío
 - [ ] Sustituir `ts` por un reloj lógico híbrido
 - [ ] Añadir un error boundary con pantalla de recuperación
