@@ -10,6 +10,7 @@ import { ItemForm } from "./ItemForm";
 import { ItemDetail } from "./ItemDetail";
 import { DropRates } from "./DropRates";
 import { AlmanacBook } from "./AlmanacBook";
+import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
 
 const TABS: CollectionTab[] = ["inventory", "almanac", "rates"];
 
@@ -102,7 +103,7 @@ function Modal({ tab }: { tab: CollectionTab }) {
       className="modal-bg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      exit={BACKDROP_EXIT}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <motion.div
@@ -110,7 +111,7 @@ function Modal({ tab }: { tab: CollectionTab }) {
         style={{ "--cat": "var(--gold)" } as React.CSSProperties}
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98, transition: MODAL_EXIT }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
       >
         <header className="modal-h coll-h">

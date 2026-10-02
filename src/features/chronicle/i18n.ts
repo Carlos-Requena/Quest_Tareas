@@ -37,6 +37,7 @@ export const chronicleEs = {
   levelUp: "¡He subido al nivel {{n}}!",
   attrUp: "Mi {{area}} ha llegado al nivel {{n}}.",
   pages: "Páginas {{a}}–{{b}} de {{n}}",
+  page: "Página {{a}} de {{n}}",
   keys: {
     turn: "pasar página",
     ends: "primera / última",
@@ -80,6 +81,7 @@ export const chronicleJa: typeof chronicleEs = {
   levelUp: "レベル {{n}} に上がった！",
   attrUp: "{{area}}がレベル {{n}} に届いた。",
   pages: "{{a}}–{{b}} / {{n}} ページ",
+  page: "{{a}} / {{n}} ページ",
   keys: {
     turn: "ページをめくる",
     ends: "最初 / 最後",

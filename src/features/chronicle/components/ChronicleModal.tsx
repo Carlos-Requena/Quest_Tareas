@@ -15,6 +15,8 @@ import { useChronicleUi } from "../ui";
 import "@fontsource/im-fell-english/latin-400.css";
 import "@fontsource/im-fell-english/latin-400-italic.css";
 import "../chronicle.css";
+import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
+import { useIsPhone, useSwipe } from "../../mobile";
 
 /** Crónica del aventurero: un diario gastado con lo que has hecho, día a día. */
 export function ChronicleModal() {
@@ -35,7 +37,9 @@ function Modal() {
   const days = useMemo(() => chronicleDays(chronicle), [chronicle]);
   // Renglones que caben en una página con el tamaño actual de la ventana.
   const spreadRef = useRef<HTMLDivElement>(null);
-  const { lines, cpl } = useDiaryLines(spreadRef);
+  // En el teléfono se ve una sola página cada vez (features/mobile).
+  const per = useIsPhone() ? 1 : 2;
+  const { lines, cpl } = useDiaryLines(spreadRef, per);
   const gearOf = (id: string) => gear.get(id);
   // Página 0: la portadilla. Las demás, el diario. Cada entrada pesa los renglones que
   // ocupa su texto ya escrito, en este idioma y con este ancho de página.
@@ -50,7 +54,7 @@ function Modal() {
     [days, lines, cpl, t, gear],
   );
   const total = pages.length + 1;
-  const spreads = Math.ceil(total / 2);
+  const spreads = Math.ceil(total / per);
   // Un diario se abre por la última página escrita.
   const [{ spread, dir }, setSpread] = useState({ spread: spreads - 1, dir: 1 });
   const cur = Math.min(spread, spreads - 1);
@@ -93,13 +97,14 @@ function Modal() {
     return blocks.map((b, k) => <Block key={k} b={b} t={t} gearOf={gearOf} />);
   };
 
-  const left = cur * 2;
+  const left = cur * per;
+  const swipe = useSwipe((d) => turn(cur + d));
   return (
     <motion.div
       className="modal-bg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      exit={BACKDROP_EXIT}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <motion.div
@@ -107,14 +112,16 @@ function Modal() {
         style={{ "--cat": "var(--diary-paper-lo)" } as CSSProperties}
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98, transition: MODAL_EXIT }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
       >
         <header className="modal-h">
           <span className="gem" />
           <span className="tag">Chronicle</span>
           <span className="sec-sub">{t("chronicle.title")}</span>
-          <span className="chron-pages muted">{t("chronicle.pages", { a: left + 1, b: Math.min(total, left + 2), n: total })}</span>
+          <span className="chron-pages muted">
+            {per === 1 ? t("chronicle.page", { a: left + 1, n: total }) : t("chronicle.pages", { a: left + 1, b: Math.min(total, left + 2), n: total })}
+          </span>
           <button className="icon-btn chron-x" onClick={close} title={t("modal.close")}>
             ✕
           </button>
@@ -123,7 +130,7 @@ function Modal() {
         <div className="chron-body">
           <div className="diary">
             <span className="diary-ribbon" aria-hidden />
-            <div className="diary-spread" ref={spreadRef}>
+            <div className="diary-spread m-swipe" ref={spreadRef} {...swipe}>
               <AnimatePresence initial={false} custom={dir} mode="popLayout">
                 <motion.div
                   key={cur}
@@ -136,9 +143,11 @@ function Modal() {
                   <Page n={left} side="left">
                     {pageAt(left)}
                   </Page>
-                  <Page n={left + 1} side="right" last={left + 1 >= total - 1}>
-                    {left + 1 < total ? pageAt(left + 1) : <div className="diary-blank" />}
-                  </Page>
+                  {per === 2 && (
+                    <Page n={left + 1} side="right" last={left + 1 >= total - 1}>
+                      {left + 1 < total ? pageAt(left + 1) : <div className="diary-blank" />}
+                    </Page>
+                  )}
                 </motion.div>
               </AnimatePresence>
               <span className="diary-spine" aria-hidden />
@@ -178,7 +187,7 @@ const PAGE_SIDES_PX = 52 + 30 + 14;
  * Cuántos renglones caben en una página y cuántos medios caracteres en un renglón:
  * se mide el libro y se vuelve a medir al cambiar la ventana.
  */
-function useDiaryLines(ref: React.RefObject<HTMLDivElement | null>) {
+function useDiaryLines(ref: React.RefObject<HTMLDivElement | null>, per: number) {
   const [size, setSize] = useState({ lines: DIARY_LINES, cpl: 50 });
   useEffect(() => {
     const el = ref.current;
@@ -186,13 +195,13 @@ function useDiaryLines(ref: React.RefObject<HTMLDivElement | null>) {
     const measure = () =>
       setSize({
         lines: Math.max(8, Math.floor((el.clientHeight - PAGE_PAD_PX) / LINE_PX) - 1),
-        cpl: Math.max(20, Math.floor((el.clientWidth / 2 - PAGE_SIDES_PX) / UNIT_PX)),
+        cpl: Math.max(20, Math.floor((el.clientWidth / per - PAGE_SIDES_PX) / UNIT_PX)),
       });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ref]);
+  }, [ref, per]);
   return size;
 }
 

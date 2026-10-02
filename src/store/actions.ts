@@ -10,9 +10,6 @@ import { dropTableFor, rollDrops } from "../features/items/model";
 import { blockers, unlockedBetween } from "../features/complex/model";
 import { pendingLinks } from "../features/temporal/model";
 
-function activeCount() {
-  return [...useGame.getState().state.quests.values()].filter((q) => q.status === "active").length;
-}
 
 export async function acceptQuest(id: string) {
   const { state, dispatch, say } = useGame.getState();
@@ -23,11 +20,6 @@ export async function acceptQuest(id: string) {
   if (lock.length) {
     sfx.cancel();
     say(() => i18n.t("complex.toast.locked", { title: lock[0].title }));
-    return;
-  }
-  if (activeCount() >= state.player.maxActive) {
-    sfx.cancel();
-    say(() => i18n.t("toast.noSlots"));
     return;
   }
   await dispatch({ type: "quest_accepted", questId: id });

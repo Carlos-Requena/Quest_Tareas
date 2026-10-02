@@ -1,7 +1,7 @@
 # Quests
 
 Tablón de misiones estilo JRPG para convertir tareas en *quests* con experiencia, niveles y recompensas.
-App de escritorio para **macOS y Windows** con **Tauri 2 + React + TypeScript**.
+App para **macOS, Windows e iPhone** con **Tauri 2 + React + TypeScript**.
 
 ## Desarrollo
 
@@ -11,7 +11,10 @@ pnpm tauri dev      # app nativa (SQLite)
 pnpm dev            # solo la UI en el navegador (guarda en localStorage)
 pnpm test           # tests (Vitest)
 pnpm tauri build    # instalador para la plataforma actual
+pnpm tauri ios dev  # iPhone o simulador (antes: rustup target add aarch64-apple-ios aarch64-apple-ios-sim)
 ```
+
+> **iPhone:** la misma app compilada para iOS, con interfaz de teléfono ([src/features/mobile/README.md](src/features/mobile/README.md)). Cómo instalarla en el iPhone con un Apple ID gratuito y las trampas del entorno: [docs/AGENTES.md](docs/AGENTES.md), «iPhone». Para sincronizar, un segundo cliente OAuth de tipo «iOS» en `src-tauri/google-client-ios.plist`.
 
 > **Sincronización con Google Drive:** copia el JSON de tu cliente OAuth («App de escritorio», en Google Cloud) a `src-tauri/google-client.json`. Está en `.gitignore` y se incrusta al compilar. Sin él, la app funciona igual, pero sin sincronizar. En la CI, los secretos `QUESTS_GOOGLE_CLIENT_ID` y `QUESTS_GOOGLE_CLIENT_SECRET`.
 
@@ -39,7 +42,7 @@ src/
     events.ts       Eventos inmutables (quest_created, quest_accepted, progress_added, quest_completed…), con versión y reloj lógico híbrido
     upcast.ts       Versión de los eventos: los antiguos se convierten al leerlos, los de una versión futura se ignoran
     projection.ts   eventos → estado (quests, XP, nivel, oro, inventario, almanaque), de uno en uno (applyEvent)
-    leveling.ts     Curva de XP, rangos F→S, huecos de quest activa
+    leveling.ts     Curva de XP y rangos F→S
     seed.ts         Quests de ejemplo del primer arranque
   storage/
     eventStore.ts   SQLite (Tauri) o localStorage (navegador), append-only

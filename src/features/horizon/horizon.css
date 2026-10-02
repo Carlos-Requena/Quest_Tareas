@@ -187,3 +187,17 @@
   margin: 0;
   font-size: 11px;
 }
+
+/* Teléfono (features/mobile): los plazos de los encargos, en una fila que se desliza. */
+@media (max-width: 760px) {
+  .hz-on-temporal {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 2px 16px 4px;
+    scrollbar-width: none;
+  }
+  .hz-on-temporal::-webkit-scrollbar {
+    display: none;
+  }
+}

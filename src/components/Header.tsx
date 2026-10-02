@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../store/game";
-import { MAX_SLOTS } from "../domain/leveling";
 import { setMuted, sfx } from "../lib/sfx";
 import { useMuted } from "../lib/useMuted";
 import { LANGS, num, setLang, type Lang } from "../i18n";
@@ -75,18 +74,10 @@ export function Header() {
             <ItemsButton />
             <MerchantButton />
           </div>
-          <div className="slots" title={t("header.slotsTitle")}>
-            <span className="xpbar-lbl">{t("header.slots")}</span>
-            {Array.from({ length: MAX_SLOTS }, (_, i) => (
-              <span
-                key={i}
-                className={`slot ${i < active ? "on" : i < player.maxActive ? "free" : "locked"}`}
-              />
-            ))}
-            <span className="num slots-val">
-              {active}
-              <small> / {player.maxActive}</small>
-            </span>
+          <div className="slots" title={t("header.activeTitle")}>
+            <span className="xpbar-lbl">{t("header.active")}</span>
+            <span className={`slot ${active > 0 ? "on" : ""}`} />
+            <span className="num slots-val">{active}</span>
           </div>
         </div>
 
@@ -106,7 +97,7 @@ export function Header() {
   );
 }
 
-function LangSwitch() {
+export function LangSwitch() {
   const { t, i18n } = useTranslation();
   return (
     <div className="lang" role="radiogroup" aria-label={t("header.language")} title={t("header.language")}>

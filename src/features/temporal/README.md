@@ -34,7 +34,7 @@ Sigue la convención del proyecto: **una carpeta por implementación** (`src/fea
 
 ### Una entidad y una sección propias, no una categoría de quest
 
-Un encargo temporal no se acepta, no ocupa huecos, no tiene objetivos ni reaparece: tiene una **fecha** y se cumple una vez. Meterlo en `QuestDef` como cuarta categoría llenaría las quests de campos opcionales y de excepciones en las reglas (huecos, esperas, objetivos). Por eso es su propia entidad (`TemporalDef` / `TemporalState`) y su propio tablón.
+Un encargo temporal no se acepta, no tiene objetivos ni reaparece: tiene una **fecha** y se cumple una vez. Meterlo en `QuestDef` como cuarta categoría llenaría las quests de campos opcionales y de excepciones en las reglas (esperas, objetivos). Por eso es su propia entidad (`TemporalDef` / `TemporalState`) y su propio tablón.
 
 Lo que comparte con las quests es la **recompensa**: cumplir un encargo suma su XP y su oro al jugador, así que cuenta para el nivel. No cuenta en `completedCount` (quests completadas) ni da objetos.
 

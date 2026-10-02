@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import gsap from "gsap";
 import { useGame } from "../../../store/game";
 import { sfx } from "../../../lib/sfx";
@@ -12,6 +12,7 @@ import { seededRandom } from "../../../lib/id";
 import { useTemporalUi, type TemporalClear } from "../ui";
 import { Skull } from "./Skull";
 import { quote, titleSize } from "./PostedOverlay";
+import { KeyHint } from "../../mobile";
 
 /** Animación al cumplir un encargo (segundo vídeo de referencia). */
 export function ClearedOverlay() {
@@ -282,7 +283,7 @@ function Scene({ clear, t }: { clear: TemporalClear; t: TemporalState }) {
         <div className="tco-fx" />
       </div>
       <p className="tco-hint">
-        <Trans i18nKey="temporal.clear.hint" components={{ kbd: <kbd /> }} />
+        <KeyHint i18nKey="temporal.clear.hint" touch="continue" />
       </p>
     </div>
   );

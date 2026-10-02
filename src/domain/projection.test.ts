@@ -136,8 +136,6 @@ describe("invariantes sobre historiales aleatorios", () => {
     expect(player.xp).toBeGreaterThanOrEqual(earnedTemporal);
     expect(player.levelXp).toBeGreaterThanOrEqual(0);
     expect(player.levelXp).toBeLessThan(player.levelXpNeeded);
-    expect(player.maxActive).toBeGreaterThanOrEqual(4);
-    expect(player.maxActive).toBeLessThanOrEqual(10);
 
     for (const q of st.quests.values()) {
       expect(["available", "active", "cooldown", "done"]).toContain(q.status);

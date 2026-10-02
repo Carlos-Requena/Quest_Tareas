@@ -3,7 +3,7 @@
 export const syncEs = {
   title: "Sincronización",
   button: {
-    unavailable: "Sincronización: solo en la app de escritorio",
+    unavailable: "Sincronización: solo en la app (Mac, Windows o iPhone)",
     unconfigured: "Sincronización sin configurar",
     signedOut: "Conectar con Google Drive",
     signingIn: "Esperando a Google…",
@@ -11,8 +11,8 @@ export const syncEs = {
     syncing: "Sincronizando…",
     error: "No se pudo sincronizar",
   },
-  unavailable: "Solo la app de escritorio se sincroniza con Google Drive.",
-  unconfigured: "Esta copia de Quests se compiló sin la credencial de Google (src-tauri/google-client.json).",
+  unavailable: "Solo la app (Mac, Windows o iPhone) se sincroniza con Google Drive; el navegador no.",
+  unconfigured: "Esta copia de Quests se compiló sin la credencial de Google (src-tauri/google-client.json; en el iPhone, google-client-ios.plist).",
   intro: "Guarda tu progreso en tu Google Drive y úsalo en varios equipos. Quests solo ve los archivos que crea él, en la carpeta QuestsApp.",
   waiting: "Se ha abierto el navegador: elige tu cuenta y pulsa «Permitir».",
   account: "Conectado como {{email}}",
@@ -47,7 +47,7 @@ export const syncEs = {
 export const syncJa: typeof syncEs = {
   title: "同期",
   button: {
-    unavailable: "同期：デスクトップ版のみ",
+    unavailable: "同期：アプリ版のみ（Mac・Windows・iPhone）",
     unconfigured: "同期は未設定です",
     signedOut: "Google ドライブに接続",
     signingIn: "Google の応答を待っています…",
@@ -55,8 +55,8 @@ export const syncJa: typeof syncEs = {
     syncing: "同期中…",
     error: "同期できませんでした",
   },
-  unavailable: "Google ドライブとの同期はデスクトップ版だけで使えます。",
-  unconfigured: "この Quests は Google の認証情報（src-tauri/google-client.json）なしでビルドされています。",
+  unavailable: "Google ドライブとの同期はアプリ版（Mac・Windows・iPhone）だけで使えます。ブラウザでは使えません。",
+  unconfigured: "この Quests は Google の認証情報（src-tauri/google-client.json、iPhone 版は google-client-ios.plist）なしでビルドされています。",
   intro: "冒険の記録を Google ドライブに保存し、複数の端末で続けられます。Quests が見られるのは、自分で作った QuestsApp フォルダのファイルだけです。",
   waiting: "ブラウザが開きました。アカウントを選んで「許可」を押してください。",
   account: "{{email}} で接続中",

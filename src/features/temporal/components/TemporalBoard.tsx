@@ -13,6 +13,7 @@ import "../temporal.css";
 import { merchantBusy } from "../../merchant/ui";
 import { characterBusy } from "../../equipment/ui";
 import { chronicleBusy } from "../../chronicle/ui";
+import { useIsPhone } from "../../mobile";
 
 type Dir = "left" | "right" | "up" | "down";
 
@@ -68,6 +69,7 @@ export function TemporalBoard() {
   const ready = useGame((s) => s.ready);
   const now = useNow(30_000);
   const { t } = useTranslation();
+  const phone = useIsPhone();
   const selectedId = useTemporalUi((s) => s.selectedId);
   const showDone = useTemporalUi((s) => s.showDone);
   const farewell = useTemporalUi((s) => s.farewell);
@@ -228,7 +230,7 @@ export function TemporalBoard() {
               <>
                 <p>{t("temporal.board.empty")}</p>
                 <p className="tb-empty-hint">
-                  <Trans i18nKey="temporal.board.emptyHint" components={{ kbd: <kbd /> }} />
+                  {phone ? t("mobile.touch.pin") : <Trans i18nKey="temporal.board.emptyHint" components={{ kbd: <kbd /> }} />}
                 </p>
               </>
             )}

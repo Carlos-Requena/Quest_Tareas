@@ -70,7 +70,7 @@ Cada semana (de lunes a lunes, hora local) Hu Tao saca **5 piezas** al azar (`SH
 
 `gear_purchased { gearId, price }` copia el precio en el evento (como la recompensa en `quest_completed`): si un día cambian los precios, lo pagado no cambia. La proyección resta `price` del oro **solo si llega**, la pieza existe y no era tuya ya (`applyMerchantEvent`).
 
-El escaparate y el rango se comprueban en la acción (`buyBlocker`), no en la proyección, igual que los huecos al aceptar una quest: al fusionar eventos de otro dispositivo, el catálogo de esa semana podría ser distinto y una compra legítima se perdería. El oro sí se comprueba en la proyección: si dos equipos gastan el mismo oro sin conexión, **solo vale la compra que llega primero** y la otra no cobra.
+El escaparate y el rango se comprueban en la acción (`buyBlocker`), no en la proyección: al fusionar eventos de otro dispositivo, el catálogo de esa semana podría ser distinto y una compra legítima se perdería. El oro sí se comprueba en la proyección: si dos equipos gastan el mismo oro sin conexión, **solo vale la compra que llega primero** y la otra no cobra.
 
 ### Comprar en dos pasos
 

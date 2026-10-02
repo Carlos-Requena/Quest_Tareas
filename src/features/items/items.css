@@ -1319,3 +1319,159 @@
   font-size: 24px;
   letter-spacing: 0.06em;
 }
+
+/* ───────────── Teléfono (features/mobile; 760 px es PHONE_MAX_WIDTH) ─────────────
+   Inventario: los objetos y, pegada abajo, la ficha del elegido (como en el mercader).
+   Almanaque: el libro con las páginas una encima de otra y el índice asomando por arriba. */
+@media (max-width: 760px) {
+  .coll {
+    width: 100%;
+    height: 100%;
+  }
+  .coll-h {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .coll-tabs {
+    order: 5;
+    width: 100%;
+    margin-left: 0;
+  }
+  .coll-x {
+    margin-left: auto;
+  }
+  .coll-body {
+    display: block;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 16px;
+  }
+  .coll-body::before {
+    display: none;
+  }
+  .coll-list {
+    padding-right: 0;
+  }
+  .coll-filter {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px 12px;
+  }
+  .coll-filter::-webkit-scrollbar {
+    display: none;
+  }
+  .coll-grid {
+    overflow: visible;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 14px 10px;
+    padding: 4px 0 16px;
+  }
+  .coll-side {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    max-height: 52vh;
+    margin: 0 -16px;
+    padding: 14px 16px 16px;
+    background: linear-gradient(180deg, #1d1a15, #13110e);
+    border-top: 1px solid var(--line-strong);
+    box-shadow: 0 -14px 28px rgba(0, 0, 0, 0.5);
+  }
+  .coll-hint {
+    margin: 0;
+  }
+  .idetail-art {
+    width: 104px;
+  }
+  .idetail-name {
+    font-size: 24px;
+  }
+  .idetail-actions .btn {
+    height: 42px;
+  }
+  .coll-rates {
+    padding: 4px 16px 18px;
+  }
+  .rates-tables {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+  .coll-units {
+    display: none;
+  }
+
+  /* Almanaque */
+  .coll-book {
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 4px 14px 16px;
+  }
+  .book-wrap {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    margin-right: 0;
+  }
+  .book {
+    height: auto;
+  }
+  .book-pages {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Las hojas son absolutas: la página de los cromos necesita un alto fijo. */
+  .book-page.is-left {
+    height: 430px;
+    border-radius: 3px 3px 0 0;
+  }
+  .book-leaf {
+    padding: 16px 16px 46px;
+    border-radius: 3px 3px 0 0;
+  }
+  .book-grid {
+    gap: 8px 10px;
+  }
+  .book-page.is-right {
+    min-height: 320px;
+    padding: 18px 18px 46px;
+    border-radius: 0 0 3px 3px;
+  }
+  .book-spine {
+    display: none;
+  }
+  .book-title {
+    font-size: 34px;
+  }
+  .book-index {
+    position: static;
+    order: -1;
+    flex-direction: row;
+    gap: 4px;
+    padding: 0 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .book-index::-webkit-scrollbar {
+    display: none;
+  }
+  .book-tab {
+    flex: none;
+    flex-direction: row;
+    width: auto;
+    padding: 8px 10px 10px;
+    border: 1px solid color-mix(in srgb, var(--rc) 40%, transparent);
+    border-bottom: none;
+    border-radius: 7px 7px 0 0;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 20%, var(--leather)), var(--leather-lo));
+    transform: translateY(6px);
+  }
+  .book-tab:hover {
+    transform: translateY(6px);
+  }
+  .book-tab.on {
+    transform: translateY(0);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 50%, var(--leather)), var(--leather-lo));
+  }
+}

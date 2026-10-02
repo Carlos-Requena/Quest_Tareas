@@ -28,6 +28,7 @@ import { GearDetail } from "./GearDetail";
 import { GearForm } from "./GearForm";
 import { SoldSeal, type Sale } from "./SoldSeal";
 import "../merchant.css";
+import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
 
 const TABS: MerchantTab[] = ["showcase", "catalog"];
 type Group = "all" | "armor" | "decor";
@@ -213,7 +214,7 @@ function Modal() {
       className="modal-bg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      exit={BACKDROP_EXIT}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <motion.div
@@ -221,7 +222,7 @@ function Modal() {
         style={{ "--cat": "var(--merchant)" } as CSSProperties}
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98, transition: MODAL_EXIT }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
       >
         <header className="modal-h mshop-h">

@@ -101,6 +101,8 @@ export async function signIn(): Promise<void> {
   } catch (err) {
     console.error("[sync]", err);
     const code = isNativeError(err) ? err.code : "other";
+    // iOS: se cerró la hoja de Google sin terminar. No es un fallo: no se avisa.
+    if (code === "cancelled") return ui().set({ phase: "signedOut", error: undefined });
     ui().set({ phase: "signedOut", error: code });
     const keys: Record<string, ToastKey> = { consent_denied: "denied", missing_scope: "missingScope", timeout: "timeout", network: "offline" };
     say(keys[code] ?? "failed");
@@ -119,7 +121,11 @@ export async function signOut(): Promise<void> {
   }
 }
 
-/** Cada SYNC_EVERY_MS y al volver a la ventana (si hace más de un minuto de la última). */
+/**
+ * Cada SYNC_EVERY_MS, al volver a la ventana (si hace más de un minuto de la última) y al
+ * ocultarla si hay algo sin subir. En el iPhone no hay «cerrar la ventana»: salir de la app
+ * la oculta, y es la última ocasión de subir lo pendiente antes de que iOS la suspenda.
+ */
 function schedule() {
   stop();
   timer = setInterval(() => void syncNow(), SYNC_EVERY_MS);
@@ -133,9 +139,14 @@ function stop() {
 }
 
 function onVisible() {
-  if (document.visibilityState !== "visible") return;
+  if (document.visibilityState === "hidden") return void syncIfPending();
   const last = ui().last?.at ?? 0;
   if (Date.now() - last > 60_000) void syncNow();
+}
+
+async function syncIfPending() {
+  const { store } = useGame.getState();
+  if (store && (await store.unsynced()).length > 0) void syncNow();
 }
 
 /** Al cerrar la ventana: una última sincronización si hay algo sin subir (como mucho CLOSE_TIMEOUT_MS). */

@@ -12,7 +12,7 @@ export interface Account {
 
 /** Error de Rust (SyncError serializado): un `code` estable para traducirlo. */
 export interface NativeError {
-  code: "not_configured" | "signed_out" | "consent_denied" | "missing_scope" | "timeout" | "network" | "auth" | "keyring" | "drive" | "other";
+  code: "not_configured" | "signed_out" | "consent_denied" | "cancelled" | "missing_scope" | "timeout" | "network" | "auth" | "keyring" | "drive" | "other";
   status?: number | null;
   detail?: string;
 }

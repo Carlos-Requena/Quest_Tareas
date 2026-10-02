@@ -2,7 +2,7 @@ import type { GameEvent } from "./events";
 import type { ConditionDef, GameState, QuestState } from "./types";
 import { isCountCondition, isPomodoroCondition } from "./types";
 import { isFromFuture, upcastEvent } from "./upcast";
-import { levelFromXp, maxActiveFor, rankFor } from "./leveling";
+import { levelFromXp, rankFor } from "./leveling";
 import { applyPomodoroEvent, newPomodoro, planOf, viewPomodoro } from "../features/pomodoro/model";
 import { upcastQuestDef } from "../features/pomodoro/legacy";
 import { applyItemEvent, newItemsAcc, receiveItems, registerItem, type ItemsAcc } from "../features/items/model";
@@ -303,7 +303,6 @@ export function finishProjection(acc: ProjectionAcc): GameState {
       gold,
       ...lv,
       rank: rankFor(lv.level),
-      maxActive: maxActiveFor(lv.level),
       inventory: items.inventory,
       discovered: items.discovered,
       pity: items.pity,

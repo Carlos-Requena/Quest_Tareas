@@ -11,7 +11,7 @@ import { sfx } from "./lib/sfx";
 import { Header } from "./components/Header";
 import { Tabs, TABS } from "./components/Tabs";
 import { QuestCard } from "./components/QuestCard";
-import { QuestDetail } from "./components/QuestDetail";
+import { QuestDetail, Toast } from "./components/QuestDetail";
 import { Footer } from "./components/Footer";
 import { CreateQuestModal } from "./components/CreateQuestModal";
 import { ClearOverlay } from "./components/ClearOverlay";
@@ -25,6 +25,7 @@ import { blockers } from "./features/complex";
 import { MerchantModal, merchantBusy, openMerchant } from "./features/merchant";
 import { Backdrop, CharacterModal, characterBusy, openCharacter } from "./features/equipment";
 import { ChronicleModal, chronicleBusy, openChronicle } from "./features/chronicle";
+import { DetailBack, MobileCreate, MobileMenu, MobileNav, isPhone, useMobileUi } from "./features/mobile";
 
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
@@ -63,6 +64,13 @@ export default function App() {
   useEffect(() => {
     if (selected && selected.id !== selectedId) select(selected.id);
   }, [selected, selectedId, select]);
+
+  // Teléfono (features/mobile): el detalle va a pantalla completa mientras su quest siga a la vista.
+  const detailId = useMobileUi((s) => s.detail);
+  const detailOpen = detailId !== undefined && section === "board" && detailId === selected?.id;
+  useEffect(() => {
+    if (detailId !== undefined && !detailOpen) useMobileUi.getState().closeDetail();
+  }, [detailId, detailOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -124,7 +132,7 @@ export default function App() {
   }, [visible, selected, select]);
 
   return (
-    <div className="app">
+    <div className={`app ${detailOpen ? "m-detail" : ""}`}>
       <Backdrop />
       <Header />
 
@@ -158,8 +166,9 @@ export default function App() {
                         lock={blockers(q, quests)}
                         selected={q.id === selected?.id}
                         onSelect={() => {
-                          if (q.id !== selected?.id) sfx.move();
+                          if (q.id !== selected?.id || isPhone()) sfx.move();
                           select(q.id);
+                          if (isPhone()) useMobileUi.getState().openDetail(q.id);
                         }}
                       />
                     ))}
@@ -170,11 +179,21 @@ export default function App() {
 
           <div className="divider" />
 
-          <QuestDetail quest={selected} status={selected && effectiveStatus(selected, now)} now={now} />
+          {/* En el escritorio, m-sheet no cuenta (display: contents); en el teléfono es la hoja a pantalla completa. */}
+          <div className="m-sheet">
+            <DetailBack />
+            <QuestDetail quest={selected} status={selected && effectiveStatus(selected, now)} now={now} />
+          </div>
         </main>
       )}
 
       <Footer />
+      <MobileNav />
+      <MobileCreate />
+      <div className="m-toast">
+        <Toast />
+      </div>
+      <MobileMenu />
       <CreateQuestModal />
       <ClearOverlay />
       <CollectionModal />

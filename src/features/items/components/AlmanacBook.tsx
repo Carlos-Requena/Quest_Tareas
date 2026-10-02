@@ -6,6 +6,7 @@ import { seededRandom } from "../../../lib/id";
 import { num } from "../../../i18n";
 import { RARITIES, RARITY_META, type ItemDef, type Rarity } from "../model";
 import { ItemTile } from "./ItemTile";
+import { useSwipe } from "../../mobile";
 
 /** Cromos por página: 4 columnas × 3 filas. */
 const PER_PAGE = 12;
@@ -55,6 +56,7 @@ export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onS
     sfx.page();
     setPage({ page: next, dir: d });
   };
+  const swipe = useSwipe(turn);
 
   // Al cambiar de rareza se vuelve a la primera página.
   useEffect(() => setPage({ page: 0, dir: 1 }), [filter]);
@@ -84,7 +86,7 @@ export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onS
   return (
     <div className="book-wrap">
       <div className="book">
-        <div className="book-pages">
+        <div className="book-pages m-swipe" {...swipe}>
           <section className="book-page is-left">
             <div className="book-leaves">
               <AnimatePresence initial={false} custom={dir}>

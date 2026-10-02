@@ -7,6 +7,7 @@ import { sfx } from "../../../lib/sfx";
 import { burst, calm, centerIn, implode, quake, tremble, twinkle } from "../../../lib/fx";
 import { RARITIES, RARITY_META, rarityTier, type ItemDef, type Rarity } from "../model";
 import { ItemTile, rarityStyle } from "./ItemTile";
+import { useIsPhone } from "../../mobile";
 
 /** Lo que el overlay de «Quest Clear» puede pedirle al cofre. */
 export interface ChestHandle {
@@ -76,6 +77,7 @@ const colorOf = (r: Rarity) => RARITY_META[r].color;
  */
 export function LootChest({ clear, onOpened, ref }: { clear: ClearResult; onOpened(): void; ref?: React.Ref<ChestHandle> }) {
   const { t } = useTranslation();
+  const phone = useIsPhone();
   // Se fija al reportar: si el store se recalcula mientras tanto, el cofre no se reinicia.
   const contents = useMemo(() => chestContents(clear, useGame.getState().state.items), [clear]);
   const top = contents.reduce((m, c) => Math.max(m, rarityTier(c.rarity)), 0);
@@ -433,7 +435,7 @@ export function LootChest({ clear, onOpened, ref }: { clear: ClearResult; onOpen
       >
         <ChestSvg />
       </button>
-      <p className="chest-hint">{t("items.clear.openChest")}</p>
+      <p className="chest-hint">{t(phone ? "mobile.touch.openChest" : "items.clear.openChest")}</p>
       <div className="chest-fx" />
 
       {/* Capa a pantalla completa, fuera del overlay: no se mueve con las sacudidas. */}

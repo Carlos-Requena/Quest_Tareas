@@ -14,7 +14,8 @@ import { QuestEventLink } from "../features/temporal";
 import { dueDate, dueLabel, questDue } from "../features/horizon";
 import { areaName } from "../features/attributes";
 import { useGame } from "../store/game";
-import { abandonQuest, addProgress, primaryAction } from "../store/actions";
+import { abandonQuest, addProgress } from "../store/actions";
+import { detailPrimaryAction } from "../features/mobile";
 import { formatRemaining } from "../lib/time";
 import i18n, { num } from "../i18n";
 import { GoldIcon } from "./Header";
@@ -44,8 +45,6 @@ function Section({ tag, label, children }: { tag: string; label: string; childre
 }
 
 export function QuestDetail({ quest, status, now }: { quest?: QuestState; status?: QuestStatus; now: number }) {
-  const maxActive = useGame((s) => s.state.player.maxActive);
-  const activeCount = useGame((s) => [...s.state.quests.values()].filter((q) => q.status === "active").length);
   const quests = useGame((s) => s.state.quests);
   const temporals = useGame((s) => s.state.temporals);
   const dispatch = useGame((s) => s.dispatch);
@@ -88,7 +87,6 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
   else if (status === "cooldown")
     primary = { label: t("actions.availableIn", { time: formatRemaining((quest.availableAt ?? 0) - now) }), enabled: false };
   else if (lock.length) primary = { label: t("complex.actions.locked"), enabled: false };
-  else if (activeCount >= maxActive) primary = { label: t("actions.noSlots"), enabled: false };
   else primary = { label: t("actions.accept"), enabled: true };
 
   return (
@@ -218,7 +216,7 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
         <button
           className={`btn btn-primary ${primary.enabled ? "" : "is-disabled"} ${active && met ? "is-ready" : ""}`}
           disabled={!primary.enabled}
-          onClick={() => primaryAction(quest.id)}
+          onClick={() => detailPrimaryAction(quest.id)}
         >
           <span className="btn-key">A</span>
           {primary.label}
@@ -246,7 +244,7 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
   );
 }
 
-function Toast() {
+export function Toast() {
   const toast = useGame((s) => s.toast);
   useTranslation(); // vuelve a pintar el aviso al cambiar de idioma
   return (

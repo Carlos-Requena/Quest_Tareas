@@ -6,7 +6,7 @@ Esta guía es para cualquier agente (o persona) que vaya a hacer tareas en este 
 
 ## 1. Qué es Quests, en 30 segundos
 
-App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú (con 69 piezas **de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos); junto al muñeco, los **atributos**: un nivel por cada área de las quests. Las quests que se repiten llevan su **racha**, los objetivos pueden ser **listas de casillas** y todo lo que haces queda en la **crónica del aventurero**, un diario gastado. Interfaz en español y japonés, con música de fondo. Los datos se **sincronizan entre equipos por Google Drive** (cada equipo sube sus eventos y baja los de los demás).
+App de escritorio (macOS y Windows) y de **iPhone** que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú (con 69 piezas **de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos); junto al muñeco, los **atributos**: un nivel por cada área de las quests. Las quests que se repiten llevan su **racha**, los objetivos pueden ser **listas de casillas** y todo lo que haces queda en la **crónica del aventurero**, un diario gastado. Interfaz en español y japonés, con música de fondo. Los datos se **sincronizan entre equipos por Google Drive** (cada equipo sube sus eventos y baja los de los demás). En el iPhone es la misma app compilada para iOS, con una **interfaz de teléfono** (barra de abajo, detalle a pantalla completa, ventanas a pantalla completa).
 
 - **Stack:** Tauri 2 (Rust) + React 19 + TypeScript 6 + Vite 8 + Zustand 5 + Motion + GSAP + i18next, con SQLite vía `tauri-plugin-sql`.
 - **Modelo de datos:** *event sourcing* local-first. Se guardan **eventos inmutables** en SQLite y el estado se **calcula** reproduciéndolos (`project()`).
@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo J
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle`, `recovery` y `sync`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle`, `recovery`, `sync` y `mobile`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -41,7 +41,28 @@ pnpm tauri build        # instalador para el sistema actual
 - El puerto **1420 es fijo** (`strictPort`). Si ya está ocupado, probablemente el propietario tiene la app abierta: **úsala** (`http://localhost:1420`) en vez de arrancar otra copia. Si arrancas un servidor tú, **páralo al terminar**.
 - La base de datos nativa está en `~/Library/Application Support/com.quests.app/quests.db` (macOS) y `%APPDATA%\com.quests.app\` (Windows). Para inspeccionarla: `sqlite3 <ruta> "SELECT json_extract(body,'$.type'), count(*) FROM events GROUP BY 1;"`.
 - **No borres nunca** `quests.db` ni el `localStorage` del propietario sin su permiso explícito: es su progreso real. Si hay que empezar de cero, **muévelo** a una copia (por ejemplo, `~/Documents/Quests-copias/<fecha>/`) en vez de borrarlo.
-- **Sincronización:** la credencial de Google va en `src-tauri/google-client.json` (fuera del repositorio por `.gitignore`; `build.rs` la incrusta al compilar). Sin ella, la app compila igual y la sincronización sale «sin configurar». Para probar dos equipos en un mismo Mac, compila una segunda copia con otro identificador: `pnpm tauri build --debug --no-bundle --config '{"identifier":"com.quests.app.equipob"}'` (otra base de datos y otro `deviceId`; comparten la sesión del llavero). Ten en cuenta que lo que hagas en ella llega al Drive del propietario.
+
+### iPhone
+
+```bash
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim   # una vez
+xcodebuild -downloadPlatform iOS                            # una vez: el simulador (unos 8 GB)
+pnpm tauri ios build --debug --target aarch64-sim           # app para el simulador
+pnpm tauri ios dev                                          # simulador o iPhone, con recarga en caliente
+pnpm tauri ios dev --open                                   # lo mismo desde Xcode (para firmar e instalar en el iPhone)
+```
+
+- **Dos Rust en el Mac.** El de Homebrew (`/opt/homebrew/bin`) va antes en el PATH que el de rustup (`~/.cargo/bin`) y no puede compilar para iOS («can't find crate for `std`»). Pon `~/.cargo/bin` delante (`export PATH="$HOME/.cargo/bin:$PATH"`) o desinstala el de Homebrew.
+- **CocoaPods** hace falta para `tauri ios init`: `brew install cocoapods` (con `gem` pide `sudo`).
+- **En el iPhone, con un Apple ID gratuito:** Xcode → Settings → Accounts, añade tu Apple ID; pon tu *Team ID* en `bundle.iOS.developmentTeam` de `tauri.conf.json`; conecta el iPhone con el modo desarrollador activado y ejecuta `pnpm tauri ios dev --open` (o compila desde Xcode). La primera vez, en el iPhone: Ajustes → General → VPN y gestión de dispositivos → confía en tu certificado. **Caduca a los 7 días**: hay que volver a instalarla desde Xcode. Los datos se conservan si no se borra la app.
+- Si Xcode dice que el *bundle ID* `com.quests.app` no está disponible (otra cuenta lo registró), cámbialo solo para iOS en `src-tauri/tauri.ios.conf.json` (`{"identifier": "…"}`) y pon el mismo en el cliente iOS de Google.
+- **Icono de la app:** el emblema del Quest Board (`components/Header.tsx`, `Emblem`) en `src-tauri/icons/source/app-icon.svg`. Si lo cambias, pásalo a PNG de 1024 px **sin transparencia** (`qlmanage -t -s 1024 -o . app-icon.svg` y quitar el alfa con `sips` vía JPEG) y genera todos los tamaños (escritorio e iOS) con `pnpm tauri icon src-tauri/icons/source/app-icon.png`. Borra la carpeta `icons/android` que crea: no hay app de Android.
+- **Diseño de teléfono:** lo más rápido es `pnpm dev` con la ventana a **402 × 874**. El simulador hace falta para lo nativo (SQLite, llavero, inicio de sesión de Google). Ver [src/features/mobile/README.md](../src/features/mobile/README.md).
+- **Sincronización en iOS:** otro cliente de Google, de tipo «iOS», en el **mismo proyecto** de Google Cloud; su plist va en `src-tauri/google-client-ios.plist` (fuera del repositorio). Ver [src/features/sync/README.md](../src/features/sync/README.md), «En el iPhone».
+
+### Sincronización
+
+- La credencial de Google va en `src-tauri/google-client.json` (fuera del repositorio por `.gitignore`; `build.rs` la incrusta al compilar). Sin ella, la app compila igual y la sincronización sale «sin configurar». Para probar dos equipos en un mismo Mac, compila una segunda copia con otro identificador: `pnpm tauri build --debug --no-bundle --config '{"identifier":"com.quests.app.equipob"}'` (otra base de datos y otro `deviceId`; comparten la sesión del llavero). Ten en cuenta que lo que hagas en ella llega al Drive del propietario.
 
 ---
 
@@ -54,7 +75,7 @@ src/
     events.ts          Unión EventBody (eventos de quest + PomodoroEventBody), EVENT_VERSION y el reloj híbrido (nextTs)
     upcast.ts          Versión de los eventos: upcastEvent (paso a paso hasta EVENT_VERSION) e isFromFuture
     projection.ts      project(eventos) → GameState (newProjectionAcc / applyEvent / finishProjection), PROJECTION_VERSION; conditionProgress, conditionsMet(q, now)…
-    leveling.ts        Curva de XP, rangos F→S, huecos de quest activa
+    leveling.ts        Curva de XP y rangos F→S
     seed.ts            Quests de ejemplo del primer arranque (en el idioma activo)
   storage/
     eventStore.ts      Interfaz EventStore (all, since, countUpTo, byDevice, append, merge…) + SQLite (Tauri, inserciones por lotes) + localStorage (navegador)
@@ -80,13 +101,16 @@ src/
     chronicle/         Crónica del aventurero: diario de lo que ha pasado, apuntado por la proyección (sin eventos)
     recovery/          Error boundary y pantalla de recuperación ante fallos de la interfaz (sin eventos)
     sync/              Sincronización con Google Drive: un JSONL por equipo y los binarios por SHA-256 (sin eventos; la parte nativa en src-tauri/src/sync)
+    mobile/            Interfaz de teléfono (iPhone): barra de abajo, menú «Más», detalle a pantalla completa, deslizar para pasar página (sin eventos)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
   test/              Utilidades de los tests (historiales aleatorios con semilla)
-  lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), useMuted, id/PRNG, time (useNow, formatRemaining)
+  lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), motion (salida de las ventanas), useMuted, id/PRNG, time (useNow, formatRemaining)
   styles/            theme.css (tokens), app.css (componentes)
 public/music/        Pistas de música (Vite las copia a dist/music/)
 public/merchant/     Vídeo de Hu Tao en bucle (MP4 + WebM) y su póster (se reproduce desde memoria, blob:)
 src-tauri/           Rust: lib.rs (plugin SQL y comandos), sync/ (OAuth con PKCE, llavero y Drive), build.rs (credencial de Google), tauri.conf.json (con la CSP), capabilities/default.json
+  plugins/web-auth/    Plugin propio: inicio de sesión de Google en iOS con ASWebAuthenticationSession (Swift en ios/)
+  gen/apple/           Proyecto de Xcode para iOS (lo genera `tauri ios init`; build/ y Externals/ fuera del repositorio)
 .github/workflows/   CI: tipos, tests y build de la app en macOS y Windows
 docs/                Esta guía, informe técnico, cómo funciona, img/ con los diagramas
 ```
@@ -158,7 +182,7 @@ src/features/<nombre>/
 
 - **La integración fuera de la carpeta debe ser mínima:** tipos (`domain/types.ts`), la unión de eventos (`domain/events.ts`), la proyección (`domain/projection.ts`), los diccionarios (`i18n/locales/{es,ja}.ts`, montando `xxxEs` / `xxxJa`) y el componente que la aloja. Enuméralo en la tabla «Puntos de integración» del README.
 - **El dominio nunca importa el `index.ts` de una funcionalidad**: ese archivo reexporta `actions.ts`, que importa el store, y se crearía un ciclo.
-- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`). `src/features/merchant/` es el de una funcionalidad con **economía** (precios calculados, un gasto que la proyección vigila) y **reglas que dependen de la semana** (el escaparate, calculado con semilla); `src/features/equipment/` lee el catálogo de otra funcionalidad, y `src/features/attributes/` es el de una que **no tiene eventos** y se calcula de los eventos de otra (`quest_completed`). `src/features/sync/` es el de una funcionalidad con **parte nativa en Rust** (comandos en `src-tauri/src/sync`) y un motor con todo inyectado (`engine.ts`) que se prueba con almacenes en memoria y un Drive falso (`src/test/memory.ts`). `src/features/armory/` es el de **datos de serie en el código** (no en eventos ni en el snapshot) que otra funcionalidad suma a los suyos, y `src/features/chronicle/` el de una que **apunta un registro** desde la proyección cuando un evento pasa sus guardas.
+- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`). `src/features/merchant/` es el de una funcionalidad con **economía** (precios calculados, un gasto que la proyección vigila) y **reglas que dependen de la semana** (el escaparate, calculado con semilla); `src/features/equipment/` lee el catálogo de otra funcionalidad, y `src/features/attributes/` es el de una que **no tiene eventos** y se calcula de los eventos de otra (`quest_completed`). `src/features/sync/` es el de una funcionalidad con **parte nativa en Rust** (comandos en `src-tauri/src/sync`) y un motor con todo inyectado (`engine.ts`) que se prueba con almacenes en memoria y un Drive falso (`src/test/memory.ts`). `src/features/mobile/` es el de una funcionalidad **de presentación** que adapta todas las pantallas: el armazón en su carpeta y los ajustes de cada pantalla en el CSS de su funcionalidad. `src/features/armory/` es el de **datos de serie en el código** (no en eventos ni en el snapshot) que otra funcionalidad suma a los suyos, y `src/features/chronicle/` el de una que **apunta un registro** desde la proyección cuando un evento pasa sus guardas.
 
 - **Una funcionalidad puede importar el `model.ts` de otra** (`horizon` usa `daysUntil` de `temporal`), pero si su lógica necesita la proyección (`effectiveStatus`), va en otro archivo (como `temporal/links.ts`): `model.ts` lo importa el dominio y se crearía un ciclo.
 
@@ -176,6 +200,8 @@ src/features/<nombre>/
   - limpiar con `tl.kill()`, nunca con `tl.progress(1)`, porque reaplica estilos después de React.
 
   Si GSAP controla la visibilidad de un elemento, React no debe controlarla también.
+- **Teléfono (iPhone):** cada funcionalidad pone sus ajustes en un `@media (max-width: 760px)` **al final de su CSS** (760 es `PHONE_MAX_WIDTH`, en `features/mobile/phone.ts`). El JavaScript solo distingue el teléfono cuando el CSS no basta (`isPhone()` / `useIsPhone()`). Sin teclado ni ratón: nada solo con `hover`, botones de 40 px o más y campos de 16 px o más (con menos, iOS amplía la página). Las pistas de teclas («Pulsa Enter») cambian a «Toca» (`KeyHint`). Si tocas una pantalla, mírala también a 402 × 874.
+- **Ventanas:** el fondo sale con `BACKDROP_EXIT` y la ventana con `MODAL_EXIT` (`src/lib/motion.ts`). Si no, el fondo invisible se queda hasta 1,4 s encima y se traga el clic siguiente.
 - **Nada de saltos de layout** en controles: lo que se despliega va en capas absolutas (ver el volumen de `MusicControl`).
 - **Colores:** usa siempre los tokens de `theme.css` (`--gold`, `--elite`, `--repeat`, `--request`, `--stamp`, las rarezas `--r-common` … `--r-legendary`, los de los encargos `--skull`, `--parchment`, `--oak`, `--ink`…), sin colores sueltos.
 - **Fuentes:** importa solo subconjuntos latinos (`@fontsource/<fuente>/latin-<peso>.css`). Los subconjuntos japoneses sumaban **26 MB**; el japonés usa el mincho del sistema.
@@ -218,6 +244,8 @@ src/features/<nombre>/
 - **Ventana emulada en el panel del navegador:** los clics por coordenadas pueden caer fuera. Comprueba con un registro de eventos antes de dar un botón por roto.
 - **Chromium sin GPU** (pruebas automáticas): los textos gigantes con filtros se pintan tan despacio que GSAP frena su reloj; para capturar fases, pausa `gsap.globalTimeline` y avánzalo a mano.
 - **Sonidos sin altavoces:** se pueden grabar con un `OfflineAudioContext` que use el reloj de GSAP y medirlos con un espectrograma (receta en [COMO-FUNCIONA.md](COMO-FUNCIONA.md), sección 13). Desactiva antes la música (`quests.music`).
+- **Simulador de iOS:** las capturas pueden ir **un paso por detrás** de los toques; espera un segundo antes de capturar y no repitas un toque porque la captura no lo muestre (lo repetirías dos veces). Al reinstalar, la app arranca en segundo plano: ábrela desde su icono.
+- **Variables de entorno y Xcode:** `pnpm tauri ios build` / `dev` compilan el Rust desde Xcode, que no hereda tus variables. Lo que tenga que leer `build.rs` en iOS (la credencial de Google), en archivo.
 - **Autoplay:** sin una interacción previa, el WebView no deja sonar el audio (y avisa en la consola). Un sonido al arrancar debe comprobar `navigator.userActivation.hasBeenActive`.
 
 ---
@@ -252,6 +280,7 @@ La fase 1.5 (endurecimiento) cerró la versión de los eventos (`v` + `UPCASTERS
 - **Windows a mano:** la CI compila y pasa los tests en Windows, pero nadie ha abierto la app allí (fuentes, animaciones, visor de PDF de WebView2). Los instaladores están en los artefactos de cada run de la CI.
 - **CSP sin revisar a simple vista en la app nativa:** se probó la misma política en Chromium y que la app de macOS arranca y abre la base de datos con ella, pero no se vio la ventana. Si algo no carga (vídeo, PDF, fondo), mira primero la CSP.
 - **Reloj con mucha deriva:** un equipo que vaya más de 1 minuto por detrás de un evento ya aplicado recalcula todo en cada acción hasta que su reloj lo alcanza.
+- **iPhone:** probado en el simulador (iOS 27), no en un iPhone de verdad. Sin probar ahí: el sonido y la música (el interruptor de silencio), los PDF adjuntos (iOS puede enseñar solo la primera página), el teclado encima de los formularios, el giro a horizontal y el iPad. El inicio de sesión de Google en iOS solo se probó hasta la página de Google con un cliente falso: el cliente iOS ya existe (`google-client-ios.plist`) y Google enseña su página, pero falta iniciar sesión de principio a fin.
 - **Sincronización (fase 2):** sin probar en Windows, ni con dos equipos físicos, ni los adjuntos con Drive de verdad, ni al cerrar la ventana. Los binarios que dejan de usarse no se borran de Drive. Cada sincronización con novedades reescribe el archivo entero del equipo (unos KB o MB).
 
 Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, no añadas más casos.
@@ -281,6 +310,7 @@ Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, 
 - [ ] Cada funcionalidad nueva está en `src/features/<nombre>/` con su README.
 - [ ] Los textos están en `es.ts` y `ja.ts`.
 - [ ] Los assets están en `public/`.
+- [ ] Si cambia la interfaz, se ha mirado también a 402 × 874 (teléfono).
 - [ ] La lógica nueva tiene sus tests (`*.test.ts` junto al módulo) y los tipos de evento nuevos están en `randomStream`.
 - [ ] `tsc`, `pnpm test` y `build` pasan, se ha probado en ejecución y se ha dicho qué no se probó.
 - [ ] Documentación actualizada (sección 10), con el diagrama de clases redibujado si cambió el modelo.

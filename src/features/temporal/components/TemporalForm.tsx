@@ -11,6 +11,7 @@ import { useTemporalUi } from "../ui";
 import { Skull } from "./Skull";
 import { ClipIcon } from "./Poster";
 import { TemporalQuestsField } from "./TemporalQuestsField";
+import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
 
 /** Tecla modificadora del atajo de guardar: ⌘ en macOS, Ctrl en Windows. */
 const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl";
@@ -102,7 +103,7 @@ function Modal({ editId }: { editId?: string }) {
       className="modal-bg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      exit={BACKDROP_EXIT}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
       onKeyDown={onKey}
     >
@@ -111,7 +112,7 @@ function Modal({ editId }: { editId?: string }) {
         style={{ "--cat": "var(--skull)" } as React.CSSProperties}
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98, transition: MODAL_EXIT }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
         onSubmit={(e) => {
           e.preventDefault();

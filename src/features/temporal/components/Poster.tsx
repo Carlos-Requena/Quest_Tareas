@@ -11,6 +11,7 @@ import { posterLook } from "../look";
 import { dueChip, shortDue } from "../format";
 import { useTemporalUi } from "../ui";
 import { Skull } from "./Skull";
+import { isPhone } from "../../mobile";
 
 interface Props {
   t: TemporalState;
@@ -107,7 +108,8 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
       }}
       transition={{ type: "spring", stiffness: 260, damping: 22, delay: Math.min(index, 14) * 0.045 }}
       onClick={(e) => {
-        if (selected) onOpen(e.currentTarget);
+        // En el teléfono no hay doble clic ni teclas: un toque abre el cartel.
+        if (selected || isPhone()) onOpen(e.currentTarget);
         else onSelect();
       }}
       onDoubleClick={(e) => onOpen(e.currentTarget)}

@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import gsap from "gsap";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { useGame } from "../store/game";
 import { CATEGORY_META } from "../domain/types";
 import { seededRandom } from "../lib/id";
 import { sfx } from "../lib/sfx";
 import { num } from "../i18n";
 import { GoldIcon } from "./Header";
+import { KeyHint } from "../features/mobile";
 import { burst, centerIn } from "../lib/fx";
 import { LootChest, chestContents, type ChestHandle } from "../features/items";
 
@@ -251,7 +252,7 @@ export function ClearOverlay() {
 
         <div className="cl-fx" />
         <p className="cl-hint">
-          <Trans i18nKey="clear.hint" components={{ kbd: <kbd /> }} />
+          <KeyHint i18nKey="clear.hint" touch="continue" />
         </p>
       </div>
     </div>

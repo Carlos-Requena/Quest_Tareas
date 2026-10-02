@@ -8,3 +8,5 @@
 
 # Credenciales OAuth de Google (fase 2, features/sync): nunca al repositorio
 /google-client.json
+/google-client-ios.plist
+/google-client-ios.json

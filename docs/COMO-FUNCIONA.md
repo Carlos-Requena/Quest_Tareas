@@ -12,7 +12,7 @@ Para la visión de arquitectura (diagramas de clases, stack, riesgos y hoja de r
 2. [Cómo se construyó, paso a paso](#2-cómo-se-construyó-paso-a-paso)
 3. [Tauri por dentro: dos procesos y un puente](#3-tauri-por-dentro-dos-procesos-y-un-puente)
 4. [Event sourcing: guardar hechos, no estado](#4-event-sourcing-guardar-hechos-no-estado)
-5. [Niveles, rangos y huecos](#5-niveles-rangos-y-huecos)
+5. [Niveles y rangos](#5-niveles-y-rangos)
 6. [Almacenamiento: SQLite y su sustituto en el navegador](#6-almacenamiento-sqlite-y-su-sustituto-en-el-navegador)
 7. [El estado global con Zustand](#7-el-estado-global-con-zustand)
 8. [La interfaz: tablón, selección y teclado](#8-la-interfaz-tablón-selección-y-teclado)
@@ -43,7 +43,7 @@ sequenceDiagram
 
     Tú->>App: pulsa Enter
     App->>Act: primaryAction(id)
-    Act->>Act: ¿disponible? ¿hay huecos?
+    Act->>Act: ¿disponible? ¿requisitos?
     Act->>Store: dispatch({type: "quest_accepted", questId})
     Store->>Store: añade id, deviceId y ts al evento
     Store->>Dom: applyEvent(copia del acumulador, evento)
@@ -212,7 +212,7 @@ Para cambiar el formato de un evento:
 
 ### La proyección, línea a línea
 
-`project(events)` recorre los eventos en orden y va construyendo el estado. Por dentro son tres funciones: `newProjectionAcc()` crea un acumulador vacío, `applyEvent(acc, e)` aplica **un** evento (el `switch` de abajo) y `finishProjection(acc)` calcula lo que depende del conjunto (nivel, rango, huecos y el encargo de cada quest). Así el store puede aplicar solo el evento nuevo y el arranque puede partir de un snapshot (sección 7). Simplificado:
+`project(events)` recorre los eventos en orden y va construyendo el estado. Por dentro son tres funciones: `newProjectionAcc()` crea un acumulador vacío, `applyEvent(acc, e)` aplica **un** evento (el `switch` de abajo) y `finishProjection(acc)` calcula lo que depende del conjunto (nivel, rango y el encargo de cada quest). Así el store puede aplicar solo el evento nuevo y el arranque puede partir de un snapshot (sección 7). Simplificado:
 
 ```ts
 for (const e of events) {
@@ -259,7 +259,7 @@ Algunas guardas no dependen solo de la entidad del evento, sino del estado de ot
 | `gear_purchased` | El oro no llega en ese punto del historial, la pieza no existe o ya es tuya | `applyMerchantEvent(acc.merchant, e, ts, acc.gold)` devuelve el oro gastado (`features/merchant/model.ts`) |
 | `gear_equipped` | La pieza no es tuya | `applyEquipmentEvent(acc.equipment, acc.merchant, e)` (`features/equipment/model.ts`) |
 
-Una guarda de oro es la del doble gasto: si dos equipos gastan el mismo oro sin conexión, al fusionar solo vale la compra que llega primero. Lo que puede cambiar al fusionar (el escaparate de esa semana, el rango) no se comprueba aquí sino en la acción, como los huecos al aceptar una quest; si no, una compra legítima podría desaparecer.
+Una guarda de oro es la del doble gasto: si dos equipos gastan el mismo oro sin conexión, al fusionar solo vale la compra que llega primero. Lo que puede cambiar al fusionar (el escaparate de esa semana, el rango) no se comprueba aquí sino en la acción; si no, una compra legítima podría desaparecer.
 
 Además, `quest_completed` suma su XP al **atributo** del área de la quest (`gainAttribute`, `features/attributes/model.ts`). No es un evento nuevo: los atributos salen de los `quest_completed` que ya había, así que aparecen también para las quests completadas antes de existir.
 
@@ -290,7 +290,7 @@ Un HLC clásico guarda la hora física y un contador por separado. Aquí van jun
 
 ---
 
-## 5. Niveles, rangos y huecos
+## 5. Niveles y rangos
 
 **Archivo:** `src/domain/leveling.ts`
 
@@ -300,19 +300,19 @@ La XP necesaria para pasar de un nivel al siguiente crece algo más rápido que 
 xpToNext(level) = Math.round(100 * level ** 1.4)
 ```
 
-Los rangos van por umbrales de nivel (F, E, D, C, B, A, S) y los huecos de quest activa crecen cada 3 niveles: `min(10, 4 + floor(level / 3))`.
+Los rangos van por umbrales de nivel (F, E, D, C, B, A, S). **No hay límite de quests en curso**: antes había «huecos» (4 al empezar, uno más cada 3 niveles, hasta 10), pero el propietario los quitó porque no tenían sentido para tareas reales; la cabecera solo cuenta las que llevas en curso.
 
-| Nivel | XP para subir | XP total al llegar | Rango | Huecos |
-|---:|---:|---:|:---:|---:|
-| 1 | 100 | 0 | F | 4 |
-| 2 | 264 | 100 | F | 4 |
-| 3 | 466 | 364 | E | 5 |
-| 4 | 696 | 830 | E | 5 |
-| 5 | 952 | 1.526 | D | 5 |
-| 6 | 1.229 | 2.478 | D | 6 |
-| 8 | 1.838 | 5.232 | C | 6 |
-| 10 | 2.512 | 9.237 | C | 7 |
-| 12 | 3.242 | 14.619 | B | 8 |
+| Nivel | XP para subir | XP total al llegar | Rango |
+|---:|---:|---:|:---:|
+| 1 | 100 | 0 | F |
+| 2 | 264 | 100 | F |
+| 3 | 466 | 364 | E |
+| 4 | 696 | 830 | E |
+| 5 | 952 | 1.526 | D |
+| 6 | 1.229 | 2.478 | D |
+| 8 | 1.838 | 5.232 | C |
+| 10 | 2.512 | 9.237 | C |
+| 12 | 3.242 | 14.619 | B |
 
 `levelFromXp(total)` va restando `xpToNext` nivel a nivel hasta que no llega, y devuelve el nivel, la XP dentro del nivel y la que falta. Con las quests de ejemplo, completar el «Dragón del Papeleo» (400 XP) te lleva directamente a nivel 3.
 
@@ -404,10 +404,10 @@ Lo que hace cada parte:
 
 | Parte | Hace |
 |---|---|
-| `src-tauri/src/sync/oauth.rs` | Inicio de sesión de Google con PKCE: abre el navegador y espera la vuelta en `127.0.0.1:<puerto libre>`. Guarda el refresh token en el llavero y renueva el access token, que solo vive en memoria |
+| `src-tauri/src/sync/oauth.rs` | Inicio de sesión de Google con PKCE. En el escritorio abre el navegador y espera la vuelta en `127.0.0.1:<puerto libre>`; en el iPhone abre la hoja del sistema (`ASWebAuthenticationSession`, plugin `src-tauri/plugins/web-auth`) con el cliente «iOS», que vuelve a su esquema `com.googleusercontent.apps.…`. Guarda el refresh token en el llavero y renueva el access token, que solo vive en memoria |
 | `src-tauri/src/sync/drive.rs` | Listar archivos de Quests (por `appProperties`), bajar y subir (subida reanudable, vale para 20 MB) |
 | `features/sync/engine.ts` | `runSync`: bajar lo nuevo de los demás (por la `version` de cada archivo, guardada como cursor en `meta`), fusionar, recalcular, subir lo propio y mover los binarios |
-| `features/sync/actions.ts` | Cuándo: al abrir, cada 5 minutos, al volver a la ventana y al cerrarla (como mucho 8 s). Una sincronización a la vez |
+| `features/sync/actions.ts` | Cuándo: al abrir, cada 5 minutos, al volver a la ventana, al ocultarla si hay algo sin subir (en el iPhone, al salir de la app) y al cerrarla (como mucho 8 s). Una sincronización a la vez |
 
 El token nunca llega al JavaScript y la CSP no cambia: toda conexión con Google sale de Rust. La credencial de la app (no la tuya) se incrusta al compilar desde `src-tauri/google-client.json`, que no está en el repositorio.
 
@@ -481,6 +481,7 @@ La segunda llamada recibe la misma promesa que la primera.
 - **Dos tablones.** `section` (en el store) elige entre el Quest Board y los encargos temporales. Se cambia con el selector de la cabecera o la tecla `T`. `App` maneja las teclas comunes (`T`, `H`, `I`, `C` mercader, `P` personaje, `L`, `M`) y, en el tablón de encargos, deja el resto a `TemporalBoard`, que mueve la selección por la posición de los carteles en pantalla (su rejilla es irregular).
 - **Saltar de un tablón a otro.** Desde el cartel abierto se va a una de sus quests (`goToQuest`) y desde el detalle de una quest, a su encargo (`goToTemporal`). Los dos ponen el plazo del tablón de destino en «Todo»: si no, lo elegido podría quedar oculto por el filtro y `App` seleccionaría otra cosa.
 - **Fallos al dibujar.** `<ErrorBoundary>` (`features/recovery`) envuelve a `App` en `main.tsx`. Si un componente falla, sale una pantalla de recuperación en lugar de la ventana en negro: el progreso está a salvo, «Volver a intentarlo» monta la app otra vez (el store se conserva) y «Reiniciar Quests» recarga la ventana.
+- **En el teléfono** (`features/mobile`, por debajo de 760 px): el pie con las teclas se cambia por una barra de abajo (tablones, mercader, personaje y «Más»), la cabecera pasa a dos filas y el detalle es una hoja a pantalla completa que se abre al tocar una tarjeta. Aceptar cierra antes la hoja, para que el sello caiga sobre la tarjeta. Casi todo es CSS: cada funcionalidad tiene su bloque `@media (max-width: 760px)`. Ver [su README](../src/features/mobile/README.md).
 - **Borrado en dos pasos.** «Retirar del tablón» pide un segundo clic («¿Seguro? Retirar») durante 3 s. No se usa `window.confirm` porque no está garantizado que funcione en el WebView de Tauri en todas las plataformas.
 
 ---
@@ -738,7 +739,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | Archivo | Qué protege |
 |---|---|
 | `src/domain/projection.test.ts` | Contabilidad (XP y oro cobrados una vez, recompensa copiada), cada guarda de las quests, fusión de dispositivos en cualquier orden, determinismo e invariantes sobre 40 historiales aleatorios (progreso dentro de su rango, inventario solo con objetos del almanaque, una quest en un solo encargo pendiente…). Además, la XP total se recalcula a mano y tiene que coincidir |
-| `src/domain/events.test.ts`, `upcast.test.ts`, `leveling.test.ts` | Orden de los eventos y el reloj híbrido (`nextTs`, también entre dos equipos con los relojes desfasados); versión de los eventos (sin `v`, actual y futura); curva de XP, rangos y huecos |
+| `src/domain/events.test.ts`, `upcast.test.ts`, `leveling.test.ts` | Orden de los eventos y el reloj híbrido (`nextTs`, también entre dos equipos con los relojes desfasados); versión de los eventos (sin `v`, actual y futura); curva de XP y rangos |
 | `src/features/*/model.test.ts`, `legacy.test.ts` | Reglas de cada funcionalidad: fases del pomodoro, pity y tiradas (200.000 tiradas con semilla), requisitos y repetición, plazos con sus bordes y los cambios de hora de 2026, guardas de los encargos, y los formatos antiguos (`pomodoroConfig`, `item` de texto) |
 | `src/features/snapshot/*.test.ts` | Snapshot + cola = reproducirlo todo, serialización y arranque |
 | `src/features/merchant/*.test.ts`, `equipment/model.test.ts`, `attributes/model.test.ts` | Precios y rangos, el escaparate semanal (con los cambios de hora), las guardas de la compra y del equipo, los atributos por área; con el store de verdad, comprar con cada bloqueo y ponerse lo comprado. En `projection.test.ts`, además: el oro solo baja al comprar, el doble gasto entre dispositivos y los invariantes del equipo |
@@ -771,6 +772,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | Eventos del mismo milisegundo en orden inverso: un `quest_completed` antes de su `quest_accepted` se ignoraba (lo destaparon los tests del store) | El desempate de `ts` es el `id`, un UUID aleatorio; las acciones que emiten varios eventos seguidos los producían en el mismo milisegundo | `nextTs`: cada evento nuevo va al menos 1 ms después del último aplicado |
 | El pie se desbordaba en la ventana mínima (1.024 px) al añadir las teclas `C` y `P` | La regla estrecha de `.ft` estaba antes que la base en `app.css`: con la misma especificidad gana la última, así que **nunca se había aplicado** | Moverla detrás de la regla base; en ventana estrecha, las teclas de las ventanas (objetos, mercader, personaje) quedan con su icono |
 | La cabecera se desbordaba entre 1.181 y 1.249 px con los botones del mercader y del personaje | El ajuste compacto empezaba en 1.180 px | Empieza en 1.260 px |
+| Tras cerrar una ventana (mercader, personaje…), el clic siguiente no hacía nada; en el teléfono, el primer toque en la barra | El fondo, ya invisible, seguía encima hasta 1,4 s, mientras terminaban las animaciones de dentro (la escala con muelle, el muñeco, Hu Tao) | `BACKDROP_EXIT` (`src/lib/motion.ts`): el fondo deja de recibir clics en cuanto empieza a irse; la ventana sale con duración fija |
 
 ### Trampas del entorno de pruebas (no son fallos de la app)
 
@@ -778,6 +780,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 - **Vídeo en el Chromium de Playwright.** No reproduce H.264: sin el WebM, el escaparate de Hu Tao enseñaría el cartel de respaldo. En macOS (WebKit) y Windows (WebView2) se usa el MP4.
 - **Oír sin altavoces.** Para revisar los sonidos de una animación, una prueba sustituye `window.AudioContext` por un `OfflineAudioContext` cuyo `currentTime` es el reloj de GSAP (pausado y avanzado a mano). Al final, `startRendering()` da el audio exacto de la animación, que se guarda como WAV, se mide con un espectrograma y se une a los fotogramas con `ffmpeg`. El reproductor de música debe estar desactivado (`quests.music`), porque `OfflineAudioContext` no tiene `createMediaElementSource`.
 - **Software sin GPU.** En Chromium sin interfaz, los textos gigantes con filtros tardan tanto en pintarse que GSAP frena su reloj (*lag smoothing*) y las capturas por tiempo real salen desfasadas. Con el reloj avanzado a mano no pasa.
+- **Simulador de iOS.** Las capturas pueden ir un paso por detrás de los toques: espera antes de capturar y no repitas el toque. Xcode compila el Rust sin tus variables de entorno: lo que `build.rs` lea en iOS, en archivo. Y en un Mac con el Rust de Homebrew y el de rustup, pon `~/.cargo/bin` delante en el PATH o no compila para iOS.
 - **Animaciones que no avanzan.** Si la pestaña está oculta (`document.hidden`), el navegador frena `requestAnimationFrame`, que es el reloj de GSAP. En la ventana real de la app esto no ocurre. Para revisar una animación fotograma a fotograma, se importa la misma instancia de GSAP que usa la app (la URL `/node_modules/.vite/deps/gsap.js?v=…` aparece en el código que sirve Vite, por ejemplo en `fetch('/src/lib/fx.ts')`). Después se pausa `gsap.globalTimeline` y se avanza con `.time(t + 1/60)` en bucle: los callbacks se disparan en orden. La captura de pantalla puede repetir un fotograma viejo hasta que algo fuerza el repintado, como cambiar el tamaño del viewport.
 
 ---
@@ -828,7 +831,7 @@ Sigue el patrón de `QuestCard`: guarda el valor anterior en un `useRef`, compar
 
 ### Cambiar el equilibrio del juego
 
-- Curva de XP, rangos y huecos: `src/domain/leveling.ts`.
+- Curva de XP y rangos: `src/domain/leveling.ts`.
 - Probabilidades de drop, tiradas por quest y pity: `DROP_TABLES` y `PITY_RULES` en `src/features/items/model.ts`.
 - Recompensas sugeridas por categoría: `DEFAULT_REWARD` en `src/components/CreateQuestModal.tsx`.
 - Tiempos de reaparición disponibles: `COOLDOWNS` en el mismo archivo.

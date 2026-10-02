@@ -14,6 +14,7 @@ import { streaksEs } from "../../features/streaks/i18n";
 import { chronicleEs } from "../../features/chronicle/i18n";
 import { recoveryEs } from "../../features/recovery/i18n";
 import { syncEs } from "../../features/sync/i18n";
+import { mobileEs } from "../../features/mobile/i18n";
 
 export const es = {
   app: {
@@ -24,9 +25,9 @@ export const es = {
     rank: "Rango",
     level: "Nivel",
     treasure: "Tesoro",
-    slots: "Huecos",
+    active: "En curso",
     xpTotal: "{{xp}} XP en total",
-    slotsTitle: "Quests activas / huecos desbloqueados",
+    activeTitle: "Quests en curso (sin límite)",
     soundOn: "Activar todo el sonido",
     mute: "Silenciar todo (efectos y música)",
     language: "Idioma (L)",
@@ -70,7 +71,6 @@ export const es = {
     report: "Reportar",
     missing: "Faltan objetivos",
     availableIn: "Disponible en {{time}}",
-    noSlots: "Sin huecos libres",
     abandon: "Abandonar",
     retire: "Retirar del tablón",
     retireConfirm: "¿Seguro? Retirar",
@@ -81,7 +81,6 @@ export const es = {
     completed: "«{{title}}» completada",
     published: "«{{title}}» publicada en el tablón",
     retired: "«{{title}}» retirada del tablón",
-    noSlots: "No quedan huecos libres: completa o abandona otra quest",
   },
   footer: {
     acceptReport: "Aceptar / Reportar",
@@ -154,6 +153,7 @@ export const es = {
   chronicle: chronicleEs,
   recovery: recoveryEs,
   sync: syncEs,
+  mobile: mobileEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {

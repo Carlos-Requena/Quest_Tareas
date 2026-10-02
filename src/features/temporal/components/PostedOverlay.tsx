@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import gsap from "gsap";
 import { useGame } from "../../../store/game";
 import { sfx } from "../../../lib/sfx";
@@ -10,6 +10,7 @@ import { skullSpots, tornEdge } from "../look";
 import { longDue } from "../format";
 import { useTemporalUi } from "../ui";
 import { InkSplat, Skull } from "./Skull";
+import { KeyHint } from "../../mobile";
 
 /** Animación al clavar un encargo nuevo (primer vídeo de referencia). */
 export function PostedOverlay() {
@@ -212,7 +213,7 @@ function Scene({ t }: { t: TemporalState }) {
       </div>
       <div className="tpo-white" />
       <p className="tpo-hint">
-        <Trans i18nKey="temporal.posted.hint" components={{ kbd: <kbd /> }} />
+        <KeyHint i18nKey="temporal.posted.hint" touch="skip" />
       </p>
     </div>
   );

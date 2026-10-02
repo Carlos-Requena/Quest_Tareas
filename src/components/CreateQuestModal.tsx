@@ -13,6 +13,7 @@ import { RecurrenceField, RequiresField, recurs } from "../features/complex";
 import { DeadlineField, useHorizonUi } from "../features/horizon";
 import { areaSuggestions } from "../features/attributes";
 import { ChecklistInputs, cleanChecklist, type ChecklistItem } from "../features/checklist";
+import { BACKDROP_EXIT, MODAL_EXIT } from "../lib/motion";
 
 /** Espera por defecto de una repetible: 20 h (diaria con margen). */
 const DEFAULT_COOLDOWN = 20 * 60;
@@ -153,7 +154,7 @@ function Modal() {
       className="modal-bg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      exit={BACKDROP_EXIT}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
       onKeyDown={onKey}
     >
@@ -162,7 +163,7 @@ function Modal() {
         style={{ "--cat": CATEGORY_META[category].color } as React.CSSProperties}
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98, transition: MODAL_EXIT }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
         onSubmit={(e) => {
           e.preventDefault();

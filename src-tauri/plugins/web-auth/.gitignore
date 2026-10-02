@@ -1,0 +1,4 @@
+# La API de Tauri que build.rs copia al compilar para iOS, y lo que genera Swift.
+/.tauri
+/ios/.build
+/ios/Package.resolved

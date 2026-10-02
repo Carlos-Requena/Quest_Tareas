@@ -167,13 +167,13 @@ describe("dispatch incremental", () => {
 });
 
 describe("acciones de quests", () => {
-  it("no deja aceptar más quests que huecos (4 al empezar)", async () => {
+  it("no hay límite de quests en curso: se aceptan las 12", async () => {
     const b = await boot();
-    for (let i = 0; i < 6; i++) await addQuest(b, `q${i}`);
-    for (let i = 0; i < 6; i++) await b.actions.acceptQuest(`q${i}`);
+    for (let i = 0; i < 12; i++) await addQuest(b, `q${i}`);
+    for (let i = 0; i < 12; i++) await b.actions.acceptQuest(`q${i}`);
     const active = [...b.g().state.quests.values()].filter((q) => q.status === "active");
-    expect(active).toHaveLength(4);
-    expect(b.g().toast).toBeDefined();
+    expect(active).toHaveLength(12);
+    consistent(b);
   });
 
   it("no deja aceptar una quest con requisitos pendientes ni emite el evento", async () => {

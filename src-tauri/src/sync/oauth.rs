@@ -1,5 +1,11 @@
-// Inicio de sesión con Google: OAuth 2 para apps de escritorio con PKCE y redirección
-// a 127.0.0.1 (el navegador vuelve a un puerto local que abre la app un momento).
+// Inicio de sesión con Google: OAuth 2 con PKCE.
+//
+// - Escritorio: cliente «Desktop app» y redirección a 127.0.0.1 (el navegador vuelve a un
+//   puerto local que abre la app un momento).
+// - iOS: cliente «iOS», sin secreto, y la hoja de inicio de sesión del sistema
+//   (ASWebAuthenticationSession, plugin web-auth), que vuelve al esquema del cliente
+//   (com.googleusercontent.apps.…). En iOS una app no puede quedarse escuchando un puerto
+//   mientras Safari está delante, y Google no admite esa redirección para clientes iOS.
 //
 // - El refresh token se guarda en el llavero del sistema (Llavero de macOS, Administrador
 //   de credenciales de Windows). Nunca en SQLite, en un archivo ni en el JavaScript.
@@ -14,7 +20,10 @@ use base64::Engine;
 use rand::RngCore;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use tauri::AppHandle;
+#[cfg(not(target_os = "ios"))]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+#[cfg(not(target_os = "ios"))]
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use url::Url;
@@ -28,19 +37,23 @@ const REVOKE_URL: &str = "https://oauth2.googleapis.com/revoke";
 const KEYRING_SERVICE: &str = "com.quests.app";
 const KEYRING_USER: &str = "google-drive";
 /// Lo que se espera a que vuelvas del navegador antes de dar el intento por perdido.
+#[cfg(not(target_os = "ios"))]
 const SIGN_IN_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Credencial de la app (no del usuario), incrustada al compilar por build.rs.
 struct Client {
     id: &'static str,
-    secret: &'static str,
+    /// El cliente de escritorio lo tiene; el de iOS, no.
+    secret: Option<&'static str>,
 }
 
 fn client() -> Option<Client> {
-    match (option_env!("QUESTS_GOOGLE_CLIENT_ID"), option_env!("QUESTS_GOOGLE_CLIENT_SECRET")) {
-        (Some(id), Some(secret)) if !id.is_empty() && !secret.is_empty() => Some(Client { id, secret }),
-        _ => None,
+    let id = option_env!("QUESTS_GOOGLE_CLIENT_ID").filter(|v| !v.is_empty())?;
+    let secret = option_env!("QUESTS_GOOGLE_CLIENT_SECRET").filter(|v| !v.is_empty());
+    if cfg!(not(target_os = "ios")) && secret.is_none() {
+        return None;
     }
+    Some(Client { id, secret })
 }
 
 pub fn configured() -> bool {
@@ -94,45 +107,28 @@ struct TokenError {
     error: String,
 }
 
-/// Abre el navegador, espera a que vuelvas con el permiso y guarda el refresh token.
-pub async fn sign_in(http: &reqwest::Client, cache: &Mutex<Option<AccessToken>>) -> Result<(), SyncError> {
+/// Abre la página de Google, espera a que vuelvas con el permiso y guarda el refresh token.
+pub async fn sign_in(app: &AppHandle, http: &reqwest::Client, cache: &Mutex<Option<AccessToken>>) -> Result<(), SyncError> {
     let c = client().ok_or(SyncError::NotConfigured)?;
     let verifier = random_url_safe(64);
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let state = random_url_safe(24);
 
-    let listener = TcpListener::bind("127.0.0.1:0").await.map_err(SyncError::network)?;
-    let port = listener.local_addr().map_err(SyncError::network)?.port();
-    let redirect = format!("http://127.0.0.1:{port}");
+    let (code, redirect) = authorize(app, &c, &challenge, &state).await?;
 
-    let mut url = Url::parse(AUTH_URL).expect("URL fija");
-    url.query_pairs_mut()
-        .append_pair("client_id", c.id)
-        .append_pair("redirect_uri", &redirect)
-        .append_pair("response_type", "code")
-        .append_pair("scope", SCOPE)
-        .append_pair("code_challenge", &challenge)
-        .append_pair("code_challenge_method", "S256")
-        .append_pair("state", &state)
-        // offline + consent: Google da siempre un refresh token, también al volver a conectar.
-        .append_pair("access_type", "offline")
-        .append_pair("prompt", "consent");
-    open::that_detached(url.as_str()).map_err(|e| SyncError::Other(format!("no se pudo abrir el navegador: {e}")))?;
-
-    let code = tokio::time::timeout(SIGN_IN_TIMEOUT, wait_for_code(&listener, &state))
-        .await
-        .map_err(|_| SyncError::Timeout)??;
-
+    let mut form = vec![
+        ("client_id", c.id),
+        ("code", code.as_str()),
+        ("code_verifier", verifier.as_str()),
+        ("grant_type", "authorization_code"),
+        ("redirect_uri", redirect.as_str()),
+    ];
+    if let Some(secret) = c.secret {
+        form.push(("client_secret", secret));
+    }
     let resp = http
         .post(TOKEN_URL)
-        .form(&[
-            ("client_id", c.id),
-            ("client_secret", c.secret),
-            ("code", code.as_str()),
-            ("code_verifier", verifier.as_str()),
-            ("grant_type", "authorization_code"),
-            ("redirect_uri", redirect.as_str()),
-        ])
+        .form(&form)
         .send()
         .await
         .map_err(SyncError::network)?;
@@ -153,7 +149,82 @@ pub async fn sign_in(http: &reqwest::Client, cache: &Mutex<Option<AccessToken>>)
     Ok(())
 }
 
+/// La página de permiso de Google, con PKCE.
+fn auth_url(c: &Client, redirect: &str, challenge: &str, state: &str) -> Url {
+    let mut url = Url::parse(AUTH_URL).expect("URL fija");
+    url.query_pairs_mut()
+        .append_pair("client_id", c.id)
+        .append_pair("redirect_uri", redirect)
+        .append_pair("response_type", "code")
+        .append_pair("scope", SCOPE)
+        .append_pair("code_challenge", challenge)
+        .append_pair("code_challenge_method", "S256")
+        .append_pair("state", state)
+        // offline + consent: Google da siempre un refresh token, también al volver a conectar.
+        .append_pair("access_type", "offline")
+        .append_pair("prompt", "consent");
+    url
+}
+
+/// Lo que trae la vuelta de Google: el código, un error o nada (otra petición del navegador).
+fn code_from(params: &HashMap<String, String>, state: &str) -> Option<Result<String, SyncError>> {
+    if let Some(err) = params.get("error") {
+        return Some(Err(if err == "access_denied" { SyncError::ConsentDenied } else { SyncError::Auth(err.clone()) }));
+    }
+    let code = params.get("code")?;
+    Some(if params.get("state").map(String::as_str) == Some(state) {
+        Ok(code.clone())
+    } else {
+        Err(SyncError::Auth("state distinto: respuesta que no pidió esta app".into()))
+    })
+}
+
+/// Escritorio: abre el navegador y espera la vuelta en un puerto de 127.0.0.1.
+/// Devuelve el código y la redirect_uri usada (hay que repetirla al canjearlo).
+#[cfg(not(target_os = "ios"))]
+async fn authorize(_app: &AppHandle, c: &Client, challenge: &str, state: &str) -> Result<(String, String), SyncError> {
+    let listener = TcpListener::bind("127.0.0.1:0").await.map_err(SyncError::network)?;
+    let port = listener.local_addr().map_err(SyncError::network)?.port();
+    let redirect = format!("http://127.0.0.1:{port}");
+    let url = auth_url(c, &redirect, challenge, state);
+    open::that_detached(url.as_str()).map_err(|e| SyncError::Other(format!("no se pudo abrir el navegador: {e}")))?;
+    let code = tokio::time::timeout(SIGN_IN_TIMEOUT, wait_for_code(&listener, state))
+        .await
+        .map_err(|_| SyncError::Timeout)??;
+    Ok((code, redirect))
+}
+
+/// iOS: la hoja de inicio de sesión del sistema, que vuelve al esquema del cliente iOS.
+#[cfg(target_os = "ios")]
+async fn authorize(app: &AppHandle, c: &Client, challenge: &str, state: &str) -> Result<(String, String), SyncError> {
+    use tauri::Manager;
+    use tauri_plugin_web_auth::{Error, WebAuth};
+
+    let scheme = reversed_client_id(c.id);
+    let redirect = format!("{scheme}:/oauth2redirect");
+    let url = auth_url(c, &redirect, challenge, state);
+    let back = app
+        .state::<WebAuth<tauri::Wry>>()
+        .authenticate(url.as_str(), &scheme)
+        .await
+        .map_err(|e| match e {
+            Error::Cancelled => SyncError::Cancelled,
+            Error::Failed(m) => SyncError::Other(m),
+        })?;
+    let params: HashMap<String, String> = Url::parse(&back).map(|u| u.query_pairs().into_owned().collect()).unwrap_or_default();
+    let code = code_from(&params, state).unwrap_or_else(|| Err(SyncError::Auth("Google volvió sin código".into())))?;
+    Ok((code, redirect))
+}
+
+/// «1234-abc.apps.googleusercontent.com» → «com.googleusercontent.apps.1234-abc»: el esquema
+/// de vuelta que Google admite para un cliente iOS.
+#[cfg(target_os = "ios")]
+fn reversed_client_id(id: &str) -> String {
+    id.split('.').rev().collect::<Vec<_>>().join(".")
+}
+
 /// Atiende al navegador en el puerto local hasta que llega la respuesta de Google.
+#[cfg(not(target_os = "ios"))]
 async fn wait_for_code(listener: &TcpListener, state: &str) -> Result<String, SyncError> {
     loop {
         let (mut sock, _) = listener.accept().await.map_err(SyncError::network)?;
@@ -165,17 +236,8 @@ async fn wait_for_code(listener: &TcpListener, state: &str) -> Result<String, Sy
             .map(|u| u.query_pairs().into_owned().collect())
             .unwrap_or_default();
 
-        let result = if let Some(err) = params.get("error") {
-            Some(Err(if err == "access_denied" { SyncError::ConsentDenied } else { SyncError::Auth(err.clone()) }))
-        } else if let Some(code) = params.get("code") {
-            Some(if params.get("state").map(String::as_str) == Some(state) {
-                Ok(code.clone())
-            } else {
-                Err(SyncError::Auth("state distinto: respuesta que no pidió esta app".into()))
-            })
-        } else {
-            None // el favicon u otra petición del navegador
-        };
+        // None: el favicon u otra petición del navegador.
+        let result = code_from(&params, state);
 
         let page = match &result {
             Some(Ok(_)) => DONE_PAGE,
@@ -195,7 +257,9 @@ async fn wait_for_code(listener: &TcpListener, state: &str) -> Result<String, Sy
     }
 }
 
+#[cfg(not(target_os = "ios"))]
 const DONE_PAGE: &str = "<!doctype html><meta charset=utf-8><title>Quests</title><body style=\"font-family:Georgia,serif;background:#0a0908;color:#ece5d6;display:grid;place-items:center;height:100vh;margin:0;text-align:center\"><div><h1 style=\"color:#f2d68f\">Quests</h1><p>Conectado con Google Drive. Ya puedes cerrar esta pestaña y volver a la app.</p><p>Google ドライブに接続しました。このタブを閉じてアプリに戻ってください。</p></div>";
+#[cfg(not(target_os = "ios"))]
 const FAILED_PAGE: &str = "<!doctype html><meta charset=utf-8><title>Quests</title><body style=\"font-family:Georgia,serif;background:#0a0908;color:#ece5d6;display:grid;place-items:center;height:100vh;margin:0;text-align:center\"><div><h1 style=\"color:#e2604c\">Quests</h1><p>No se ha conectado con Google Drive. Vuelve a la app para intentarlo otra vez.</p><p>Google ドライブに接続できませんでした。アプリに戻ってもう一度お試しください。</p></div>";
 
 /// Un access token válido: el de memoria o uno nuevo con el refresh token del llavero.
@@ -208,14 +272,13 @@ pub async fn access_token(http: &reqwest::Client, cache: &Mutex<Option<AccessTok
     }
     let c = client().ok_or(SyncError::NotConfigured)?;
     let refresh = stored_refresh_token()?.ok_or(SyncError::SignedOut)?;
+    let mut form = vec![("client_id", c.id), ("refresh_token", refresh.as_str()), ("grant_type", "refresh_token")];
+    if let Some(secret) = c.secret {
+        form.push(("client_secret", secret));
+    }
     let resp = http
         .post(TOKEN_URL)
-        .form(&[
-            ("client_id", c.id),
-            ("client_secret", c.secret),
-            ("refresh_token", refresh.as_str()),
-            ("grant_type", "refresh_token"),
-        ])
+        .form(&form)
         .send()
         .await
         .map_err(SyncError::network)?;

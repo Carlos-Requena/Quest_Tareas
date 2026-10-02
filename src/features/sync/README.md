@@ -4,9 +4,9 @@ Cada equipo sube sus eventos a una carpeta `QuestsApp/` del Google Drive del jug
 
 ## Requisitos
 
-- Usar Quests en varios equipos (macOS y Windows) con el mismo progreso, sin servidor propio.
+- Usar Quests en varios equipos (macOS, Windows e iPhone) con el mismo progreso, sin servidor propio.
 - Funciona sin conexión: se juega igual y se sincroniza al volver.
-- Sincroniza al abrir la app, cada 5 minutos, al volver a la ventana (si hace más de 1 minuto) y al cerrarla (como mucho 8 s).
+- Sincroniza al abrir la app, cada 5 minutos, al volver a la ventana (si hace más de 1 minuto), al ocultarla si hay algo sin subir (en el iPhone, al salir de la app) y al cerrarla (como mucho 8 s).
 - También los binarios: los PDF e imágenes de los encargos y el fondo del menú.
 - La app solo ve sus propios archivos de Drive (permiso `drive.file`), y los tokens nunca llegan a disco ni al JavaScript.
 - Indicador en la cabecera: una nube con un punto de estado y un panel para conectar, sincronizar o desconectar.
@@ -28,6 +28,17 @@ Cada equipo sube sus eventos a una carpeta `QuestsApp/` del Google Drive del jug
 
 Cada equipo escribe **solo su archivo**: nunca hay dos escritores sobre el mismo archivo, ni conflictos de escritura. Si dos equipos crean a la vez su carpeta `QuestsApp`, no pasa nada: los archivos se buscan por sus propiedades y se sube a la carpeta más antigua.
 
+## En el iPhone
+
+Lo único que cambia es **cómo se inicia sesión**. Bajar, fusionar, subir, los binarios, el llavero y Drive son el mismo código.
+
+- **Otro cliente de Google, de tipo «iOS».** Google no admite la redirección a `127.0.0.1` para apps de iPhone, y en iOS una app no puede quedarse escuchando un puerto mientras Safari está delante. El cliente iOS **no tiene secreto** y vuelve a un esquema propio: el id del cliente al revés (`com.googleusercontent.apps.<id>:/oauth2redirect`). Tiene que estar **en el mismo proyecto de Google Cloud** que el de escritorio: Drive reconoce la app por el proyecto, y así los dos ven los mismos archivos con `drive.file`. Su *bundle ID* tiene que ser el de la app (`com.quests.app`, o el de `tauri.ios.conf.json` si se cambia).
+- **La hoja de inicio de sesión del sistema**, `ASWebAuthenticationSession`, en un plugin propio: `src-tauri/plugins/web-auth` (Swift en `ios/`, Rust en `src/lib.rs`). iOS pregunta primero «"Quests" quiere usar accounts.google.com para iniciar sesión» y abre una hoja de Safari que comparte la sesión de Google de Safari. Cuando Google redirige al esquema, la hoja se cierra y devuelve la URL a **Rust**, que comprueba el `state` y canjea el código con PKCE, sin secreto. El plugin no tiene comandos para el JavaScript: la URL con el código nunca pasa por el WebView (ADR-28 sigue igual).
+- **Cerrar la hoja sin terminar** devuelve `cancelled`: se vuelve a «Conectar» sin aviso de error.
+- **El refresh token** va al llavero de iOS (el mismo crate `keyring`, `apple-native`). Se borra si se borra la app.
+- **Sincronizar al salir.** En el iPhone no hay «cerrar la ventana»: salir de la app la oculta (`visibilitychange`) y es la última ocasión antes de que iOS la suspenda. Si hay algo sin subir, se sincroniza entonces.
+- **La credencial** sale de `src-tauri/google-client-ios.plist` (el plist que da Google Cloud), `google-client-ios.json` (`{"client_id": "…"}`) o la variable `QUESTS_GOOGLE_IOS_CLIENT_ID`; las dos primeras, fuera del repositorio. `build.rs` elige la de iOS cuando compila para iOS. Ojo: la variable de entorno **no llega** cuando compila Xcode (`pnpm tauri ios build` / `dev`); en local, usa el archivo.
+
 ## Decisiones
 
 | Decisión | Alternativa descartada | Motivo |
@@ -41,6 +52,7 @@ Cada equipo escribe **solo su archivo**: nunca hay dos escritores sobre el mismo
 | Binarios por SHA-256 y solo los que se usan | Sincronizar toda la tabla `blobs` | No se suben huérfanos y nunca se duplican |
 | Datos de ejemplo con ids fijos (`seed:quest:*`) y lápida de quests retiradas (`ProjectionAcc.deletedQuests`) | Ids aleatorios | Dos equipos que empiezan vacíos tendrían los ejemplos duplicados al sincronizar; y uno que se instala tarde devolvería los que ya retiraste. Sube `PROJECTION_VERSION` a 4 |
 | Credencial de la app en `src-tauri/google-client.json` (fuera del repositorio), incrustada al compilar por `build.rs`; en la CI, por secretos | En el código | Nunca en el repositorio. Para una app de escritorio, Google trata el *client secret* como no confidencial: va dentro del instalador |
+| iOS: cliente «iOS» sin secreto y `ASWebAuthenticationSession` en un plugin propio (`plugins/web-auth`), con el canje en Rust | El cliente de escritorio con 127.0.0.1; `tauri-plugin-deep-link` + abrir Safari; el SDK de Google Sign-In; un plugin de la comunidad | 127.0.0.1 no vale en iOS. Con *deep links*, la URL con el código pasaría por el JavaScript y habría que registrar el esquema en Info.plist. El SDK de Google es mucho código y CocoaPods. Unas 60 líneas de Swift propias se revisan enteras |
 
 ## Tipos
 
@@ -64,6 +76,7 @@ No añade eventos. Viajan los que ya existen, con su `v` (los de una versión fu
 | `not_configured` | La app se compiló sin credencial | Nube apagada: «sin configurar» |
 | `signed_out` | No hay sesión, o caducó (7 días con la app en pruebas) | Se vuelve a «Conectar» y avisa |
 | `consent_denied`, `missing_scope` | No se dio permiso, o se desmarcó Drive | Aviso para volver a conectar |
+| `cancelled` | iOS: se cerró la hoja de inicio de sesión sin terminar | Nada: se vuelve a «Conectar» |
 | `timeout` | No se volvió del navegador en 5 minutos | Aviso |
 | `network` | Sin conexión | Punto rojo; en las automáticas no avisa y se reintenta |
 | `drive`, `auth`, `keyring`, `other` | Fallo de Google o del sistema | Punto rojo y el motivo en el panel; el detalle va a la salida de error de Rust (`[sync] …`) |
@@ -80,7 +93,8 @@ No añade eventos. Viajan los que ya existen, con su `v` (los de una versión fu
 | `ui.ts` | Estado de la interfaz (Zustand) |
 | `components/SyncControl.tsx` | La nube de la cabecera con su panel, y `SyncWatcher` (arranca al cargar el juego) |
 | `i18n.ts`, `sync.css` | Textos es + ja y estilos |
-| `src-tauri/src/sync/` | `oauth.rs` (PKCE, llavero, refresco, desconexión), `drive.rs` (listar, bajar, subir con subida reanudable), `mod.rs` (comandos) |
+| `src-tauri/src/sync/` | `oauth.rs` (PKCE con 127.0.0.1 o la hoja de iOS, llavero, refresco, desconexión), `drive.rs` (listar, bajar, subir con subida reanudable), `mod.rs` (comandos) |
+| `src-tauri/plugins/web-auth/` | Plugin de Tauri con `ASWebAuthenticationSession` (Swift); solo hace algo en iOS |
 
 ## Puntos de integración
 
@@ -88,7 +102,8 @@ No añade eventos. Viajan los que ya existen, con su `v` (los de una versión fu
 |---|---|
 | `src-tauri/Cargo.toml`, `build.rs`, `src/lib.rs` | `reqwest` (TLS nativo), `keyring`, `tokio`, `open`…; la credencial al compilar; los 8 comandos |
 | `src-tauri/capabilities/default.json` | `core:window:allow-destroy`: al escuchar el cierre de la ventana, Tauri la cierra desde el JavaScript |
-| `src-tauri/.gitignore` | `/google-client.json` |
+| `src-tauri/.gitignore` | `/google-client.json`, `/google-client-ios.plist`, `/google-client-ios.json` |
+| `src-tauri/Cargo.toml`, `src/lib.rs` | `tauri-plugin-web-auth` (ruta local) y su registro |
 | `.github/workflows/ci.yml` | Secretos `QUESTS_GOOGLE_CLIENT_ID` y `QUESTS_GOOGLE_CLIENT_SECRET` |
 | `src/storage/eventStore.ts` | `byDevice`; inserciones y `markSynced` por lotes (antes, una sentencia por evento) |
 | `src/storage/blobStore.ts` | `ids()` y `readBase64()` |
@@ -115,7 +130,14 @@ No añade eventos. Viajan los que ya existen, con su `v` (los de una versión fu
   - A subió sus 15 eventos y B bajó esos 15 y subió los suyos. Los ejemplos se juntaron: 5 quests y 10 objetos.
   - El propietario aceptó, avanzó y completó quests en las dos copias. Tras sincronizar, las dos tenían los mismos 37 eventos, todos subidos y sin errores.
   - El primer intento tras conectar falló sin dejar rastro. Al volver a abrir funcionó; lo más probable es que la API de Drive aún no estuviera activa (se había activado minutos antes). Desde entonces, los fallos se registran (`[sync] …`).
+- **iPhone (simulador de iOS 27)**, con un id de cliente falso (`google-client-ios.json` temporal):
+  - El llavero de iOS responde (sale «Conectar», no un error).
+  - «Conectar» abre el aviso del sistema y la hoja de Safari con la página de Google, que contesta `invalid_client` (lo esperado con un id falso): la URL, el esquema y el plugin funcionan.
+  - Cerrar la hoja vuelve a «Conectar» sin aviso.
+- **iPhone (simulador), con el cliente iOS de verdad** (proyecto 1002522575092, el mismo que el de escritorio; *bundle ID* `com.quests.app`): Google acepta el cliente y enseña su página de inicio de sesión («continuar a "Quests"»). No se llegó a iniciar sesión.
 - **Sin probar:**
+  - Iniciar sesión en iOS de principio a fin, el canje del código sin secreto y la sincronización entre el iPhone y el Mac (falta crear el cliente iOS en Google Cloud).
+  - Sincronizar al salir de la app en iOS (cuánto deja iOS terminar antes de suspenderla).
   - Windows.
   - Los adjuntos con Drive de verdad (solo en los tests).
   - La sincronización al cerrar la ventana.

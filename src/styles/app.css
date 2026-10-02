@@ -163,9 +163,6 @@ kbd {
   background: var(--gold);
   box-shadow: 0 0 6px rgba(214, 178, 94, 0.7);
 }
-.slot.locked {
-  border-color: var(--faint);
-}
 
 .lang {
   display: flex;

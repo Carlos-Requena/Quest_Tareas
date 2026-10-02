@@ -30,6 +30,9 @@ pub enum SyncError {
     /// No hay sesión (nunca se conectó, se desconectó o caducó el permiso).
     SignedOut,
     ConsentDenied,
+    /// Se cerró la hoja de inicio de sesión sin terminar (iOS).
+    #[cfg_attr(not(target_os = "ios"), allow(dead_code))]
+    Cancelled,
     /// Se aceptó sin marcar el permiso de Drive.
     MissingScope,
     Timeout,
@@ -62,6 +65,7 @@ impl Serialize for SyncError {
             SyncError::NotConfigured => ("not_configured", None, String::new()),
             SyncError::SignedOut => ("signed_out", None, String::new()),
             SyncError::ConsentDenied => ("consent_denied", None, String::new()),
+            SyncError::Cancelled => ("cancelled", None, String::new()),
             SyncError::MissingScope => ("missing_scope", None, String::new()),
             SyncError::Timeout => ("timeout", None, String::new()),
             SyncError::Network(d) => ("network", None, d.clone()),
@@ -97,8 +101,8 @@ pub fn sync_signed_in() -> R<bool> {
 }
 
 #[tauri::command]
-pub async fn sync_sign_in(state: State<'_, SyncState>) -> R<Account> {
-    logged("sign_in", oauth::sign_in(&state.http, &state.token).await)?;
+pub async fn sync_sign_in(app: tauri::AppHandle, state: State<'_, SyncState>) -> R<Account> {
+    logged("sign_in", oauth::sign_in(&app, &state.http, &state.token).await)?;
     *state.folder.lock().await = None;
     logged("about", drive::about(&state).await)
 }

@@ -14,6 +14,7 @@ import { useCharacterUi } from "../ui";
 import { Doll } from "./Doll";
 import { gearDescription, gearName } from "../../armory/labels";
 import "../equipment.css";
+import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
 
 const LEFT: ArmorSlot[] = ["head", "body", "hands", "feet"];
 const RIGHT: ArmorSlot[] = ["weapon", "shield", "cape", "amulet"];
@@ -95,7 +96,7 @@ function Modal() {
       className="modal-bg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      exit={BACKDROP_EXIT}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <motion.div
@@ -103,7 +104,7 @@ function Modal() {
         style={{ "--cat": "var(--gold)" } as CSSProperties}
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98, transition: MODAL_EXIT }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
       >
         <header className="modal-h chr-h">
@@ -124,7 +125,8 @@ function Modal() {
           </button>
         </header>
 
-        <div className="chr-body">
+        {/* is-picking: en el teléfono, el armario ocupa la ventana (features/mobile). */}
+        <div className={`chr-body ${slot ? "is-picking" : ""}`}>
           <section className="chr-left">
             <div className="chr-rig">
               <div className="chr-col">

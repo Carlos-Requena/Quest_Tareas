@@ -2026,3 +2026,110 @@
     animation: none;
   }
 }
+
+/* ───────────── Teléfono (features/mobile; 760 px es PHONE_MAX_WIDTH) ───────────── */
+
+@media (max-width: 760px) {
+  .main-temporal {
+    padding: 10px 10px 8px;
+  }
+  .tb-head {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title title"
+      "count tools";
+    gap: 2px 10px;
+    padding: 14px 40px 2px;
+  }
+  .tb-title {
+    grid-area: title;
+    justify-self: center;
+    font-size: 17px;
+    letter-spacing: 0.08em;
+    white-space: normal;
+    text-align: center;
+  }
+  .tb-count {
+    grid-area: count;
+  }
+  .tb-tools {
+    grid-area: tools;
+  }
+  .tb-corner {
+    width: 54px;
+    height: 54px;
+  }
+  .tb-scroll {
+    /* Hueco abajo para el rombo de crear. */
+    padding: 14px 14px 96px;
+  }
+  .tb-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 14px;
+  }
+  /* El aviso sale encima de la barra de abajo (features/mobile), no sobre la madera. */
+  .tb-toast {
+    display: none;
+  }
+  .tb-empty {
+    margin: 30px 10px 0;
+  }
+  /* Cartel abierto: casi todo el ancho, datos en una columna y botones en dos filas. */
+  .pv-wrap {
+    gap: 12px;
+  }
+  .pv-sheet {
+    width: 92vw;
+    height: min(600px, 68vh);
+  }
+  .pv-frame {
+    inset: 14px;
+    padding: 12px 14px 14px;
+  }
+  .pv-orn,
+  .tpo-orn,
+  .tco-orn {
+    width: 36px;
+  }
+  .pv-title {
+    font-size: 22px;
+  }
+  .pv-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .pv-skulls .skull {
+    width: 42px;
+    height: 42px;
+  }
+  .pv-clear {
+    font-size: 40px;
+  }
+  .pv-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 12px;
+  }
+  .pv-actions .btn {
+    height: 42px;
+  }
+  .pv-actions .btn-primary {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  .pv-file-x {
+    opacity: 1;
+  }
+  /* Formulario: «Nueva quest» en una línea y el desplegable debajo, a lo ancho. */
+  .tq-tools {
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+  .tq-tools .add-cond {
+    white-space: nowrap;
+  }
+  .field .tq-pick {
+    flex-basis: 100%;
+  }
+}

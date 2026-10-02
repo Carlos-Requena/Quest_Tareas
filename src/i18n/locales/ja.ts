@@ -14,6 +14,7 @@ import { streaksJa } from "../../features/streaks/i18n";
 import { chronicleJa } from "../../features/chronicle/i18n";
 import { recoveryJa } from "../../features/recovery/i18n";
 import { syncJa } from "../../features/sync/i18n";
+import { mobileJa } from "../../features/mobile/i18n";
 
 // Mismo esquema que es.ts: TypeScript avisa si falta o sobra alguna clave.
 // En japonés no hay plural; las formas _one existen solo para cumplir el tipo.
@@ -26,9 +27,9 @@ export const ja: Translation = {
     rank: "ランク",
     level: "レベル",
     treasure: "所持金",
-    slots: "受注枠",
+    active: "受注中",
     xpTotal: "累計 {{xp}} XP",
-    slotsTitle: "受注中のクエスト / 解放済みの受注枠",
+    activeTitle: "受注中のクエスト（上限なし）",
     soundOn: "すべてのサウンドをオン",
     mute: "すべてミュート（効果音とBGM）",
     language: "言語 (L)",
@@ -72,7 +73,6 @@ export const ja: Translation = {
     report: "報告する",
     missing: "条件がそろっていません",
     availableIn: "再受注まで {{time}}",
-    noSlots: "受注枠がいっぱいです",
     abandon: "取りやめる",
     retire: "掲示板から外す",
     retireConfirm: "本当に外しますか？",
@@ -83,7 +83,6 @@ export const ja: Translation = {
     completed: "「{{title}}」を達成しました",
     published: "「{{title}}」を掲示しました",
     retired: "「{{title}}」を掲示板から外しました",
-    noSlots: "受注枠に空きがありません。ほかの依頼を達成するか、取りやめてください",
   },
   footer: {
     acceptReport: "受注 / 報告",
@@ -155,6 +154,7 @@ export const ja: Translation = {
   chronicle: chronicleJa,
   recovery: recoveryJa,
   sync: syncJa,
+  mobile: mobileJa,
   seed: {
     dragon: {
       title: "書類ドラゴンの討伐",

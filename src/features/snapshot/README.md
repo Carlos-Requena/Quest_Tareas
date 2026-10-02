@@ -28,7 +28,7 @@ El snapshot es una **caché**. Los eventos siguen siendo la única verdad: se pu
 |---|---|
 | `newProjectionAcc()` | Acumulador vacío: quests, objetos, encargos, `xp`, `gold`, `completedCount` |
 | `applyEvent(acc, e)` | El `switch` de siempre, con sus guardas, para **un** evento (modifica `acc`) |
-| `finishProjection(acc)` | Lo que depende del conjunto: nivel, rango, huecos y el encargo de cada quest (`temporalId`) |
+| `finishProjection(acc)` | Lo que depende del conjunto: nivel, rango y el encargo de cada quest (`temporalId`) |
 | `project(events)` | `newProjectionAcc` + `applyEvent` de todos + `finishProjection`. Mismo resultado que antes |
 
 `ProjectionAcc` solo contiene datos serializables (`Map`, `Set` y objetos planos), y por eso se puede guardar.

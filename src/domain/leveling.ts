@@ -27,9 +27,3 @@ export function rankFor(level: number): string {
   return RANKS.find(([min]) => level >= min)![1];
 }
 
-export const MAX_SLOTS = 10;
-
-/** Huecos de quest activa desbloqueados: empiezan en 4 y crecen con el nivel. */
-export function maxActiveFor(level: number): number {
-  return Math.min(MAX_SLOTS, 4 + Math.floor(level / 3));
-}

@@ -685,3 +685,97 @@
     min-height: 128px;
   }
 }
+
+/* ───────────── Teléfono (features/mobile; 760 px es PHONE_MAX_WIDTH) ─────────────
+   Todo en una columna que se desliza: Hu Tao arriba, la mercancía debajo y la ficha de la
+   pieza elegida pegada abajo, para verla sin perder la lista. */
+@media (max-width: 760px) {
+  .mshop {
+    width: 100%;
+    height: 100%;
+  }
+  .mshop-h {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .mshop-tabs {
+    order: 5;
+    width: 100%;
+    margin-left: 0;
+  }
+  .mshop-gold {
+    margin-left: auto;
+  }
+  .mshop-body {
+    display: block;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .mshop-stage {
+    padding: 0 16px 12px;
+    border-right: 0;
+  }
+  .ht {
+    gap: 16px;
+  }
+  .ht-box {
+    min-height: 0;
+    padding: 18px 16px 14px;
+  }
+  .ht-text {
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .mshop-goods {
+    min-height: 0;
+    padding: 0 16px;
+  }
+  .mshop-filter {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .mshop-list {
+    flex: none;
+    min-height: 0;
+    overflow: visible;
+    padding: 2px 0 12px;
+  }
+  .grow {
+    min-height: 58px;
+  }
+  .mshop-detail {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    height: auto;
+    max-height: 48vh;
+    margin: 0 -16px;
+    padding: 14px 16px 16px;
+    background: linear-gradient(180deg, #1d1a15, #13110e);
+    border-top: 1px solid var(--line-strong);
+    box-shadow: 0 -14px 28px rgba(0, 0, 0, 0.5);
+  }
+  .gdet-actions {
+    flex-wrap: wrap;
+  }
+  .gdet-actions .btn-primary {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    height: 46px;
+  }
+  .gform {
+    height: auto;
+    overflow: visible;
+    padding: 0 0 16px;
+  }
+  .gform-top {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+  .gform-art {
+    width: 76px;
+  }
+  .gform-rarity {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

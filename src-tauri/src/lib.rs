@@ -4,6 +4,8 @@ mod sync;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
+        // Hoja de inicio de sesión de Google en iOS (sync/oauth.rs).
+        .plugin(tauri_plugin_web_auth::init())
         // Sincronización con Google Drive (src/sync y src/features/sync).
         .manage(sync::SyncState::default())
         .invoke_handler(tauri::generate_handler![

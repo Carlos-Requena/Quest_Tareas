@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { levelFromXp, maxActiveFor, MAX_SLOTS, rankFor, xpToNext } from "./leveling";
+import { levelFromXp, rankFor, xpToNext } from "./leveling";
 
 describe("curva de XP", () => {
   it("coincide con las cifras del informe técnico", () => {
@@ -28,13 +28,8 @@ describe("curva de XP", () => {
   });
 });
 
-describe("rangos y huecos", () => {
+describe("rangos", () => {
   it("rangos F → S en sus niveles", () => {
     expect([1, 2, 3, 4, 5, 7, 8, 11, 12, 16, 17, 23, 24, 99].map(rankFor)).toEqual(["F", "F", "E", "E", "D", "D", "C", "C", "B", "B", "A", "A", "S", "S"]);
-  });
-
-  it("4 huecos al empezar, uno más cada 3 niveles, como mucho 10", () => {
-    expect([1, 2, 3, 5, 6, 8, 9, 17, 18].map(maxActiveFor)).toEqual([4, 4, 5, 5, 6, 6, 7, 9, 10]);
-    expect(maxActiveFor(500)).toBe(MAX_SLOTS);
   });
 });

@@ -97,7 +97,6 @@ export interface PlayerState {
   /** XP necesaria para pasar del nivel actual al siguiente. */
   levelXpNeeded: number;
   rank: string;
-  maxActive: number;
   /** Inventario: unidades de cada objeto, por id. */
   inventory: Record<string, number>;
   /** Primera vez que se obtuvo cada objeto (ms), por id. */

@@ -1,0 +1,14 @@
+[package]
+name = "tauri-plugin-web-auth"
+version = "0.1.0"
+description = "Inicio de sesión web en iOS con ASWebAuthenticationSession (sincronización de Quests)"
+edition = "2021"
+publish = false
+links = "tauri-plugin-web-auth"
+
+[dependencies]
+tauri = { version = "2" }
+serde = { version = "1", features = ["derive"] }
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
