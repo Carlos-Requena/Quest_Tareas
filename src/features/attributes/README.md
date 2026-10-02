@@ -31,9 +31,10 @@ Va en el acumulador de la proyección (y no se calcula en `finishProjection` a p
 ### Las áreas las escribe el usuario
 
 - **Normalización** (`areaKey`): sin espacios de más y en minúsculas. «Salud», « salud » y «SALUD» son el mismo atributo, que se muestra como se escribió **la última vez**.
+- **Áreas conocidas** (desde el 2026-10-02): el propietario vio los atributos en español con la interfaz en japonés (las áreas de las quests de ejemplo se escriben en el idioma del primer arranque). `KNOWN_AREAS` reúne 17 áreas habituales (salud, ejercicio, estudio, lectura, hogar, administración, trabajo, finanzas, vida social, familia, creatividad, música, idiomas, programación, cocina, mente y ocio) con sus formas en español, japonés e inglés. Su clave es `@id` (`@health`): «Salud» y «健康» suben **el mismo** atributo, que se muestra traducido (`attributes.areas.<id>`, con `attributeName` y `areaName` de `labels.ts`). El detalle de la quest también traduce su área, y el campo «Área» del formulario sugiere las conocidas y las que ya tienes (`datalist`). Las demás áreas siguen siendo texto del usuario. Cambiar los sinónimos une atributos: sube `PROJECTION_VERSION`.
 - **Un `Map`, no un objeto**: un área llamada «__proto__» rompería un objeto plano.
 - **Sin área, sin atributo**: esas quests dan XP al jugador, pero no suben nada. Los encargos temporales tampoco (no tienen área).
-- Los nombres no se traducen (son texto del usuario).
+- Los nombres de las áreas que no son conocidas no se traducen (son texto del usuario).
 
 ### La curva
 
@@ -79,7 +80,8 @@ classDiagram
 
 | Función | Qué hace |
 |---|---|
-| `cleanArea(area)` / `areaKey(area)` | El área sin espacios de más / su clave en minúsculas |
+| `cleanArea(area)` / `areaKey(area)` | El área sin espacios de más / su clave (`@id` si es conocida; si no, en minúsculas) |
+| `knownArea(area)`, `knownAreaOfKey(key)` | El área conocida de lo escrito o de una clave |
 | `gainAttribute(acc, area, xp, ts)` | Suma una quest completada a su área (la proyección la llama en `quest_completed`) |
 | `attributeXpToNext(n)`, `attributeLevel(xp)` | La curva y el nivel de un atributo |
 | `listAttributes(acc)` | Los atributos con su nivel, de más a menos XP (estable por nombre) |
@@ -92,6 +94,7 @@ classDiagram
 | `model.ts` | Todo lo anterior. Puro |
 | `i18n.ts` | Textos es + ja |
 | `attributes.css` | Estilos del panel y del radar |
+| `labels.ts` | `attributeName`, `areaName`, `areaSuggestions` (traducen las áreas conocidas) |
 | `components/AttributesPanel.tsx` | Radar y lista |
 
 ## Puntos de integración
@@ -102,6 +105,7 @@ classDiagram
 | `domain/projection.ts` | `ProjectionAcc.attributes`; `gainAttribute` en `quest_completed`; `listAttributes` en `finishProjection`. `PROJECTION_VERSION` = 2 |
 | `i18n/locales/{es,ja}.ts` | Montan `attributes` |
 | `features/equipment/components/CharacterModal.tsx` | Aloja `<AttributesPanel />` |
+| `components/QuestDetail.tsx`, `components/CreateQuestModal.tsx` | El área traducida; sugerencias de áreas en el formulario |
 | `test/streams.ts` | Áreas escritas de varias formas en las quests de `randomStream` |
 
 ---
@@ -111,10 +115,11 @@ classDiagram
 Hecho el 2026-10-02:
 
 - **Tests**: `model.test.ts` (normalización, suma y última forma de escribirla, «__proto__», la curva con sus bordes, el orden, el radar) y en `domain/projection.test.ts`: una quest completada sube su área una sola vez, las quests sin área y los encargos no suben nada, y el invariante de que los atributos nunca suman más XP que el jugador.
+- **Áreas conocidas** (2026-10-02): tests de que «Salud», «SALUD» y «健康» son la misma clave y de que las áreas de ejemplo existen en los dos idiomas; en el navegador, el radar y la lista en japonés (健康, 勉強, 読書) con quests escritas en español.
 - **Navegador**: seis áreas con XP distinta, el radar con su escala (10) y la lista con niveles y barras, también en japonés. Con un historial y un snapshot de la versión anterior, las quests ya completadas aparecen como atributos al arrancar.
 
 ## Posibles mejoras
 
-- Sugerir las áreas que ya existen al escribir una quest (un `datalist` en el formulario), para no partir «Salud» en «Salud» y «Sallud».
 - Juntar o renombrar áreas desde la ventana del personaje.
-- Una racha por área (días seguidos con alguna quest de esa área).
+- Una racha por área (días seguidos con alguna quest de esa área); las rachas por quest ya existen (features/streaks).
+- Más áreas conocidas, o que el usuario traduzca las suyas.

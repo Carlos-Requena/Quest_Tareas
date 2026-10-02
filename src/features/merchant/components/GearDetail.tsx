@@ -8,6 +8,8 @@ import { equipGear } from "../../equipment/actions";
 import { deleteGear } from "../actions";
 import { isDecorSlot, levelRequired, priceOf, rankRequired, type GearDef } from "../model";
 import { GearArt, gearStyle } from "./GearArt";
+import { gearDescription, gearName } from "../../armory/labels";
+import { armorySource, isBuiltinGear } from "../../armory/model";
 
 interface Props {
   gear: GearDef;
@@ -36,6 +38,9 @@ export function GearDetail({ gear, onSale, backOn, armed, onBuy, onEdit }: Props
   const missing = Math.max(0, price - player.gold);
   const pct = Math.min(100, (player.gold / price) * 100);
   const decor = isDecorSlot(gear.slot);
+  const builtin = isBuiltinGear(gear.id);
+  const source = armorySource(gear.id);
+  const desc = gearDescription(gear, t);
 
   return (
     <div className="gdet" style={gearStyle(gear)}>
@@ -43,14 +48,15 @@ export function GearDetail({ gear, onSale, backOn, armed, onBuy, onEdit }: Props
         <GearArt gear={gear} className="gdet-art" />
         <div className="gdet-id">
           <span className="gdet-rarity tag">{RARITY_META[gear.rarity].tag}</span>
-          <h3 className="gdet-name">{gear.name}</h3>
+          <h3 className="gdet-name">{gearName(gear, t)}</h3>
           <span className="gdet-sub">
             {t(`merchant.slot.${gear.slot}`)} · {t(decor ? "merchant.group.decor" : "merchant.group.armor")}
           </span>
+          {source && <span className="gdet-source">{t("armory.inspired", { source: t(`armory.source.${source}`) })}</span>}
         </div>
       </div>
 
-      {gear.description && <p className="gdet-desc">{gear.description}</p>}
+      {desc && <p className="gdet-desc">{desc}</p>}
 
       {purchase ? (
         <p className="gdet-owned">
@@ -98,6 +104,11 @@ export function GearDetail({ gear, onSale, backOn, armed, onBuy, onEdit }: Props
             {armed ? t("merchant.detail.buyConfirm", { price: num(price) }) : t("merchant.detail.buy")}
           </button>
         )}
+        {builtin ? (
+          <span className="gdet-manage gdet-builtin tag" title={t("armory.builtinTitle")}>
+            {t("armory.builtin")}
+          </span>
+        ) : (
         <span className="gdet-manage">
           <button className="add-cond" onClick={onEdit}>
             {t("merchant.detail.edit")}
@@ -111,6 +122,7 @@ export function GearDetail({ gear, onSale, backOn, armed, onBuy, onEdit }: Props
             {confirmDelete ? t("merchant.detail.deleteConfirm") : t("merchant.detail.delete")}
           </button>
         </span>
+        )}
       </div>
     </div>
   );

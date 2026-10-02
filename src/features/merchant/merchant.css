@@ -464,6 +464,14 @@
   font-size: 12px;
   color: var(--muted);
 }
+/* De dónde viene la idea de una pieza de serie (features/armory). */
+.gdet-source {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-style: italic;
+  color: color-mix(in srgb, var(--rc) 55%, var(--text-2));
+}
 .gdet-desc {
   margin: 0;
   font-size: 13px;
@@ -558,6 +566,15 @@
   display: flex;
   gap: 16px;
   margin-left: auto;
+}
+.gdet-builtin {
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  cursor: help;
 }
 .gbtn-link,
 .gdet-manage .add-cond {

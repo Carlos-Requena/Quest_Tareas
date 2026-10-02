@@ -1,7 +1,7 @@
 // Modelo puro del equipo: qué lleva puesto el muñeco y qué decoración tiene el menú.
 // Sin React, sin store, sin Tauri, sin DOM. El dominio importa SOLO model.ts y events.ts.
 
-import { isGearSlot, starsOf, type GearDef, type GearSlot, type MerchantAcc } from "../merchant/model";
+import { gearOf, isGearSlot, starsOf, type GearDef, type GearSlot, type MerchantAcc } from "../merchant/model";
 import type { EquipmentEventBody } from "./events";
 
 /** Lo puesto en cada ranura (armadura y decoración), por id de pieza. */
@@ -21,7 +21,7 @@ export const newEquipmentAcc = (): EquipmentAcc => ({ equipped: {} });
 export function applyEquipmentEvent(acc: EquipmentAcc, merchant: MerchantAcc, e: EquipmentEventBody) {
   switch (e.type) {
     case "gear_equipped": {
-      const g = merchant.catalog.get(e.gearId);
+      const g = gearOf(merchant, e.gearId);
       if (g && merchant.owned[g.id]) acc.equipped[g.slot] = g.id;
       break;
     }
@@ -38,7 +38,7 @@ export function applyEquipmentEvent(acc: EquipmentAcc, merchant: MerchantAcc, e:
 export function pruneEquipment(acc: EquipmentAcc, merchant: MerchantAcc) {
   for (const slot of Object.keys(acc.equipped) as GearSlot[]) {
     const id = acc.equipped[slot]!;
-    const g = merchant.catalog.get(id);
+    const g = gearOf(merchant, id);
     if (!g || !merchant.owned[id] || g.slot !== slot) delete acc.equipped[slot];
   }
 }

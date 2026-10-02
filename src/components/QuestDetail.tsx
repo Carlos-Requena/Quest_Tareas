@@ -6,10 +6,13 @@ import { CATEGORY_META } from "../domain/types";
 import { conditionsMet, countConditionsMet } from "../domain/projection";
 import { isPomodoroCondition } from "../domain/types";
 import { PomodoroCondition } from "../features/pomodoro";
+import { ChecklistCondition, isChecklistCondition } from "../features/checklist";
+import { StreakInfo } from "../features/streaks";
 import { QuestLoot } from "../features/items";
 import { QuestRequirements, blockers, dependents, recurs } from "../features/complex";
 import { QuestEventLink } from "../features/temporal";
 import { dueDate, dueLabel, questDue } from "../features/horizon";
+import { areaName } from "../features/attributes";
 import { useGame } from "../store/game";
 import { abandonQuest, addProgress, primaryAction } from "../store/actions";
 import { formatRemaining } from "../lib/time";
@@ -123,7 +126,7 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
             </div>
             <div>
               <span className="lbl">{t("detail.area")}</span>
-              <span>{quest.area || "—"}</span>
+              <span>{areaName(quest.area, t) || "—"}</span>
             </div>
             <div>
               <span className="lbl">{t("detail.kind")}</span>
@@ -149,11 +152,18 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
             </Section>
           )}
 
+          {recurs(quest) && (
+            <Section tag="Streak" label={t("streaks.label")}>
+              <StreakInfo quest={quest} now={now} />
+            </Section>
+          )}
+
           {quest.conditions.length > 0 && (
             <Section tag="Condition" label={t("detail.conditions")}>
               <div className="conds">
                 {quest.conditions.map((c) => {
                   if (isPomodoroCondition(c)) return <PomodoroCondition key={c.id} quest={quest} cond={c} />;
+                  if (isChecklistCondition(c)) return <ChecklistCondition key={c.id} quest={quest} cond={c} />;
                   const v = active ? quest.progress[c.id] ?? 0 : 0;
                   const done = v >= c.target;
                   return (

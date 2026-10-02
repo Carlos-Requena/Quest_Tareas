@@ -4,7 +4,10 @@
 
 /** Lo acumulado en un área. */
 export interface AttributeState {
-  /** Área normalizada: sin espacios de más y en minúsculas («  Salud » y «salud» son la misma). */
+  /**
+   * Área normalizada: sin espacios de más y en minúsculas («  Salud » y «salud» son la
+   * misma). Las áreas conocidas llevan su id («@health»: «Salud» y «健康» son la misma).
+   */
   key: string;
   /** Cómo se escribió la última vez. */
   name: string;
@@ -25,13 +28,65 @@ export const newAttributesAcc = (): AttributesAcc => new Map();
 
 /** El área tal como se muestra: sin espacios sobrantes. */
 export const cleanArea = (area: string | undefined) => (area ?? "").normalize("NFC").trim().replace(/\s+/g, " ");
-export const areaKey = (area: string | undefined) => cleanArea(area).toLowerCase();
+
+// ───────────── Áreas conocidas (se traducen) ─────────────
+
+/**
+ * Áreas habituales, con las formas en que se suelen escribir en español, japonés e
+ * inglés. Una quest con «Salud» y otra con «健康» suben el MISMO atributo, que se
+ * muestra traducido al idioma de la interfaz (`attributes.areas.<id>`). Las demás
+ * áreas son texto del usuario y se muestran tal cual.
+ *
+ * NORMA: añadir sinónimos cambia la proyección (une atributos): sube PROJECTION_VERSION.
+ */
+export const KNOWN_AREAS = {
+  health: ["salud", "健康", "health", "bienestar"],
+  exercise: ["ejercicio", "deporte", "gimnasio", "entrenamiento", "運動", "筋トレ", "トレーニング", "exercise", "fitness", "sport"],
+  study: ["estudio", "estudios", "estudiar", "勉強", "学習", "study", "studies"],
+  reading: ["lectura", "leer", "読書", "reading"],
+  home: ["hogar", "casa", "tareas del hogar", "limpieza", "家事", "掃除", "home", "chores"],
+  admin: ["administración", "administracion", "papeleo", "trámites", "tramites", "事務", "手続き", "admin", "paperwork"],
+  work: ["trabajo", "oficina", "仕事", "work", "job"],
+  finance: ["finanzas", "dinero", "ahorro", "economía", "economia", "お金", "家計", "finance", "money"],
+  social: ["social", "amigos", "relaciones", "交流", "人間関係", "friends"],
+  family: ["familia", "家族", "family"],
+  creativity: ["creatividad", "arte", "dibujo", "escritura", "創作", "芸術", "絵", "creativity", "art"],
+  music: ["música", "musica", "音楽", "music"],
+  languages: ["idiomas", "idioma", "japonés", "japones", "inglés", "ingles", "語学", "英語", "日本語", "languages"],
+  programming: ["programación", "programacion", "código", "codigo", "プログラミング", "開発", "programming", "coding"],
+  cooking: ["cocina", "cocinar", "料理", "自炊", "cooking"],
+  mind: ["mente", "meditación", "meditacion", "mindfulness", "心", "瞑想", "mind"],
+  hobbies: ["ocio", "aficiones", "hobbies", "hobby", "juegos", "趣味", "ゲーム"],
+} as const;
+
+export type KnownArea = keyof typeof KNOWN_AREAS;
+export const KNOWN_AREA_IDS = Object.keys(KNOWN_AREAS) as KnownArea[];
+
+/** Prefijo de la clave de un área conocida: no puede chocar con un área escrita (va sin «@»). */
+const KNOWN = "@";
+
+const SYNONYMS: Map<string, KnownArea> = new Map(
+  KNOWN_AREA_IDS.flatMap((id) => KNOWN_AREAS[id].map((w) => [w.normalize("NFC").toLowerCase(), id] as const)),
+);
+
+/** Área conocida a la que corresponde lo escrito, si la hay. */
+export const knownArea = (area: string | undefined): KnownArea | undefined => SYNONYMS.get(cleanArea(area).toLowerCase());
+
+/** Área conocida de una clave de atributo («@health» → «health»). */
+export const knownAreaOfKey = (key: string): KnownArea | undefined =>
+  key.startsWith(KNOWN) && (KNOWN_AREA_IDS as string[]).includes(key.slice(1)) ? (key.slice(1) as KnownArea) : undefined;
+
+/** Clave del atributo: «@id» para las áreas conocidas; si no, el área en minúsculas. */
+export const areaKey = (area: string | undefined) => {
+  const known = knownArea(area);
+  return known ? KNOWN + known : cleanArea(area).toLowerCase();
+};
 
 /** Suma la XP de una quest completada a su área. Las quests sin área no suben ningún atributo. */
 export function gainAttribute(acc: AttributesAcc, area: string | undefined, xp: number, ts: number) {
   const name = cleanArea(area);
   if (!name) return;
-  const key = name.toLowerCase();
+  const key = areaKey(name);
   const cur = acc.get(key);
   acc.set(key, {
     key,

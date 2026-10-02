@@ -4,6 +4,9 @@ import type { TemporalState } from "../features/temporal/model";
 import type { GearDef, Purchase } from "../features/merchant/model";
 import type { Equipped } from "../features/equipment/model";
 import type { Attribute } from "../features/attributes/model";
+import type { Checked, ChecklistConditionDef } from "../features/checklist/model";
+import type { Streak } from "../features/streaks/model";
+import type { ChronicleAcc } from "../features/chronicle/model";
 
 export type Category = "elite" | "repeat" | "request";
 
@@ -27,10 +30,12 @@ export interface PomodoroConditionDef extends PomodoroConfig {
   target: number;
 }
 
-/** Un objetivo de la quest es de uno de estos tipos. */
-export type ConditionDef = CountConditionDef | PomodoroConditionDef;
+/** Un objetivo de la quest es de uno de estos tipos (la lista: features/checklist). */
+export type ConditionDef = CountConditionDef | PomodoroConditionDef | ChecklistConditionDef;
 
 export const isPomodoroCondition = (c: ConditionDef): c is PomodoroConditionDef => c.kind === "pomodoro";
+/** Contador: el tipo por defecto (`kind` falta en los datos antiguos). */
+export const isCountCondition = (c: ConditionDef): c is CountConditionDef => c.kind === undefined || c.kind === "count";
 
 export interface RewardDef {
   xp: number;
@@ -70,6 +75,8 @@ export interface QuestState extends QuestDef {
   progress: Record<string, number>;
   /** Estado de cada condición de pomodoro, por id de condición (composición 1 a 1). */
   pomodoros: Record<string, Pomodoro>;
+  /** Casillas marcadas de cada objetivo de tipo lista, por id de condición (features/checklist). */
+  checked: Checked;
   acceptedAt?: number;
   availableAt?: number;
   completions: number;
@@ -77,6 +84,8 @@ export interface QuestState extends QuestDef {
   lastCompletedAt?: number;
   /** Encargo temporal pendiente al que pertenece, si lo hay (calculado a partir de sus enlaces). */
   temporalId?: string;
+  /** Racha de las quests que se repiten: veces seguidas a tiempo (features/streaks). */
+  streak?: Streak;
 }
 
 export interface PlayerState {
@@ -110,8 +119,10 @@ export interface GameState {
   items: Map<string, ItemDef>;
   /** Encargos temporales (citas, entregas, eventos con fecha), en su propio tablón. */
   temporals: Map<string, TemporalState>;
-  /** Catálogo del mercader: armaduras para el muñeco y decoración del menú (features/merchant). */
+  /** Catálogo del mercader: las piezas de serie (features/armory) y las del jugador (features/merchant). */
   gear: Map<string, GearDef>;
+  /** Crónica del aventurero: lo que ha pasado, en orden (features/chronicle). */
+  chronicle: ChronicleAcc;
   player: PlayerState;
 }
 

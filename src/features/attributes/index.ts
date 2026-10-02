@@ -3,3 +3,4 @@
 
 export * from "./model";
 export { AttributesPanel } from "./components/AttributesPanel";
+export { attributeName, areaName, areaSuggestions } from "./labels";

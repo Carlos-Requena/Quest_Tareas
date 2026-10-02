@@ -22,6 +22,7 @@ import {
 } from "../model";
 import { useMerchantUi, type MerchantTab } from "../ui";
 import { HuTaoStage } from "./HuTaoStage";
+import { gearName } from "../../armory/labels";
 import { GearArt, gearStyle } from "./GearArt";
 import { GearDetail } from "./GearDetail";
 import { GearForm } from "./GearForm";
@@ -354,7 +355,7 @@ function GearRow({ gear, selected, fresh, onSale, catalog, onClick }: RowProps) 
       <GearArt gear={gear} stars={false} className="grow-art" />
       <span className="grow-main">
         <span className="grow-name">
-          {gear.name}
+          {gearName(gear, t)}
           {fresh && <span className="grow-new tag">NEW</span>}
         </span>
         <span className="grow-sub">

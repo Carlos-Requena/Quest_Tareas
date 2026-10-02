@@ -1,6 +1,6 @@
 import type { GameEvent } from "./events";
 import type { ConditionDef, GameState, QuestState } from "./types";
-import { isPomodoroCondition } from "./types";
+import { isCountCondition, isPomodoroCondition } from "./types";
 import { levelFromXp, maxActiveFor, rankFor } from "./leveling";
 import { applyPomodoroEvent, newPomodoro, planOf, viewPomodoro } from "../features/pomodoro/model";
 import { upcastQuestDef } from "../features/pomodoro/legacy";
@@ -8,9 +8,12 @@ import { applyItemEvent, newItemsAcc, receiveItems, registerItem, type ItemsAcc 
 import { upcastReward } from "../features/items/legacy";
 import { applyTemporalEvent, linkedQuestDone, newTemporalAcc, questOwners, type TemporalAcc } from "../features/temporal/model";
 import { cleanRequires, prerequisitesMet, recurs } from "../features/complex/model";
-import { applyMerchantEvent, newMerchantAcc, type MerchantAcc } from "../features/merchant/model";
+import { applyMerchantEvent, fullCatalog, gearOf, newMerchantAcc, type MerchantAcc } from "../features/merchant/model";
 import { applyEquipmentEvent, newEquipmentAcc, pruneEquipment, type EquipmentAcc } from "../features/equipment/model";
 import { gainAttribute, listAttributes, newAttributesAcc, type AttributesAcc } from "../features/attributes/model";
+import { applyCheck, checklistProgress, cleanChecklist, isChecklistCondition } from "../features/checklist/model";
+import { nextStreak } from "../features/streaks/model";
+import { newChronicleAcc, noteStart, record, type ChronicleAcc, type ChronicleFind } from "../features/chronicle/model";
 
 /**
  * Versión de la lógica de la proyección. Un snapshot guardado con otra versión se
@@ -19,7 +22,7 @@ import { gainAttribute, listAttributes, newAttributesAcc, type AttributesAcc } f
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 2;
+export const PROJECTION_VERSION = 3;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -32,6 +35,7 @@ export interface ProjectionAcc {
   merchant: MerchantAcc;
   equipment: EquipmentAcc;
   attributes: AttributesAcc;
+  chronicle: ChronicleAcc;
   xp: number;
   gold: number;
   completedCount: number;
@@ -44,6 +48,7 @@ export const newProjectionAcc = (): ProjectionAcc => ({
   merchant: newMerchantAcc(),
   equipment: newEquipmentAcc(),
   attributes: newAttributesAcc(),
+  chronicle: newChronicleAcc(),
   xp: 0,
   gold: 0,
   completedCount: 0,
@@ -69,6 +74,8 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
   };
 
   const q = "questId" in e ? quests.get(e.questId) : undefined;
+  // El primer evento es el día 1 de la crónica.
+  noteStart(acc.chronicle, e.ts);
 
   switch (e.type) {
     case "quest_created":
@@ -79,12 +86,15 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
         if (item) registerItem(items, item);
         quests.set(def.id, {
           ...def,
+          // Listas con casillas válidas (features/checklist).
+          conditions: def.conditions.map((c) => (isChecklistCondition(c) ? cleanChecklist(c) : c)),
           requires: cleanRequires(def),
           dueAt: Number.isFinite(def.dueAt) ? def.dueAt : undefined,
           reward,
           status: "available",
           progress: {},
           pomodoros: freshPomodoros(def.conditions),
+          checked: {},
           completions: 0,
         });
       }
@@ -105,6 +115,7 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
         q.status = "active";
         q.acceptedAt = e.ts;
         q.progress = {};
+        q.checked = {};
         q.pomodoros = freshPomodoros(q.conditions);
       }
       break;
@@ -113,6 +124,7 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
       if (q?.status === "active") {
         q.status = q.availableAt && q.availableAt > e.ts ? "cooldown" : "available";
         q.progress = {};
+        q.checked = {};
         q.acceptedAt = undefined;
         q.pomodoros = freshPomodoros(q.conditions);
       }
@@ -121,14 +133,22 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
     case "progress_added":
       if (q?.status === "active") {
         const cond = q.conditions.find((c) => c.id === e.conditionId);
-        // Las condiciones de pomodoro avanzan con el tiempo, no con +1.
-        if (cond && !isPomodoroCondition(cond)) {
+        // Solo los contadores: el pomodoro avanza con el tiempo y la lista, casilla a casilla.
+        if (cond && isCountCondition(cond)) {
           const next = (q.progress[cond.id] ?? 0) + e.amount;
           q.progress = {
             ...q.progress,
             [cond.id]: Math.max(0, Math.min(cond.target, next)),
           };
         }
+      }
+      break;
+
+    case "checklist_checked":
+      // Marcar o desmarcar una casilla de una lista, solo con la quest en curso.
+      if (q?.status === "active") {
+        const cond = q.conditions.find((c) => c.id === e.conditionId);
+        if (cond && isChecklistCondition(cond)) q.checked = applyCheck(q.checked, cond, e.itemId, e.done === true);
       }
       break;
 
@@ -140,22 +160,46 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
         if (item) registerItem(items, item);
         acc.xp += reward.xp;
         acc.gold += reward.gold;
+        const known = new Set(Object.keys(items.discovered));
         receiveItems(items, reward.itemId, e.drops ?? [], e.ts);
+        // Objetos vistos por primera vez, para la crónica (features/chronicle).
+        const found: ChronicleFind[] = [];
+        for (const id of Object.keys(items.discovered)) {
+          const it = items.catalog.get(id);
+          if (!known.has(id) && it) found.push({ id, name: it.name, rarity: it.rarity });
+        }
         // La XP también sube el atributo del área de la quest (features/attributes).
         gainAttribute(acc.attributes, q.area, reward.xp, e.ts);
         acc.completedCount++;
         q.completions++;
         q.lastCompletedAt = e.ts;
         q.progress = {};
+        q.checked = {};
         q.acceptedAt = undefined;
         q.pomodoros = freshPomodoros(q.conditions);
         // Las repetibles, y cualquier quest con repetición, vuelven tras su espera.
         if (recurs(q)) {
           q.status = "cooldown";
           q.availableAt = e.ts + (q.cooldownMinutes ?? 0) * 60_000;
+          // Racha: veces seguidas a tiempo (features/streaks).
+          q.streak = nextStreak(q.streak, e.ts, q.cooldownMinutes);
         } else {
           q.status = "done";
         }
+        record(acc.chronicle, {
+          k: "quest",
+          ts: e.ts,
+          xpAfter: acc.xp,
+          questId: q.id,
+          title: q.title,
+          category: q.category,
+          area: q.area || undefined,
+          xp: reward.xp,
+          gold: reward.gold,
+          drops: (e.drops ?? []).length,
+          found: found.length ? found : undefined,
+          streak: q.streak && recurs(q) ? q.streak.count : undefined,
+        });
       }
       break;
 
@@ -194,6 +238,9 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
       if (earned) {
         acc.xp += earned.xp;
         acc.gold += earned.gold;
+        const t = temporals.board.get((e as { temporalId: string }).temporalId);
+        if (t)
+          record(acc.chronicle, { k: "temporal", ts: e.ts, xpAfter: acc.xp, temporalId: t.id, title: t.title, skulls: t.difficulty, xp: earned.xp, gold: earned.gold });
       }
       break;
     }
@@ -203,7 +250,14 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
     case "gear_deleted":
     case "gear_purchased":
       // Comprar al mercader gasta oro, solo si llega (features/merchant).
-      acc.gold -= applyMerchantEvent(acc.merchant, e, e.ts, acc.gold);
+      {
+        const had = e.type === "gear_purchased" && !!acc.merchant.owned[e.gearId];
+        const spent = applyMerchantEvent(acc.merchant, e, e.ts, acc.gold);
+        acc.gold -= spent;
+        const bought = e.type === "gear_purchased" && !had && !!acc.merchant.owned[e.gearId];
+        const g = bought ? gearOf(acc.merchant, e.gearId) : undefined;
+        if (g) record(acc.chronicle, { k: "purchase", ts: e.ts, xpAfter: acc.xp, gearId: g.id, name: g.name, rarity: g.rarity, price: spent });
+      }
       // Una pieza retirada o que cambia de ranura deja de estar puesta.
       if (e.type === "gear_updated" || e.type === "gear_deleted") pruneEquipment(acc.equipment, acc.merchant);
       break;
@@ -220,7 +274,7 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
  * y el encargo de cada quest). Se puede llamar después de cada evento.
  */
 export function finishProjection(acc: ProjectionAcc): GameState {
-  const { quests, items, temporals, merchant, equipment, attributes, xp, gold, completedCount } = acc;
+  const { quests, items, temporals, merchant, equipment, attributes, chronicle, xp, gold, completedCount } = acc;
   // Cada quest sabe a qué encargo pendiente pertenece (para su fecha y su enlace).
   // Se recalcula entero: tras desenlazar o cumplir un encargo, la quest ya no lo tiene.
   const owners = questOwners(temporals.board.values());
@@ -235,7 +289,8 @@ export function finishProjection(acc: ProjectionAcc): GameState {
     quests,
     items: items.catalog,
     temporals: temporals.board,
-    gear: merchant.catalog,
+    gear: fullCatalog(merchant),
+    chronicle,
     player: {
       xp,
       gold,
@@ -264,16 +319,17 @@ function freshPomodoros(conditions: ConditionDef[]): QuestState["pomodoros"] {
   return Object.fromEntries(conditions.filter(isPomodoroCondition).map((c) => [c.id, newPomodoro()]));
 }
 
-/** Progreso de una condición en `now`: contador o rondas de pomodoro completadas. */
+/** Progreso de una condición en `now`: contador, casillas marcadas o rondas de pomodoro completadas. */
 export function conditionProgress(q: QuestState, c: ConditionDef, now: number): number {
+  if (isChecklistCondition(c)) return checklistProgress(q.checked ?? {}, c);
   if (!isPomodoroCondition(c)) return q.progress[c.id] ?? 0;
   const p = q.pomodoros[c.id];
   return p ? viewPomodoro(p, planOf(c), now).completedRounds : 0;
 }
 
-/** Las condiciones de contador están cumplidas (las de pomodoro aparte). */
+/** Las condiciones que no dependen del tiempo (contadores y listas) están cumplidas; las de pomodoro, aparte. */
 export function countConditionsMet(q: QuestState): boolean {
-  return q.conditions.every((c) => isPomodoroCondition(c) || (q.progress[c.id] ?? 0) >= c.target);
+  return q.conditions.every((c) => isPomodoroCondition(c) || conditionProgress(q, c, 0) >= c.target);
 }
 
 /** Se puede reportar: todas las condiciones cumplidas, pomodoros incluidos. */

@@ -11,6 +11,8 @@ import { DEFAULT_POMODORO, PomodoroConditionInputs, clampPlan } from "../feature
 import { GuaranteedItemSelect, LootHint } from "../features/items";
 import { RecurrenceField, RequiresField, recurs } from "../features/complex";
 import { DeadlineField, useHorizonUi } from "../features/horizon";
+import { areaSuggestions } from "../features/attributes";
+import { ChecklistInputs, cleanChecklist, type ChecklistItem } from "../features/checklist";
 
 /** Espera por defecto de una repetible: 20 h (diaria con margen). */
 const DEFAULT_COOLDOWN = 20 * 60;
@@ -20,20 +22,35 @@ const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl";
 
 interface CondDraft {
   id: string;
-  kind: "count" | "pomodoro";
+  kind: "count" | "pomodoro" | "checklist";
   label: string;
-  /** Contador: cantidad. Pomodoro: rondas. */
+  /** Contador: cantidad. Pomodoro: rondas. Lista: lo calcula el número de casillas. */
   target: number;
   focusMinutes: number;
   breakMinutes: number;
+  /** Casillas de una lista (features/checklist). */
+  items: ChecklistItem[];
 }
 
-const newCond = (kind: CondDraft["kind"]): CondDraft => ({ id: uid(), kind, label: "", target: 1, ...DEFAULT_POMODORO });
+const newCond = (kind: CondDraft["kind"]): CondDraft => ({
+  id: uid(),
+  kind,
+  label: "",
+  target: 1,
+  ...DEFAULT_POMODORO,
+  items: kind === "checklist" ? [{ id: uid(), text: "" }] : [],
+});
 
-const isUsable = (c: CondDraft) => c.kind === "pomodoro" || (c.label.trim() !== "" && c.target > 0);
+const filledItems = (c: CondDraft) => c.items.filter((it) => it.text.trim() !== "");
+
+const isUsable = (c: CondDraft) =>
+  c.kind === "pomodoro" ||
+  (c.kind === "checklist" ? c.label.trim() !== "" && filledItems(c).length > 0 : c.label.trim() !== "" && c.target > 0);
 
 function toCondition(c: CondDraft): ConditionDef {
   if (c.kind === "count") return { id: c.id, kind: "count", label: c.label.trim(), target: Math.round(c.target) };
+  if (c.kind === "checklist")
+    return cleanChecklist({ id: c.id, kind: "checklist", label: c.label.trim(), target: 0, items: filledItems(c) });
   const plan = clampPlan({ rounds: c.target, focusMinutes: c.focusMinutes, breakMinutes: c.breakMinutes });
   return {
     id: c.id,
@@ -55,6 +72,7 @@ function Modal() {
   const dispatch = useGame((s) => s.dispatch);
   const select = useGame((s) => s.select);
   const setTab = useGame((s) => s.setTab);
+  const attrs = useGame((s) => s.state.player.attributes);
   const say = useGame((s) => s.say);
   const { t } = useTranslation();
 
@@ -189,7 +207,12 @@ function Modal() {
             </label>
             <label className="field">
               <span className="lbl">{t("modal.area")}</span>
-              <input value={area} onChange={(e) => setArea(e.target.value)} placeholder={t("modal.areaPh")} />
+              <input value={area} onChange={(e) => setArea(e.target.value)} placeholder={t("modal.areaPh")} list="quest-areas" />
+              <datalist id="quest-areas">
+                {areaSuggestions(attrs, t).map((a) => (
+                  <option key={a} value={a} />
+                ))}
+              </datalist>
             </label>
             <label className="field">
               <span className="lbl">{t("modal.kind")}</span>
@@ -217,6 +240,22 @@ function Modal() {
                     ✕
                   </button>
                 );
+                if (c.kind === "checklist") {
+                  return (
+                    <div key={c.id} className="cond-edit-pomo">
+                      <div className="cond-edit-row is-pomo">
+                        <span className="cond-edit-kind">☰ {t("checklist.kind")}</span>
+                        <input
+                          value={c.label}
+                          placeholder={t("checklist.labelPh")}
+                          onChange={(e) => updateCond(c.id, { label: e.target.value })}
+                        />
+                        {remove}
+                      </div>
+                      <ChecklistInputs items={c.items} onChange={(items) => updateCond(c.id, { items })} />
+                    </div>
+                  );
+                }
                 if (c.kind === "pomodoro") {
                   return (
                     <div key={c.id} className="cond-edit-pomo">
@@ -258,6 +297,9 @@ function Modal() {
                 </button>
                 <button type="button" className="add-cond" onClick={() => setConds([...conds, newCond("pomodoro")])}>
                   {t("pomodoro.form.add")}
+                </button>
+                <button type="button" className="add-cond" onClick={() => setConds([...conds, newCond("checklist")])}>
+                  {t("checklist.add")}
                 </button>
               </div>
             </div>

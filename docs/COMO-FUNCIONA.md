@@ -540,10 +540,19 @@ El diseño completo, fase a fase y comparado con los vídeos, está en el [READM
 
 **Archivos:** `src/features/merchant/components/HuTaoStage.tsx`, `SoldSeal.tsx` y `src/features/equipment/components/Doll.tsx`
 
-- **Hu Tao es un `<video>` en bucle**, no una animación de la app: dos `<source>` (MP4 y WebM) y un póster. Solo el error del **último** `<source>` cuenta como «no hay vídeo»: el primero falla sin más si el navegador no sabe leer H.264. Con «reducir movimiento» no se reproduce.
+- **Hu Tao es un `<video>` en bucle**, no una animación de la app, con un póster. El archivo se **descarga entero y se reproduce desde memoria** (`blob:`), una vez por sesión: MP4 si el WebView sabe leer H.264 (`canPlayType`) y, si no, WebM. Así no depende de que el protocolo con el que Tauri sirve la app atienda las peticiones por trozos (`Range`) del WebView de macOS, que dejaban el vídeo en el póster. Se marca mudo (propiedad y atributo, porque React no pone el atributo `muted`) antes de darle la fuente, se llama a `play()` al poder reproducirse y, si el WebView no lo deja arrancar solo, con el primer clic. Se mueve también con «reducir movimiento» (es un bucle suave, sin desplazamientos).
 - **El diálogo se escribe letra a letra** con un intervalo de 24 ms. El resto de la frase ya está en el cuadro, invisible (`visibility: hidden`), así que el cuadro no cambia de alto. Se reinicia en un `useLayoutEffect`, para que la frase nueva no asome entera un fotograma.
 - **El sello «SOLD»** es una línea de tiempo de GSAP: cae girando con `power4.in` y, al tocar, lanza el sonido, las monedas (`burst`) y la sacudida (`quake`) del escaparate. El sello se pinta con `mix-blend-mode: multiply`, así parece tinta sobre el fondo claro del vídeo. Su opacidad inicial está en el CSS, no en React (GSAP controla su visibilidad).
 - **El muñeco es un SVG**: cada pieza es una forma pintada con `var(--rc)` (el color de su rareza) y, encima, la misma forma con un degradado de luz y sombra común a todas. Las piezas entran con un muelle de Motion (`AnimatePresence`, una clave por pieza), y el muñeco respira con una animación CSS.
+
+### 9.9 La crónica del aventurero
+
+**Archivos:** `src/features/chronicle/components/ChronicleModal.tsx`, `chronicle.css`
+
+- **El papel viejo es solo CSS**: un degradado radial más oscuro hacia los bordes, renglones (`repeating-linear-gradient`) con un margen rojo, fibras y grano (dos `feTurbulence` en SVG como imagen de fondo) y una mancha con su posición en variables CSS. El borde exterior de la página derecha está «comido» con un `clip-path` de 21 puntos.
+- **El desgaste sale de una semilla** con el número de página (`seededRandom`): manchas, cerco de taza (un SVG con trazo discontinuo), oreja doblada (`::after` con un degradado de 315°) e inclinación de medio grado. Siempre igual para la misma página.
+- **Pasar página** es una transición de Motion por pliego (`AnimatePresence` con `mode="popLayout"`): el pliego nuevo entra girando unos grados desde el lado al que se pasa.
+- **Cuánto cabe en una página** se mide: un `ResizeObserver` sobre el libro da los renglones (alto ÷ 26 px) y los medios caracteres por renglón; cada entrada pesa los renglones de su texto ya escrito (un kana cuenta doble). Con eso se reparte el diario (`paginate`).
 
 ---
 
@@ -579,7 +588,7 @@ El silencio se guarda en `localStorage` (`quests.muted`).
 - **Tokens.** Todos los colores son variables CSS (`--gold`, `--elite`, `--repeat`…). Cada tarjeta recibe `--cat` con el color de su categoría, y los estilos lo usan sin saber cuál es.
 - **Grano del fondo.** Es un SVG con el filtro `feTurbulence` incrustado como `data:` URI, al 7 % de opacidad. No hay ninguna imagen que cargar.
 - **Botones inclinados.** El corte en diagonal de los botones es un `clip-path: polygon(...)`, no una imagen.
-- **Fuentes locales** con Fontsource: Cormorant Garamond (título), Cinzel (etiquetas en versalitas) y Shippori Mincho (texto, con aire de JRPG).
+- **Fuentes locales** con Fontsource: Cormorant Garamond (título), Cinzel (etiquetas en versalitas) y Shippori Mincho (texto, con aire de JRPG). La crónica del aventurero usa además IM Fell English (letra de imprenta antigua, unos 60 KB por estilo), importada desde su componente; en japonés usa el mincho.
 
 **El problema.** Shippori Mincho es una fuente japonesa. Al importar `@fontsource/shippori-mincho/500.css` se incluían cientos de ficheros con los subconjuntos japoneses: **26 MB** de un build de 27 MB. Se cambió a importar solo el subconjunto latino:
 
@@ -603,6 +612,8 @@ La interfaz usa **i18next** con **react-i18next**. Se cambia con el selector `ES
 |---|---|
 | Todos los textos de la interfaz, avisos, tiempos («3 h 20 min» / 「3時間20分」) y números (1.150 / 1,150) | Lo que escribe el usuario: títulos, descripciones y objetivos de sus quests |
 | Las quests de ejemplo, que se crean en el idioma activo **la primera vez** que se abre la app | Las etiquetas decorativas en inglés (ELITE, REQUEST, QUEST CLEAR), como en el vídeo de referencia |
+| Las **áreas conocidas** de las quests (Salud, Estudio, Hogar… `KNOWN_AREAS` de features/attributes): «Salud» se ve como «健康» en japonés, y las dos suben el mismo atributo | Las áreas que no están en esa lista |
+| Las **piezas de serie** del mercader (features/armory): nombre y descripción | Las piezas que añade el usuario |
 
 ### Diccionarios con tipos
 
@@ -663,7 +674,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 
 - **Navegador integrado** con `pnpm dev`: capturas durante las animaciones, inspección del DOM y llamadas directas a las acciones importando los módulos desde Vite (`await import('/src/store/actions.ts')`).
 - **App nativa** con `pnpm tauri dev`: lectura de los logs y comprobación de la base real con `sqlite3`.
-- **Tests** con Vitest (`pnpm test`): 278 tests en 17 archivos, en un par de segundos. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
+- **Tests** con Vitest (`pnpm test`): 302 tests en 21 archivos, en un par de segundos. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
 
 | Archivo | Qué protege |
 |---|---|
@@ -672,6 +683,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | `src/features/*/model.test.ts`, `legacy.test.ts` | Reglas de cada funcionalidad: fases del pomodoro, pity y tiradas (200.000 tiradas con semilla), requisitos y repetición, plazos con sus bordes y los cambios de hora de 2026, guardas de los encargos, y los formatos antiguos (`pomodoroConfig`, `item` de texto) |
 | `src/features/snapshot/*.test.ts` | Snapshot + cola = reproducirlo todo, serialización y arranque |
 | `src/features/merchant/*.test.ts`, `equipment/model.test.ts`, `attributes/model.test.ts` | Precios y rangos, el escaparate semanal (con los cambios de hora), las guardas de la compra y del equipo, los atributos por área; con el store de verdad, comprar con cada bloqueo y ponerse lo comprado. En `projection.test.ts`, además: el oro solo baja al comprar, el doble gasto entre dispositivos y los invariantes del equipo |
+| `src/features/armory`, `checklist`, `streaks`, `chronicle` (`model.test.ts`) | El catálogo de serie completo, en los dos idiomas y sin SVG rotos, y que no se edita con eventos; la lista (casillas limpias, marcar dos veces cuenta una, solo en curso); las rachas (plazos, se rompen solas, un duplicado no las sube); la crónica (una entrada por hecho que cuenta, su XP cuadra con la del jugador en historiales aleatorios, las páginas no se pasan de renglones) |
 | `src/storage/eventStore.test.ts` | El almacén del navegador: orden, `since` / `countUpTo` y `merge` idempotente |
 | `src/store/game.test.ts` | El store tal como lo usa la app (happy-dom): arranque, `dispatch` incremental, snapshot, reloj atrasado y las acciones de quests, encargos, objetos y pomodoro |
 
@@ -687,6 +699,9 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | Ventana en negro tras «Quest Clear» en la app nativa | Al cerrar, GSAP revertía el contador y su `onUpdate` usaba una referencia de React que ya era `null` | Capturar el elemento en una constante (`const el = root.current`) |
 | El aviso «aceptada» se quedaba para siempre | No había caducidad | Borrado automático a los 4,5 s |
 | Build de 27 MB | Subconjuntos japoneses de la fuente | Solo subconjunto latino |
+| Hu Tao quieta en la app de macOS (visto por el propietario) | Varias posibles: «reducir movimiento» la dejaba quieta a propósito; el WebView de macOS pide el vídeo por trozos (`Range`) y la app empaquetada puede no atenderlos; WebKit no arranca solo un vídeo sin el atributo `muted` | Vídeo en memoria (`blob:`), mudo antes de la fuente, `play()` al poder y con el primer clic, y se mueve también con «reducir movimiento». Sin verificar aún en macOS |
+| Los atributos salían en español con la interfaz en japonés | Las áreas son texto del usuario y las de ejemplo se escriben en el idioma del primer arranque | Áreas conocidas con su traducción (`KNOWN_AREAS`); «Salud» y «健康» son el mismo atributo |
+| En japonés, la última línea de una página de la crónica se cortaba | Las páginas se llenaban estimando por la longitud del título, y el japonés ocupa el doble | Medir el libro y pesar cada entrada por su texto ya escrito (`textUnits`) |
 | El color del cofre no subía de rareza | `gsap.set(el, { "--rc": "var(--r-epic)" })` no aplica un valor `var(...)` a una variable CSS | `el.style.setProperty("--rc", …)` |
 | Imágenes del almanaque en negro | El estilo de «no conseguido» era una silueta (`brightness(0)`) | Color apagado (`saturate` + `opacity`) |
 | Con el selector de tablón, toda la ventana se ensanchaba y se cortaba por la derecha | La cabecera no cabía y la columna implícita de la rejilla de `.app` crecía hasta su contenido | `grid-template-columns: minmax(0, 1fr)` y una cabecera más compacta por debajo de 1.180 px (ya se desbordaba a 1.024 px antes) |
@@ -742,6 +757,13 @@ No todas necesitan eventos: `complex` (repetición y requisitos) y `horizon` (pl
 ### Añadir una animación a un cambio de estado
 
 Sigue el patrón de `QuestCard`: guarda el valor anterior en un `useRef`, compara en `useLayoutEffect`, lanza la línea de tiempo solo en la transición que te interesa y, en cualquier otro caso, coloca el estado final con `gsap.set`. Limpia con `tl.kill()`.
+
+### Añadir una pieza de serie al mercader
+
+1. En `src/features/armory/catalog.ts`, una entrada nueva con una `key` que no exista: ranura, rareza, origen y su icono (una forma de `ICON_KINDS` y una paleta) o, si es un fondo, su escena.
+2. Su nombre y descripción en `src/features/armory/i18n.ts`, en español y en japonés (los tests fallan si falta alguno).
+3. No hace falta subir `PROJECTION_VERSION`: las piezas de serie no van en el snapshot. Sí hay que subirla si cambias la rareza o la ranura de una que ya existe, y **nunca** se borra ni se renombra una `key` (las compras la nombran).
+4. Para ver el arte, una hoja de muestra: en la consola de la app, `await import('/src/features/armory/model.ts')` y pinta cada `image` de `BUILTIN_GEAR`.
 
 ### Cambiar el equilibrio del juego
 

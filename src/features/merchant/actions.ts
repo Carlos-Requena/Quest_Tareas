@@ -1,6 +1,8 @@
 import { useGame } from "../../store/game";
 import { uid } from "../../lib/id";
 import { sfx } from "../../lib/sfx";
+import { gearName } from "../armory/labels";
+import { isBuiltinGear } from "../armory/model";
 import i18n, { num } from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
 import { RARITIES, type Rarity } from "../items/model";
@@ -96,7 +98,8 @@ export async function updateGear(id: string, d: GearDraft) {
   const { state, dispatch, say } = useGame.getState();
   const cur = state.gear.get(id);
   const fields = clean(d);
-  if (!cur || !fields) return;
+  // Las piezas de serie no se editan (la proyección ignoraría el evento).
+  if (!cur || !fields || isBuiltinGear(id)) return;
   const patch: GearPatch = {};
   for (const k of ["name", "slot", "rarity", "description"] as const) if (fields[k] !== cur[k]) Object.assign(patch, { [k]: fields[k] });
   if ((fields.image ?? "") !== (cur.image ?? "")) patch.image = fields.image ?? "";
@@ -113,7 +116,7 @@ export async function updateGear(id: string, d: GearDraft) {
 export async function deleteGear(id: string) {
   const { state, dispatch, say } = useGame.getState();
   const cur = state.gear.get(id);
-  if (!cur) return;
+  if (!cur || isBuiltinGear(id)) return;
   sfx.cancel();
   await dispatch({ type: "gear_deleted", gearId: id });
   await collect([cur.art?.blobId]);
@@ -153,6 +156,6 @@ export async function buyGear(id: string): Promise<BuyResult> {
     sfx.cancel();
     return "gold";
   }
-  say(() => i18n.t("merchant.toast.bought", { name: g.name, price: num(price) }));
+  say(() => i18n.t("merchant.toast.bought", { name: gearName(g, i18n.t), price: num(price) }));
   return "ok";
 }

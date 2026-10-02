@@ -10,6 +10,9 @@ import { temporalBusy, useTemporalUi, type Origin } from "../ui";
 import { Poster, ROW } from "./Poster";
 import { HorizonFilter, countHorizons, matchesHorizon, useHorizonUi } from "../../horizon";
 import "../temporal.css";
+import { merchantBusy } from "../../merchant/ui";
+import { characterBusy } from "../../equipment/ui";
+import { chronicleBusy } from "../../chronicle/ui";
 
 type Dir = "left" | "right" | "up" | "down";
 
@@ -106,7 +109,8 @@ export function TemporalBoard() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const g = useGame.getState();
-      if (g.creating || g.clear || g.collection || temporalBusy() || e.metaKey || e.ctrlKey) return;
+      // Con otra ventana abierta (mercader, personaje, crónica), el tablón espera.
+      if (g.creating || g.clear || g.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || e.metaKey || e.ctrlKey) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const ui = useTemporalUi.getState();
       const move = (dir: Dir) => {

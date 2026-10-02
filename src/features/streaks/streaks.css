@@ -1,0 +1,89 @@
+/* Rachas de las quests que se repiten (features/streaks). */
+
+.flame .flame-out {
+  fill: var(--streak);
+}
+.flame .flame-in {
+  fill: var(--streak-core);
+}
+.flame-t0 .flame-out {
+  fill: color-mix(in srgb, var(--streak) 70%, var(--muted));
+}
+.flame-t2 {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--streak) 70%, transparent));
+}
+.flame-t3 .flame-out {
+  fill: var(--streak-blue);
+}
+.flame-t3 {
+  filter: drop-shadow(0 0 4px var(--streak-blue));
+}
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 0 6px 0 4px;
+  border: 1px solid color-mix(in srgb, var(--streak) 40%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--streak) 10%, transparent);
+  color: var(--streak-core);
+  font-size: 11px;
+  line-height: 16px;
+}
+.streak-badge.is-risk {
+  animation: streak-risk 1.4s ease-in-out infinite;
+}
+@keyframes streak-risk {
+  50% {
+    border-color: var(--streak);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--streak) 60%, transparent);
+  }
+}
+
+.streak-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--streak) 6%, rgba(255, 255, 255, 0.03));
+  font-size: 13px;
+}
+p.streak-info {
+  margin: 0;
+  background: rgba(255, 255, 255, 0.03);
+}
+.streak-info.is-broken {
+  background: rgba(255, 255, 255, 0.03);
+}
+.streak-big {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.streak-big b {
+  font-size: 22px;
+  color: var(--streak-core);
+}
+.is-broken .streak-big b {
+  color: var(--muted);
+}
+.streak-txt {
+  display: grid;
+  gap: 2px;
+}
+.streak-warn {
+  color: var(--streak);
+  font-weight: 700;
+}
+.streak-best {
+  margin-left: auto;
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .streak-badge.is-risk {
+    animation: none;
+    border-color: var(--streak);
+  }
+}

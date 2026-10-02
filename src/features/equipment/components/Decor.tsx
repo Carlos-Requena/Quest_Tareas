@@ -3,6 +3,9 @@ import { useGame } from "../../../store/game";
 import { useBlobUrl } from "../useBlobUrl";
 import { wornIn } from "../model";
 import { gearStyle } from "../../merchant/components/GearArt";
+import { useTranslation } from "react-i18next";
+import { builtinArt } from "../../armory/model";
+import { gearName } from "../../armory/labels";
 import "../equipment.css";
 
 /**
@@ -12,7 +15,9 @@ import "../equipment.css";
  */
 export function Backdrop() {
   const g = useGame((s) => wornIn(s.state.player.equipped, s.state.gear, "backdrop"));
-  const big = useBlobUrl(g?.art?.blobId);
+  const blob = useBlobUrl(g?.art?.blobId);
+  // Los fondos de serie traen su escena a tamaño grande (SVG); los del jugador, en el almacén de binarios.
+  const big = blob ?? builtinArt(g?.id);
   const src = big ?? (g?.image || undefined);
   return (
     <div className="backdrop">
@@ -30,9 +35,10 @@ export function Backdrop() {
 /** Emblema de la cabecera: el comprado al mercader dentro del rombo, o el de siempre. */
 export function DecorEmblem({ fallback, size = 64 }: { fallback: ReactNode; size?: number }) {
   const g = useGame((s) => wornIn(s.state.player.equipped, s.state.gear, "emblem"));
+  const { t } = useTranslation();
   if (!g?.image) return <>{fallback}</>;
   return (
-    <span className="demb" style={{ ...gearStyle(g), width: size, height: size }} title={g.name}>
+    <span className="demb" style={{ ...gearStyle(g), width: size, height: size }} title={gearName(g, t)}>
       <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden>
         <defs>
           <clipPath id="demb-clip">

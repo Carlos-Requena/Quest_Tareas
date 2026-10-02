@@ -6,6 +6,7 @@ import { rankFor } from "../../domain/leveling";
 import { seededRandom } from "../../lib/id";
 import { RARITIES, RARITY_META, type Rarity } from "../items/model";
 import type { MerchantEventBody } from "./events";
+import { BUILTIN_GEAR } from "../armory/model";
 
 // ───────────── Ranuras ─────────────
 
@@ -61,8 +62,8 @@ export interface Purchase {
 // ───────────── Precios y requisitos (los pone Hu Tao, no el jugador) ─────────────
 
 /**
- * Precio de cada rareza, en oro. Calibrado para unos 300–500 G al día (las quests de
- * ejemplo dan 40–300 G): lo común cuesta unos días de trabajo; lo legendario, meses.
+ * Precio base de cada rareza, en oro. Calibrado para unos 300–500 G al día (las quests
+ * de ejemplo dan 40–300 G): lo común cuesta unos días de trabajo; lo legendario, meses.
  */
 export const PRICES: Record<Rarity, number> = {
   common: 1_200,
@@ -72,6 +73,26 @@ export const PRICES: Record<Rarity, number> = {
   mythic: 45_000,
   legendary: 100_000,
 };
+
+/**
+ * Recargo por ranura: lo que más se ve cuesta más. Nunca baja del precio base.
+ * Un arma legendaria cuesta 150.000 G y un fondo legendario, 160.000 G.
+ */
+export const SLOT_PRICE_FACTOR: Record<GearSlot, number> = {
+  head: 1.1,
+  body: 1.4,
+  hands: 1,
+  feet: 1,
+  weapon: 1.5,
+  shield: 1.2,
+  cape: 1.2,
+  amulet: 1.3,
+  backdrop: 1.6,
+  emblem: 1.25,
+};
+
+/** Redondeo «de tienda»: a la centena por debajo de 10.000 y al millar por encima. */
+const shopRound = (n: number) => (n < 10_000 ? Math.round(n / 100) * 100 : Math.round(n / 1000) * 1000);
 
 /** Nivel mínimo para comprar cada rareza: el primero de cada rango (F, E, D, C, B y A). */
 export const LEVEL_REQUIRED: Record<Rarity, number> = {
@@ -83,7 +104,8 @@ export const LEVEL_REQUIRED: Record<Rarity, number> = {
   legendary: 17,
 };
 
-export const priceOf = (g: Pick<GearDef, "rarity">) => PRICES[g.rarity];
+export const priceOf = (g: Pick<GearDef, "rarity" | "slot">) =>
+  shopRound(PRICES[g.rarity] * (SLOT_PRICE_FACTOR[g.slot] ?? 1));
 export const levelRequired = (g: Pick<GearDef, "rarity">) => LEVEL_REQUIRED[g.rarity];
 export const rankRequired = (g: Pick<GearDef, "rarity">) => rankFor(levelRequired(g));
 
@@ -184,6 +206,7 @@ export function buyBlocker(
 
 /** Acumulador que usa project() mientras reproduce los eventos. */
 export interface MerchantAcc {
+  /** Piezas añadidas por el jugador. Las de serie no van aquí (ni en el snapshot): ver gearOf. */
   catalog: Map<string, GearDef>;
   /** Ids retirados: un evento repetido no los resucita. */
   deleted: Set<string>;
@@ -203,7 +226,9 @@ const validGear = (g: GearDef | undefined): g is GearDef =>
 export function applyMerchantEvent(acc: MerchantAcc, e: MerchantEventBody, ts: number, gold: number): number {
   switch (e.type) {
     case "gear_created":
-      if (validGear(e.gear) && !acc.catalog.has(e.gear.id) && !acc.deleted.has(e.gear.id)) acc.catalog.set(e.gear.id, e.gear);
+      // Las piezas de serie (armory) no se pueden crear, editar ni retirar con eventos.
+      if (validGear(e.gear) && !BUILTIN_GEAR.has(e.gear.id) && !acc.catalog.has(e.gear.id) && !acc.deleted.has(e.gear.id))
+        acc.catalog.set(e.gear.id, e.gear);
       return 0;
 
     case "gear_updated": {
@@ -230,13 +255,20 @@ export function applyMerchantEvent(acc: MerchantAcc, e: MerchantEventBody, ts: n
     case "gear_purchased": {
       // Si dos dispositivos gastan el mismo oro sin conexión, solo vale la compra que llega primero.
       const ok =
-        acc.catalog.has(e.gearId) && !acc.owned[e.gearId] && Number.isFinite(e.price) && e.price >= 0 && gold >= e.price;
+        !!gearOf(acc, e.gearId) && !acc.owned[e.gearId] && Number.isFinite(e.price) && e.price >= 0 && gold >= e.price;
       if (!ok) return 0;
       acc.owned[e.gearId] = { at: ts, price: e.price };
       return e.price;
     }
   }
 }
+
+/** Una pieza del catálogo: del jugador o de serie (features/armory). */
+export const gearOf = (acc: Pick<MerchantAcc, "catalog">, id: string): GearDef | undefined =>
+  acc.catalog.get(id) ?? BUILTIN_GEAR.get(id);
+
+/** El catálogo entero: las piezas de serie y, después, las que ha añadido el jugador. */
+export const fullCatalog = (acc: Pick<MerchantAcc, "catalog">): Map<string, GearDef> => new Map([...BUILTIN_GEAR, ...acc.catalog]);
 
 /** Binarios que usa el catálogo (para no borrarlos al limpiar el almacén). */
 export function gearBlobIds(catalog: Iterable<GearDef>): Set<string> {

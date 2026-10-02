@@ -12,6 +12,7 @@ import { PomodoroBadge } from "../features/pomodoro";
 import { DueChip, type Due } from "../features/horizon";
 import { LockIcon, recurs } from "../features/complex";
 import { Skull, type TemporalState } from "../features/temporal";
+import { StreakBadge } from "../features/streaks";
 
 interface Props {
   quest: QuestState;
@@ -168,6 +169,7 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
             </span>
           )}
           {due && <DueChip due={due} now={now} icon={due.temporal ? <Skull /> : undefined} />}
+          <StreakBadge quest={quest} now={now} />
         </span>
         <span className="card-gem gem" />
         <span className="card-title">{quest.title}</span>

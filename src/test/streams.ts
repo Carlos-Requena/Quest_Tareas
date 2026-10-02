@@ -75,7 +75,8 @@ export function randomStream(seed: string, n: number): GameEvent[] {
   const Q = ["q0", "q1", "q2", "q3", "q4", "q5"];
   const I = ["i0", "i1", "i2", "i3"];
   const TT = ["t0", "t1", "t2"];
-  const G = ["g0", "g1", "g2"];
+  // Una pieza de serie (features/armory): se compra y se equipa, pero no se crea ni se edita.
+  const G = ["g0", "g1", "g2", "armory-pot_lid"];
   const cond = (q: string) => (rnd() < 0.85 ? `${q}-c` : `${q}-p`);
 
   // Mercader y equipo (features/merchant y features/equipment): precios pequeños para
@@ -102,11 +103,15 @@ export function randomStream(seed: string, n: number): GameEvent[] {
         quest: questDef(q, {
           category: pick(["elite", "repeat", "request"] as const),
           // Áreas escritas de varias formas: los atributos las juntan (features/attributes).
-          area: pick(["Salud", " salud ", "Estudio", ""]),
+          area: pick(["Salud", " salud ", "健康", "Estudio", "Jardinería", ""]),
           conditions: [
             { id: `${q}-c`, kind: "count", label: "x", target: 1 + Math.floor(rnd() * 3) },
             // Pomodoro sin `kind` en algunos: formato antiguo de los contadores.
             ...(rnd() < 0.4 ? [{ id: `${q}-p`, kind: "pomodoro" as const, label: "p", target: 2, focusMinutes: 25, breakMinutes: 5 }] : []),
+            // Lista (features/checklist), a veces con una casilla repetida o vacía que se limpia.
+            ...(rnd() < 0.4
+              ? [{ id: `${q}-l`, kind: "checklist" as const, label: "l", target: 9, items: [{ id: "a", text: "A" }, { id: "b", text: "B" }, { id: "a", text: "otra" }, { id: "c", text: " " }] }]
+              : []),
           ],
           // Recompensa antigua con `item` de texto (features/items/legacy.ts) en algunas.
           reward: rnd() < 0.3 ? ({ xp: 100, gold: 10, item: "Poción" } as QuestDef["reward"]) : { xp: 50 + Math.floor(rnd() * 400), gold: 20, itemId: rnd() < 0.5 ? pick(I) : undefined },
@@ -124,6 +129,8 @@ export function randomStream(seed: string, n: number): GameEvent[] {
         reward: { xp: 50 + Math.floor(rnd() * 300), gold: 25, itemId: rnd() < 0.4 ? pick(I) : undefined },
         drops: rnd() < 0.6 ? [{ itemId: pick(I), rarity: pick(RARITIES) }] : undefined,
       };
+    if (r < 0.58)
+      return { type: "checklist_checked", questId: q, conditionId: rnd() < 0.9 ? `${q}-l` : `${q}-c`, itemId: pick(["a", "b", "c"]), done: rnd() < 0.8 };
     if (r < 0.6) return { type: "quest_abandoned", questId: q };
     if (r < 0.62) return { type: "quest_deleted", questId: q };
     if (r < 0.7) {
