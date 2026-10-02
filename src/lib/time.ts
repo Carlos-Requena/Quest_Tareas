@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
+import i18n from "../i18n";
 
 export function formatRemaining(ms: number): string {
   const min = Math.max(1, Math.ceil(ms / 60_000));
-  if (min < 60) return `${min} min`;
+  if (min < 60) return i18n.t("time.minutes", { n: min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h} h ${min % 60 ? `${min % 60} min` : ""}`.trim();
+  if (h < 24) {
+    return min % 60 ? i18n.t("time.hoursMinutes", { h, m: min % 60 }) : i18n.t("time.hours", { n: h });
+  }
   const d = Math.floor(h / 24);
-  return `${d} d ${h % 24 ? `${h % 24} h` : ""}`.trim();
+  return h % 24 ? i18n.t("time.daysHours", { d, h: h % 24 }) : i18n.t("time.days", { n: d });
 }
 
 /** Reloj que se actualiza periódicamente (para los tiempos de reaparición). */

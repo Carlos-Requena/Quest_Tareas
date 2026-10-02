@@ -143,6 +143,40 @@ kbd {
   border-color: var(--faint);
 }
 
+.lang {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 15px;
+}
+.lang-btn {
+  position: relative;
+  height: 24px;
+  min-width: 38px;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--text-2);
+  transition: color 0.2s;
+}
+.lang-btn:hover {
+  color: var(--text);
+}
+.lang-btn.on {
+  color: #2a2110;
+  font-weight: 700;
+}
+.lang-lbl {
+  position: relative;
+  z-index: 1;
+}
+.lang-hl {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+}
+
 .mute {
   width: 30px;
   height: 30px;
@@ -842,6 +876,26 @@ input[type="number"]::-webkit-inner-spin-button {
   opacity: 0.25;
   cursor: default;
 }
+.add-conds {
+  display: flex;
+  gap: 18px;
+}
+.cond-edit-pomo {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0 4px;
+  border-top: 1px dashed var(--line);
+  border-bottom: 1px dashed var(--line);
+}
+.cond-edit-row.is-pomo {
+  grid-template-columns: auto 1fr 28px;
+}
+.cond-edit-kind {
+  font-size: 12px;
+  color: var(--gold);
+  white-space: nowrap;
+  padding-right: 4px;
+}
 .add-cond {
   justify-self: start;
   padding: 4px 0;
@@ -1039,4 +1093,65 @@ input[type="number"]::-webkit-inner-spin-button {
   margin-top: 36px;
   color: var(--muted);
   font-size: 12px;
+}
+
+/* ───────────── Partículas (src/lib/particles.ts) ───────────── */
+
+.cl-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.fx-coin,
+.fx-spark,
+.fx-star {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+/* Moneda: disco dorado con el rombo del oro. */
+.fx-coin {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 45%, var(--gold-lo) 100%);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 240, 200, 0.55), 0 0 8px rgba(242, 214, 143, 0.55);
+}
+.fx-coin::after {
+  content: "";
+  position: absolute;
+  inset: 32%;
+  transform: rotate(45deg);
+  border: 1px solid var(--gold-lo);
+}
+/* Chispa: rombo de luz del color de la rareza. */
+.fx-spark {
+  --fx: var(--gold-hi);
+  transform: rotate(45deg);
+  background: var(--fx);
+  box-shadow: 0 0 6px var(--fx), 0 0 12px var(--fx);
+}
+.fx-star {
+  --fx: var(--gold-hi);
+  background: var(--fx);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  filter: drop-shadow(0 0 4px var(--fx));
+}
+
+/* ───────────── Ajustes para japonés ───────────── */
+
+:lang(ja) .detail-title {
+  letter-spacing: 0.1em;
+}
+:lang(ja) .card-title,
+:lang(ja) .cond-label {
+  letter-spacing: 0.04em;
+}
+:lang(ja) .desc {
+  letter-spacing: 0.05em;
+}
+:lang(ja) .stamp {
+  font-family: var(--f-body);
+  font-size: 11px;
+  letter-spacing: 0.2em;
 }

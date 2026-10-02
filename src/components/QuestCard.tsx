@@ -1,11 +1,14 @@
 import { forwardRef, useLayoutEffect, useMemo, useRef } from "react";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import gsap from "gsap";
 import type { QuestState, QuestStatus } from "../domain/types";
-import { CATEGORY_META } from "../domain/types";
+import { CATEGORY_META, isPomodoroCondition } from "../domain/types";
 import { seededRandom } from "../lib/id";
 import { sfx } from "../lib/sfx";
 import { formatRemaining } from "../lib/time";
+import { num } from "../i18n";
+import { PomodoroBadge } from "../features/pomodoro";
 
 interface Props {
   quest: QuestState;
@@ -53,6 +56,7 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
   outerRef,
 ) {
   const meta = CATEGORY_META[quest.category];
+  const { t } = useTranslation();
   const cracks = useCracks(quest.id);
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -149,12 +153,13 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
         <span className="card-title">{quest.title}</span>
         <span className="card-foot">
           <span className="muted">{quest.kind}</span>
-          <b className="num">{quest.reward.xp.toLocaleString("es-ES")}</b>
+          <b className="num">{num(quest.reward.xp)}</b>
           <span className="card-unit">XP</span>
         </span>
 
-        {isCooldown && <span className="card-cd">Vuelve en {formatRemaining((quest.availableAt ?? 0) - now)}</span>}
-        {quest.completions > 0 && !isCooldown && <span className="card-count">×{quest.completions}</span>}
+        {isCooldown && <span className="card-cd">{t("card.backIn", { time: formatRemaining((quest.availableAt ?? 0) - now) })}</span>}
+        {quest.completions > 0 && !isCooldown && !isActive && <span className="card-count">×{quest.completions}</span>}
+        {quest.conditions.some(isPomodoroCondition) && <PomodoroBadge quest={quest} />}
 
         <div className="card-flash" ref={flashRef} />
         <div className="stamp-wrap">
@@ -166,7 +171,7 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
             </g>
           </svg>
           <div ref={stampRef} className="stamp">
-            EN CURSO
+            {t("card.stamp")}
           </div>
         </div>
       </div>

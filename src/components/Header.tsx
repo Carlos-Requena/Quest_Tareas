@@ -1,7 +1,12 @@
-import { useState } from "react";
+import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { useGame } from "../store/game";
 import { MAX_SLOTS } from "../domain/leveling";
-import { isMuted, setMuted } from "../lib/sfx";
+import { setMuted, sfx } from "../lib/sfx";
+import { useMuted } from "../lib/useMuted";
+import { LANGS, num, setLang, type Lang } from "../i18n";
+import { MusicControl } from "../features/music";
+import { ItemsButton } from "../features/items";
 
 export function Emblem({ size = 64 }: { size?: number }) {
   return (
@@ -17,7 +22,8 @@ export function Emblem({ size = 64 }: { size?: number }) {
 export function Header() {
   const player = useGame((s) => s.state.player);
   const active = useGame((s) => [...s.state.quests.values()].filter((q) => q.status === "active").length);
-  const [muted, setM] = useState(isMuted());
+  const muted = useMuted();
+  const { t } = useTranslation();
 
   const pct = Math.min(100, (player.levelXp / player.levelXpNeeded) * 100);
 
@@ -33,34 +39,35 @@ export function Header() {
 
       <div className="hdr-right">
         <div className="hdr-block">
-          <span className="hdr-lbl">Aventurero</span>
+          <span className="hdr-lbl">{t("header.adventurer")}</span>
           <div className="hdr-lv">
-            <span>Rango</span>
+            <span>{t("header.rank")}</span>
             <b className="num rank">{player.rank}</b>
-            <span>Nivel</span>
+            <span>{t("header.level")}</span>
             <b className="num">{player.level}</b>
           </div>
-          <div className="xpbar" title={`${player.xp} XP en total`}>
+          <div className="xpbar" title={t("header.xpTotal", { xp: num(player.xp) })}>
             <span className="xpbar-lbl">XP</span>
             <div className="xpbar-track">
               <div className="xpbar-fill" style={{ width: `${pct}%` }} />
             </div>
             <span className="num xpbar-val">
-              {player.levelXp}
-              <small> / {player.levelXpNeeded}</small>
+              {num(player.levelXp)}
+              <small> / {num(player.levelXpNeeded)}</small>
             </span>
           </div>
         </div>
 
         <div className="hdr-block">
-          <span className="hdr-lbl">Tesoro</span>
+          <span className="hdr-lbl">{t("header.treasure")}</span>
           <div className="hdr-gold">
             <GoldIcon />
-            <b className="num">{player.gold.toLocaleString("es-ES")}</b>
+            <b className="num">{num(player.gold)}</b>
             <span className="muted">G</span>
+            <ItemsButton />
           </div>
-          <div className="slots" title="Quests activas / huecos desbloqueados">
-            <span className="xpbar-lbl">Huecos</span>
+          <div className="slots" title={t("header.slotsTitle")}>
+            <span className="xpbar-lbl">{t("header.slots")}</span>
             {Array.from({ length: MAX_SLOTS }, (_, i) => (
               <span
                 key={i}
@@ -74,18 +81,46 @@ export function Header() {
           </div>
         </div>
 
+        <LangSwitch />
+        <MusicControl />
         <button
           className="mute"
-          title={muted ? "Activar sonido" : "Silenciar"}
-          onClick={() => {
-            setMuted(!muted);
-            setM(!muted);
-          }}
+          title={muted ? t("header.soundOn") : t("header.mute")}
+          aria-pressed={muted}
+          onClick={() => setMuted(!muted)}
         >
           {muted ? "♪̸" : "♪"}
         </button>
       </div>
     </header>
+  );
+}
+
+function LangSwitch() {
+  const { t, i18n } = useTranslation();
+  return (
+    <div className="lang" role="radiogroup" aria-label={t("header.language")} title={t("header.language")}>
+      {(Object.keys(LANGS) as Lang[]).map((l) => {
+        const on = i18n.language === l;
+        return (
+          <button
+            key={l}
+            role="radio"
+            aria-checked={on}
+            className={`lang-btn ${on ? "on" : ""}`}
+            lang={l}
+            onClick={() => {
+              if (on) return;
+              sfx.move();
+              setLang(l);
+            }}
+          >
+            {on && <motion.span layoutId="lang-hl" className="lang-hl" transition={{ type: "spring", stiffness: 500, damping: 38 }} />}
+            <span className="lang-lbl">{LANGS[l].label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

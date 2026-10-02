@@ -1,10 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import gsap from "gsap";
+import { Trans, useTranslation } from "react-i18next";
 import { useGame } from "../store/game";
 import { CATEGORY_META } from "../domain/types";
 import { seededRandom } from "../lib/id";
 import { sfx } from "../lib/sfx";
+import { num } from "../i18n";
 import { GoldIcon } from "./Header";
+import { burst, centerIn } from "../lib/particles";
+import { LootChest, chestContents, type ChestHandle } from "../features/items";
 
 const COLS = 4;
 const ROWS = 3;
@@ -42,14 +46,21 @@ export function ClearOverlay() {
   const clear = useGame((s) => s.clear);
   const setClear = useGame((s) => s.setClear);
   const quest = useGame((s) => (clear ? s.state.quests.get(clear.questId) : undefined));
+  const { t } = useTranslation();
 
   const root = useRef<HTMLDivElement>(null);
   const tl = useRef<gsap.core.Timeline>(undefined);
+  const chest = useRef<ChestHandle>(null);
   const shards = useMemo(() => makeShards(clear?.questId ?? "x"), [clear?.questId]);
 
   const close = () => {
     if (tl.current && tl.current.progress() < 1) {
       tl.current.progress(1);
+      return;
+    }
+    // Con botín, el primer clic (o Enter) abre el cofre; el siguiente cierra.
+    if (chest.current?.pending()) {
+      chest.current.advance();
       return;
     }
     gsap.to(root.current, { opacity: 0, duration: 0.25, onComplete: () => setClear(undefined) });
@@ -74,10 +85,11 @@ export function ClearOverlay() {
     const el = root.current;
     const q = (s: string) => el.querySelector(s);
     const leveled = after.level > before.level;
+    const hasLoot = chestContents(clear, useGame.getState().state.items).length > 0;
     const counters = { xp: 0, gold: 0 };
     const setCounters = () => {
-      q(".cl-xp")!.textContent = `+${Math.round(counters.xp).toLocaleString("es-ES")}`;
-      q(".cl-gold")!.textContent = `+${Math.round(counters.gold).toLocaleString("es-ES")}`;
+      q(".cl-xp")!.textContent = `+${num(Math.round(counters.xp))}`;
+      q(".cl-gold")!.textContent = `+${num(Math.round(counters.gold))}`;
     };
     const ratio = (p: typeof before) => (p.levelXp / p.levelXpNeeded) * 100;
 
@@ -121,6 +133,18 @@ export function ClearOverlay() {
           ease: "power2.out",
           onUpdate: setCounters,
         }, "<")
+        // Monedas que saltan del oro y chispas doradas de la XP.
+        .add(() => {
+          const layer = q(".cl-fx") as HTMLElement | null;
+          if (!layer) return;
+          const xpAt = centerIn(layer, q(".cl-xp")!);
+          burst({ layer, ...xpAt, count: 12, kind: "spark", color: "var(--gold-hi)", velocity: [80, 200], angle: [-160, -20], gravity: 300, duration: [0.6, 1] });
+          if (after.gold > before.gold) {
+            const goldAt = centerIn(layer, q(".cl-gold")!);
+            burst({ layer, ...goldAt, count: 16, kind: "coin", velocity: [170, 330], angle: [-125, -55], gravity: 950, duration: [0.7, 1.1], size: [10, 14] });
+            sfx.coins(10);
+          }
+        }, "<0.1")
         .from(".cl-bar-wrap", { opacity: 0, duration: 0.25 }, "<");
 
       const fill = q(".cl-bar-fill");
@@ -136,7 +160,13 @@ export function ClearOverlay() {
       } else {
         t.to(fill, { width: `${ratio(after)}%`, duration: 0.7, ease: "power2.out" });
       }
-      t.from(".cl-hint", { opacity: 0, duration: 0.4 });
+      if (hasLoot) {
+        // El aviso de «continuar» espera a que se abra el cofre.
+        gsap.set(".cl-hint", { opacity: 0 });
+        t.add(() => chest.current?.appear());
+      } else {
+        t.from(".cl-hint", { opacity: 0, duration: 0.4 });
+      }
     }, el);
 
     return () => ctx.revert();
@@ -159,7 +189,7 @@ export function ClearOverlay() {
                 <span className="card-title">{quest.title}</span>
                 <span className="card-foot">
                   <span className="muted">{quest.kind}</span>
-                  <b className="num">{quest.reward.xp}</b>
+                  <b className="num">{num(quest.reward.xp)}</b>
                   <span className="card-unit">XP</span>
                 </span>
               </div>
@@ -180,29 +210,22 @@ export function ClearOverlay() {
           <h2 className="cl-title">Quest Clear</h2>
           <span className="cl-rule" />
         </div>
-        <p className="cl-sub">«{quest.title}» completada</p>
+        <p className="cl-sub">{t("clear.completed", { title: quest.title })}</p>
 
         <div className="cl-rewards">
           <div className="cl-row">
             <span className="reward-ico xp">XP</span>
-            <span className="lbl">Experiencia</span>
+            <span className="lbl">{t("clear.xp")}</span>
             <b className="num cl-xp">+0</b>
           </div>
           <div className="cl-row">
             <GoldIcon />
-            <span className="lbl">Oro</span>
+            <span className="lbl">{t("clear.gold")}</span>
             <b className="num cl-gold">+0</b>
           </div>
-          {quest.reward.item && (
-            <div className="cl-row">
-              <span className="reward-ico item">◈</span>
-              <span className="lbl">Objeto</span>
-              <b className="cl-item">{quest.reward.item}</b>
-            </div>
-          )}
           <div className="cl-bar-wrap">
             <span className="lbl">
-              Nivel <b className="num cl-lv-num">{clear.before.level}</b>
+              {t("clear.level")} <b className="num cl-lv-num">{clear.before.level}</b>
             </span>
             <div className="cl-bar">
               <div className="cl-bar-fill" />
@@ -219,10 +242,16 @@ export function ClearOverlay() {
               </div>
             )}
           </div>
+          <LootChest
+            ref={chest}
+            clear={clear}
+            onOpened={() => gsap.to(root.current?.querySelector(".cl-hint") ?? [], { opacity: 1, duration: 0.4 })}
+          />
         </div>
 
+        <div className="cl-fx" />
         <p className="cl-hint">
-          Pulsa <kbd>Enter</kbd> para continuar
+          <Trans i18nKey="clear.hint" components={{ kbd: <kbd /> }} />
         </p>
       </div>
     </div>

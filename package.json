@@ -16,9 +16,11 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-sql": "^2.5.0",
     "gsap": "^3.15.0",
+    "i18next": "^26.4.2",
     "motion": "^13.4.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-i18next": "^17.0.15",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

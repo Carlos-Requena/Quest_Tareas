@@ -1,11 +1,16 @@
 import type { GameEvent } from "./events";
-import type { GameState, QuestState } from "./types";
+import type { ConditionDef, GameState, QuestState } from "./types";
+import { isPomodoroCondition } from "./types";
 import { levelFromXp, maxActiveFor, rankFor } from "./leveling";
+import { applyPomodoroEvent, newPomodoro, planOf, viewPomodoro } from "../features/pomodoro/model";
+import { upcastQuestDef } from "../features/pomodoro/legacy";
+import { applyItemEvent, newItemsAcc, receiveItems, registerItem } from "../features/items/model";
+import { upcastReward } from "../features/items/legacy";
 
 /** Reproduce los eventos (ya ordenados) y devuelve el estado actual del juego. */
 export function project(events: GameEvent[]): GameState {
   const quests = new Map<string, QuestState>();
-  const items: Record<string, number> = {};
+  const items = newItemsAcc();
   let xp = 0;
   let gold = 0;
   let completedCount = 0;
@@ -16,10 +21,16 @@ export function project(events: GameEvent[]): GameState {
     switch (e.type) {
       case "quest_created":
         if (!quests.has(e.quest.id)) {
-          quests.set(e.quest.id, {
-            ...e.quest,
+          // datos antiguos → formato actual
+          const def = upcastQuestDef(e.quest);
+          const { reward, item } = upcastReward(def.reward, e.ts);
+          if (item) registerItem(items, item);
+          quests.set(def.id, {
+            ...def,
+            reward,
             status: "available",
             progress: {},
+            pomodoros: freshPomodoros(def.conditions),
             completions: 0,
           });
         }
@@ -38,6 +49,7 @@ export function project(events: GameEvent[]): GameState {
           q.status = "active";
           q.acceptedAt = e.ts;
           q.progress = {};
+          q.pomodoros = freshPomodoros(q.conditions);
         }
         break;
 
@@ -46,13 +58,15 @@ export function project(events: GameEvent[]): GameState {
           q.status = q.availableAt && q.availableAt > e.ts ? "cooldown" : "available";
           q.progress = {};
           q.acceptedAt = undefined;
+          q.pomodoros = freshPomodoros(q.conditions);
         }
         break;
 
       case "progress_added":
         if (q?.status === "active") {
           const cond = q.conditions.find((c) => c.id === e.conditionId);
-          if (cond) {
+          // Las condiciones de pomodoro avanzan con el tiempo, no con +1.
+          if (cond && !isPomodoroCondition(cond)) {
             const next = (q.progress[cond.id] ?? 0) + e.amount;
             q.progress = {
               ...q.progress,
@@ -66,13 +80,16 @@ export function project(events: GameEvent[]): GameState {
         // Si dos dispositivos completan la misma quest sin conexión, solo
         // cuenta la primera: la segunda ya no la encuentra activa.
         if (q?.status === "active") {
-          xp += e.reward.xp;
-          gold += e.reward.gold;
-          if (e.reward.item) items[e.reward.item] = (items[e.reward.item] ?? 0) + 1;
+          const { reward, item } = upcastReward(e.reward, e.ts);
+          if (item) registerItem(items, item);
+          xp += reward.xp;
+          gold += reward.gold;
+          receiveItems(items, reward.itemId, e.drops ?? [], e.ts);
           completedCount++;
           q.completions++;
           q.progress = {};
           q.acceptedAt = undefined;
+          q.pomodoros = freshPomodoros(q.conditions);
           if (q.category === "repeat") {
             q.status = "cooldown";
             q.availableAt = e.ts + (q.cooldownMinutes ?? 0) * 60_000;
@@ -81,19 +98,43 @@ export function project(events: GameEvent[]): GameState {
           }
         }
         break;
+
+      case "pomodoro_started":
+      case "pomodoro_paused":
+      case "pomodoro_resumed":
+      case "pomodoro_stopped":
+      case "pomodoro_break_skipped":
+        if (q?.status === "active") {
+          // Eventos antiguos sin conditionId → la primera condición de pomodoro.
+          const cond = q.conditions.find((c) => (e.conditionId ? c.id === e.conditionId : isPomodoroCondition(c)));
+          const p = cond && q.pomodoros[cond.id];
+          if (cond && isPomodoroCondition(cond) && p) {
+            q.pomodoros = { ...q.pomodoros, [cond.id]: applyPomodoroEvent(p, planOf(cond), e) };
+          }
+        }
+        break;
+
+      case "item_created":
+      case "item_updated":
+      case "item_deleted":
+        applyItemEvent(items, e);
+        break;
     }
   }
 
   const lv = levelFromXp(xp);
   return {
     quests,
+    items: items.catalog,
     player: {
       xp,
       gold,
       ...lv,
       rank: rankFor(lv.level),
       maxActive: maxActiveFor(lv.level),
-      items,
+      inventory: items.inventory,
+      discovered: items.discovered,
+      pity: items.pity,
       completedCount,
     },
   };
@@ -105,6 +146,24 @@ export function effectiveStatus(q: QuestState, now: number) {
   return q.status;
 }
 
-export function conditionsMet(q: QuestState): boolean {
-  return q.conditions.every((c) => (q.progress[c.id] ?? 0) >= c.target);
+/** Un pomodoro nuevo por cada condición de pomodoro. */
+function freshPomodoros(conditions: ConditionDef[]): QuestState["pomodoros"] {
+  return Object.fromEntries(conditions.filter(isPomodoroCondition).map((c) => [c.id, newPomodoro()]));
+}
+
+/** Progreso de una condición en `now`: contador o rondas de pomodoro completadas. */
+export function conditionProgress(q: QuestState, c: ConditionDef, now: number): number {
+  if (!isPomodoroCondition(c)) return q.progress[c.id] ?? 0;
+  const p = q.pomodoros[c.id];
+  return p ? viewPomodoro(p, planOf(c), now).completedRounds : 0;
+}
+
+/** Las condiciones de contador están cumplidas (las de pomodoro aparte). */
+export function countConditionsMet(q: QuestState): boolean {
+  return q.conditions.every((c) => isPomodoroCondition(c) || (q.progress[c.id] ?? 0) >= c.target);
+}
+
+/** Se puede reportar: todas las condiciones cumplidas, pomodoros incluidos. */
+export function conditionsMet(q: QuestState, now: number): boolean {
+  return q.conditions.every((c) => conditionProgress(q, c, now) >= c.target);
 }

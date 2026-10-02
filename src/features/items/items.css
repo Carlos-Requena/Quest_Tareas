@@ -1,0 +1,1124 @@
+/* Objetos: inventario, almanaque y drops. `--rc` es el color de la rareza (tokens --r-* de theme.css). */
+
+/* ───────────── Arte del objeto ───────────── */
+
+/* Fondo con el color de la rareza, como las fichas de objeto de Genshin. */
+.iart {
+  --rc: var(--r-common);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 4px 4px 16px 4px;
+  background:
+    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--rc) 50%, transparent), transparent 68%),
+    linear-gradient(160deg, color-mix(in srgb, var(--rc) 58%, #1d1914), color-mix(in srgb, var(--rc) 22%, #0d0b09));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rc) 70%, transparent), inset 0 -18px 24px rgba(0, 0, 0, 0.25);
+}
+.iart img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45));
+  transition: filter 0.25s;
+}
+.iart-mono {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 2.6em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.iart-stars {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3px;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: #ffe9a8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* ───────────── Cromo (tile) ───────────── */
+
+.itile {
+  --rc: var(--r-common);
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  text-align: center;
+  min-width: 0;
+}
+.itile-frame {
+  position: relative;
+  display: block;
+  transition: transform 0.2s var(--ease-out), filter 0.2s;
+}
+.itile-frame .iart {
+  transition: box-shadow 0.2s;
+}
+.itile:hover .itile-frame {
+  transform: translateY(-2px);
+}
+.itile:hover .iart,
+.itile.is-selected .iart {
+  box-shadow:
+    inset 0 0 0 1px var(--rc),
+    0 0 0 1px var(--rc),
+    0 0 18px color-mix(in srgb, var(--rc) 50%, transparent);
+}
+.itile-name {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-2);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  transition: color 0.2s;
+}
+/* La tipografía toma el color de la rareza al pasar el ratón. */
+.itile:hover .itile-name,
+.itile.is-selected .itile-name {
+  color: var(--rc);
+}
+.itile-no {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.itile-count {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 15px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.itile-new {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  padding: 2px 5px 1px;
+  font-size: 8px;
+  color: #1c160b;
+  background: var(--gold-hi);
+  box-shadow: 0 0 8px rgba(242, 214, 143, 0.7);
+}
+
+/* No conseguido: el cromo se ve en color pero apagado, sin el fondo de su rareza. */
+.itile.is-locked .iart {
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rc) 40%, transparent);
+}
+.itile.is-locked .iart img {
+  filter: saturate(0.35) opacity(0.5);
+}
+.itile.is-locked .iart-mono {
+  color: color-mix(in srgb, var(--rc) 35%, transparent);
+  text-shadow: none;
+}
+.itile.is-locked:hover .iart img,
+.itile.is-locked.is-selected .iart img {
+  filter: none;
+}
+.itile.is-locked:hover .iart-mono,
+.itile.is-locked.is-selected .iart-mono {
+  color: var(--rc);
+}
+.itile.is-locked .itile-name {
+  color: var(--faint);
+}
+.itile.is-locked:hover .itile-name,
+.itile.is-locked.is-selected .itile-name {
+  color: var(--rc);
+}
+
+/* ───────────── Botón de la cabecera ───────────── */
+
+.items-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  margin-left: 10px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  color: var(--text-2);
+  transition: color 0.2s, border-color 0.2s;
+}
+.items-btn b {
+  font-size: 15px;
+}
+.items-btn:hover {
+  color: var(--gold-hi);
+  border-color: var(--gold);
+}
+
+/* ───────────── Ventana de objetos ───────────── */
+
+.coll {
+  width: min(1040px, 94vw);
+  height: min(700px, 88vh);
+}
+.coll-h .tag {
+  color: var(--gold);
+}
+.coll-tabs {
+  grid-template-columns: repeat(3, 1fr);
+  width: 360px;
+  margin-left: auto;
+}
+.coll-x {
+  width: 28px;
+  font-size: 13px;
+}
+.coll-x:hover {
+  color: var(--gold-hi) !important;
+}
+.coll-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1px 300px;
+  padding: 0 0 0 26px;
+}
+.coll-body::before {
+  content: "";
+  grid-column: 2;
+  grid-row: 1;
+  background: var(--line);
+  margin: 4px 0 16px;
+}
+.coll-list {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-right: 20px;
+}
+.coll-side {
+  grid-column: 3;
+  grid-row: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 26px 16px 22px;
+}
+.coll-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-bottom: 12px;
+}
+.ichip {
+  --rc: var(--gold);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.ichip .gem {
+  width: 5px;
+  height: 5px;
+  color: var(--rc);
+}
+.ichip small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.ichip:hover {
+  color: var(--rc);
+}
+.ichip.on {
+  color: var(--text);
+  border-color: var(--rc);
+  background: color-mix(in srgb, var(--rc) 14%, transparent);
+}
+.coll-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  align-content: start;
+  gap: 16px 12px;
+  overflow-y: auto;
+  padding: 8px 6px 18px 2px;
+}
+.coll-grid .iart-mono {
+  font-size: 40px;
+}
+.coll-empty,
+.coll-hint {
+  grid-column: 1 / -1;
+  margin: 24px 0;
+  line-height: 1.8;
+}
+.coll-units {
+  font-size: 12px;
+}
+
+/* Detalle */
+.idetail {
+  --rc: var(--r-common);
+  display: grid;
+  gap: 8px;
+}
+.idetail-art {
+  width: 150px;
+  margin: 4px auto 6px;
+}
+.idetail-art .iart-mono {
+  font-size: 64px;
+}
+.idetail-art .iart-stars {
+  font-size: 11px;
+  bottom: 5px;
+}
+.idetail-rarity {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.idetail-rarity .tag {
+  color: var(--rc);
+}
+.idetail-name {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--rc);
+}
+.idetail-kind {
+  margin: 0;
+  font-size: 12px;
+}
+.idetail-desc {
+  margin: 4px 0;
+}
+.idetail-facts {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0;
+  padding: 10px 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-2);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.idetail-facts .is-owned {
+  color: var(--gold-hi);
+}
+.idetail-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 6px;
+}
+.idetail-actions .btn {
+  height: 34px;
+  font-size: 13px;
+}
+
+/* Formulario */
+.iform {
+  display: grid;
+  gap: 14px;
+}
+.iform-top {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+.iform-art .iart-mono {
+  font-size: 40px;
+}
+.iform-img {
+  display: grid;
+  gap: 4px;
+}
+.iform-img-btns {
+  display: flex;
+  gap: 14px;
+}
+.add-cond.is-danger:hover {
+  color: #e8909f;
+}
+.iform-hint {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.iform-rarity {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+}
+.iform-rarity .seg-btn {
+  height: 32px;
+  font-size: 12px;
+  justify-content: flex-start;
+  padding: 0 10px;
+}
+.iform-rarity .seg-btn:hover {
+  color: var(--c);
+}
+.iform-rarity .seg-btn.on {
+  color: var(--c);
+}
+.iform-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.iform-check input {
+  accent-color: var(--gold);
+}
+.iform-f {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.iform-f .btn {
+  height: 36px;
+}
+.iform-f .btn-primary {
+  min-width: 140px;
+  justify-content: center;
+}
+
+/* ───────────── Probabilidades ───────────── */
+
+.coll-rates {
+  display: block;
+  overflow-y: auto;
+  padding: 4px 26px 18px;
+}
+.rates {
+  display: grid;
+  gap: 26px;
+}
+.rates-tables {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+.rates-table.is-elite .sec-h .tag,
+.rates-table.is-elite .sec-h .gem {
+  color: var(--elite);
+}
+.rates-rolls {
+  margin: 8px 0 10px;
+  font-size: 12px;
+}
+.rates-table ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rates-table li {
+  display: grid;
+  grid-template-columns: 8px 110px 64px 1fr 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid var(--rc);
+}
+.rates-table li .gem {
+  width: 6px;
+  height: 6px;
+  color: var(--rc);
+}
+.rates-name {
+  color: var(--rc);
+  font-size: 13px;
+}
+.rates-stars {
+  font-size: 8px;
+  color: #ffe9a8;
+  letter-spacing: 0.5px;
+}
+.rates-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.rates-bar i {
+  display: block;
+  height: 100%;
+  background: var(--rc);
+}
+.rates-table li b {
+  font-size: 17px;
+  text-align: right;
+}
+.rates-pity {
+  display: grid;
+  gap: 10px;
+}
+.pity {
+  --rc: var(--r-legendary);
+  display: grid;
+  grid-template-columns: 1fr 260px 72px;
+  align-items: center;
+  gap: 14px;
+}
+.pity-lbl {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.pity-track {
+  position: relative;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.pity-track i {
+  display: block;
+  height: 100%;
+  background: var(--rc);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--rc) 60%, transparent);
+  transition: width 0.6s var(--ease-out);
+}
+.pity-soft {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--text-2);
+}
+.pity-val {
+  font-size: 18px;
+  text-align: right;
+}
+.pity-val small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.rates-next {
+  margin: 4px 0 0;
+  color: var(--gold-hi);
+}
+.rates-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.rates-warn {
+  margin: 0;
+  color: var(--elite);
+}
+
+/* ───────────── Recompensas en el detalle de la quest ───────────── */
+
+.reward-item {
+  --rc: var(--r-common);
+  padding-left: 8px;
+}
+.reward-art {
+  width: 28px;
+  display: block;
+}
+.reward-art .iart-mono {
+  font-size: 14px;
+}
+.reward-art .iart {
+  border-radius: 2px 2px 7px 2px;
+}
+/* En la recompensa el arte se ve completo: `locked` solo oculta las estrellas. */
+.reward-item-name {
+  color: var(--rc);
+}
+.reward-loot {
+  color: var(--text-2);
+  transition: background 0.2s, color 0.2s;
+}
+.reward-loot:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+.reward-loot.is-elite .reward-ico {
+  color: var(--elite);
+}
+.loot-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.loot-hint.is-elite .reward-ico {
+  color: var(--elite);
+}
+
+/* ───────────── Cofre del botín (Quest Clear) ───────────── */
+
+.chest-zone {
+  --rc: var(--r-common);
+  position: relative;
+  height: 220px;
+  margin-top: 10px;
+}
+.chest-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.chest-body {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  width: 150px;
+  margin-left: -75px;
+  z-index: 3;
+  cursor: pointer;
+}
+.chest-svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.65));
+  transition: transform 0.2s var(--ease-out), filter 0.2s;
+}
+.chest-body:hover .chest-svg {
+  transform: scale(1.06);
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 12px color-mix(in srgb, var(--rc) 70%, transparent));
+}
+.chest-plank {
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 1;
+}
+/* La luz de dentro se escapa por la rendija y la cerradura, con el color de la mejor rareza. */
+.chest-seam {
+  fill: var(--rc);
+  opacity: 0.35;
+  filter: drop-shadow(0 0 3px var(--rc)) drop-shadow(0 0 8px var(--rc));
+}
+.chest-keyhole {
+  fill: var(--rc);
+  filter: drop-shadow(0 0 2px var(--rc));
+}
+.chest-aura {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 320px;
+  height: 220px;
+  margin-left: -160px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 68%, color-mix(in srgb, var(--rc) 60%, transparent), transparent 62%);
+  filter: blur(8px);
+  pointer-events: none;
+  z-index: 1;
+}
+.chest-beam {
+  position: absolute;
+  left: 50%;
+  bottom: 80px;
+  width: 150px;
+  height: 440px;
+  margin-left: -75px;
+  transform-origin: 50% 100%;
+  background: linear-gradient(to top, color-mix(in srgb, var(--rc) 80%, white), color-mix(in srgb, var(--rc) 40%, transparent) 45%, transparent);
+  clip-path: polygon(32% 100%, 68% 100%, 100% 0, 0 0);
+  filter: blur(5px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 2;
+}
+.chest-flash {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  width: 260px;
+  height: 260px;
+  margin-left: -130px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0.95), color-mix(in srgb, var(--rc) 70%, transparent) 35%, transparent 68%);
+  pointer-events: none;
+  z-index: 4;
+}
+.chest-ring {
+  position: absolute;
+  left: 50%;
+  bottom: 50px;
+  width: 170px;
+  height: 170px;
+  margin-left: -85px;
+  border-radius: 50%;
+  border: 2px solid var(--rc);
+  box-shadow: 0 0 16px var(--rc), inset 0 0 16px var(--rc);
+  pointer-events: none;
+  z-index: 4;
+}
+/* Destello a pantalla completa (mítico y legendario). */
+.chest-screenflash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220vw;
+  height: 220vh;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--rc) 65%, white), color-mix(in srgb, var(--rc) 25%, transparent) 35%, transparent 60%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 7;
+}
+.chest-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: color-mix(in srgb, var(--rc) 70%, var(--text));
+  text-shadow: 0 0 10px color-mix(in srgb, var(--rc) 60%, transparent);
+  animation: chest-hint 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes chest-hint {
+  50% {
+    filter: brightness(1.5);
+  }
+}
+.chest-items {
+  position: absolute;
+  left: -80px;
+  right: -80px;
+  top: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  perspective: 800px;
+  z-index: 5;
+}
+.chest-item {
+  position: relative;
+  width: 92px;
+  isolation: isolate;
+}
+.chest-item .itile-name {
+  font-size: 11px;
+  color: var(--rc);
+}
+.chest-item .iart-mono {
+  font-size: 34px;
+}
+.chest-item-glow {
+  position: absolute;
+  left: 50%;
+  top: 46px;
+  width: 160px;
+  height: 160px;
+  margin: -80px 0 0 -80px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rc) 90%, white), transparent 65%);
+  opacity: 0;
+  pointer-events: none;
+}
+/* Rayos que giran detrás de los objetos épicos o mejores. */
+.chest-rays {
+  position: absolute;
+  left: 50%;
+  top: 46px;
+  width: 220px;
+  height: 220px;
+  margin: -110px 0 0 -110px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--rc) 65%, transparent) 0deg 7deg, transparent 7deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, #000 15%, transparent 68%);
+  mask-image: radial-gradient(circle, #000 15%, transparent 68%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ───────────── Almanaque: libro abierto ───────────── */
+
+.coll-book {
+  display: block;
+  padding: 4px 0 12px 26px;
+}
+.coll-book::before {
+  display: none;
+}
+.book-wrap {
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.08'/></svg>");
+  position: relative;
+  height: 100%;
+  margin-right: 66px;
+}
+/* Tapas de cuero con un filete dorado, como el resto de marcos de la interfaz. */
+.book {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  padding: 12px;
+  border-radius: 6px 9px 9px 6px;
+  background:
+    radial-gradient(ellipse at 25% 15%, rgba(255, 255, 255, 0.05), transparent 60%),
+    linear-gradient(160deg, var(--leather), var(--leather-lo));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent),
+    0 22px 44px rgba(0, 0, 0, 0.55);
+}
+.book::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid color-mix(in srgb, var(--gold) 26%, transparent);
+  border-radius: 4px 7px 7px 4px;
+  pointer-events: none;
+}
+.book-pages {
+  position: relative;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* Cantos de las hojas apiladas. */
+  box-shadow:
+    0 2px 0 -1px var(--paper-lo),
+    0 4px 0 -2px var(--paper),
+    0 6px 0 -3px var(--paper-lo);
+}
+.book-page {
+  position: relative;
+  min-height: 0;
+}
+.book-page.is-left,
+.book-leaf {
+  background:
+    var(--grain),
+    linear-gradient(90deg, var(--paper-lo), var(--paper) 5%, var(--paper) 84%, color-mix(in srgb, var(--paper) 50%, black));
+}
+.book-page.is-left {
+  z-index: 2;
+  border-radius: 3px 0 0 3px;
+}
+.book-page.is-right {
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 26px 46px 30px;
+  border-radius: 0 3px 3px 0;
+  background:
+    var(--grain),
+    linear-gradient(270deg, var(--paper-lo), var(--paper) 5%, var(--paper) 84%, color-mix(in srgb, var(--paper) 50%, black));
+}
+.book-spine {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 18px 7px rgba(0, 0, 0, 0.3);
+  z-index: 3;
+  pointer-events: none;
+}
+/* Cada hoja ocupa la página entera y gira sobre el lomo al pasarla. */
+.book-leaves {
+  position: absolute;
+  inset: 0;
+  perspective: 1800px;
+}
+.book-leaf {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 30px 46px 26px;
+  border-radius: 3px 0 0 3px;
+  transform-origin: right center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.book-head {
+  margin-bottom: 14px;
+}
+.book-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+.book-slot {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+}
+.book-slot .itile {
+  width: 100%;
+  max-width: 94px;
+}
+/* Cromo pegado: borde de papel, sombra y una inclinación propia. */
+.book-slot .itile:not(.is-locked) .itile-frame {
+  padding: 3px;
+  background: var(--paper-edge);
+  border-radius: 5px 5px 17px 5px;
+  transform: rotate(var(--tilt));
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.55);
+}
+.book-slot .itile:not(.is-locked):hover .itile-frame,
+.book-slot .itile:not(.is-locked).is-selected .itile-frame {
+  transform: rotate(0deg) translateY(-3px) scale(1.05);
+}
+/* Hueco del cromo que falta: contorno punteado del color de su rareza. */
+.book-slot .itile.is-locked .itile-frame {
+  padding: 3px;
+  border: 1px dashed color-mix(in srgb, var(--rc) 50%, transparent);
+  border-radius: 5px 5px 17px 5px;
+}
+.book-blank {
+  display: block;
+  width: 100%;
+  max-width: 94px;
+  aspect-ratio: 1;
+  border: 1px dashed rgba(216, 190, 132, 0.1);
+  border-radius: 5px 5px 17px 5px;
+}
+.book-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  line-height: 1.8;
+}
+.book-foot {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 4;
+  pointer-events: none;
+}
+.book-foot > * {
+  pointer-events: auto;
+}
+.book-folio {
+  font-family: var(--f-display);
+  font-size: 13px;
+  color: var(--muted);
+}
+.book-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-family: var(--f-display);
+  font-size: 28px;
+  line-height: 1;
+  color: var(--gold);
+  transition: color 0.2s, background 0.2s;
+}
+.book-arrow:hover:not(:disabled) {
+  color: var(--gold-hi);
+  background: rgba(214, 178, 94, 0.08);
+}
+.book-arrow:disabled {
+  opacity: 0.18;
+  cursor: default;
+}
+.book-arrow-spacer {
+  width: 32px;
+}
+.book-page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+/* Cinta de marcapáginas con el color de la rareza elegida en el índice. */
+.book-ribbon {
+  position: absolute;
+  top: -12px;
+  right: 40px;
+  width: 16px;
+  height: 86px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--rc) 65%, black), var(--rc) 50%, color-mix(in srgb, var(--rc) 65%, black));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%);
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.5));
+  z-index: 5;
+  transition: background 0.3s;
+}
+/* Índice: pestañas que asoman por el canto del libro. */
+.book-index {
+  position: absolute;
+  top: 30px;
+  right: -48px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 0;
+}
+.book-tab {
+  --rc: var(--gold);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 50px;
+  padding: 10px 0 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--rc) 40%, transparent);
+  border-left: none;
+  border-radius: 0 7px 7px 0;
+  background: linear-gradient(90deg, var(--leather-lo), color-mix(in srgb, var(--rc) 20%, var(--leather)));
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.4);
+  color: var(--text-2);
+  transform: translateX(-10px);
+  transition: transform 0.25s var(--ease-out), background 0.2s, color 0.2s;
+}
+.book-tab .gem {
+  width: 6px;
+  height: 6px;
+  color: var(--rc);
+}
+.book-tab .num {
+  font-size: 12px;
+}
+.book-tab:hover {
+  transform: translateX(-4px);
+  color: var(--rc);
+}
+.book-tab.on {
+  transform: translateX(0);
+  color: var(--text);
+  background: linear-gradient(90deg, var(--leather-lo), color-mix(in srgb, var(--rc) 50%, var(--leather)));
+}
+/* Portadilla de la página derecha. */
+.book-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 14px;
+  text-align: center;
+}
+.book-intro > .tag {
+  color: var(--gold);
+}
+.book-title {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: 42px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--gold-hi);
+}
+.book-sub {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+}
+.book-orn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 60%;
+  margin: 12px 0 6px;
+}
+.book-orn span {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-lo));
+}
+.book-orn span:last-child {
+  background: linear-gradient(90deg, var(--gold-lo), transparent);
+}
+.book-orn .gem {
+  width: 7px;
+  height: 7px;
+  color: var(--gold);
+}
+.book-total {
+  margin: 0;
+}
+.book-total b {
+  font-size: 46px;
+}
+.book-total small {
+  font-size: 18px;
+  color: var(--muted);
+}
+.book-pct {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--gold);
+}
+.book-stats {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.book-stats li {
+  display: grid;
+  grid-template-columns: 104px 1fr 44px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.book-stat-name {
+  color: var(--rc);
+  text-align: left;
+}
+.book-stat-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.book-stat-bar i {
+  display: block;
+  height: 100%;
+  background: var(--rc);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--rc) 60%, transparent);
+}
+.book-stats .num {
+  font-size: 14px;
+  text-align: right;
+}
+.book-pick {
+  margin: 18px 0 0;
+  font-size: 12px;
+}
+:lang(ja) .book-title {
+  font-family: var(--f-body);
+  font-size: 34px;
+  letter-spacing: 0.2em;
+}
+
+:lang(ja) .idetail-name {
+  font-family: var(--f-body);
+  font-size: 24px;
+  letter-spacing: 0.06em;
+}

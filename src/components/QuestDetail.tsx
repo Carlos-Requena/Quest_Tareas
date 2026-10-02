@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
+import { Trans, useTranslation } from "react-i18next";
 import type { QuestState, QuestStatus } from "../domain/types";
 import { CATEGORY_META } from "../domain/types";
-import { conditionsMet } from "../domain/projection";
+import { conditionsMet, countConditionsMet } from "../domain/projection";
+import { isPomodoroCondition } from "../domain/types";
+import { PomodoroCondition } from "../features/pomodoro";
+import { QuestLoot } from "../features/items";
 import { useGame } from "../store/game";
 import { abandonQuest, addProgress, primaryAction } from "../store/actions";
 import { formatRemaining } from "../lib/time";
+import i18n, { num } from "../i18n";
 import { GoldIcon } from "./Header";
 
 const container: Variants = {
@@ -38,20 +43,21 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
   const dispatch = useGame((s) => s.dispatch);
   const say = useGame((s) => s.say);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => setConfirmDelete(false), [quest?.id]);
   useEffect(() => {
     if (!confirmDelete) return;
-    const t = setTimeout(() => setConfirmDelete(false), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setConfirmDelete(false), 3000);
+    return () => clearTimeout(timer);
   }, [confirmDelete]);
 
   if (!quest || !status) {
     return (
       <div className="detail detail-empty">
-        <p>El tablón está vacío.</p>
+        <p>{t("detail.empty")}</p>
         <p className="muted">
-          Pulsa <kbd>N</kbd> para publicar una nueva quest.
+          <Trans i18nKey="detail.emptyHint" components={{ kbd: <kbd /> }} />
         </p>
       </div>
     );
@@ -59,14 +65,16 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
 
   const meta = CATEGORY_META[quest.category];
   const active = status === "active";
-  const met = conditionsMet(quest);
+  const met = conditionsMet(quest, now);
 
   let primary: { label: string; enabled: boolean };
-  if (active) primary = met ? { label: "Reportar", enabled: true } : { label: "Faltan objetivos", enabled: false };
+  if (active && met) primary = { label: t("actions.report"), enabled: true };
+  else if (active)
+    primary = { label: countConditionsMet(quest) ? t("pomodoro.pending") : t("actions.missing"), enabled: false };
   else if (status === "cooldown")
-    primary = { label: `Disponible en ${formatRemaining((quest.availableAt ?? 0) - now)}`, enabled: false };
-  else if (activeCount >= maxActive) primary = { label: "Sin huecos libres", enabled: false };
-  else primary = { label: "Aceptar", enabled: true };
+    primary = { label: t("actions.availableIn", { time: formatRemaining((quest.availableAt ?? 0) - now) }), enabled: false };
+  else if (activeCount >= maxActive) primary = { label: t("actions.noSlots"), enabled: false };
+  else primary = { label: t("actions.accept"), enabled: true };
 
   return (
     <div className="detail" style={{ "--cat": meta.color } as React.CSSProperties}>
@@ -77,12 +85,12 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
             <span className="tag" style={{ color: meta.color }}>
               {quest.category === "repeat" ? "Repeatable" : quest.category === "elite" ? "Elite Hunt" : "Request"}
             </span>
-            <span className="sec-sub">{meta.label}</span>
+            <span className="sec-sub">{t(`category.${quest.category}`)}</span>
             <span className="detail-meta-right muted">
               {quest.category === "repeat"
-                ? `Reaparece tras ${formatRemaining((quest.cooldownMinutes ?? 0) * 60_000)}`
-                : "Una sola vez"}
-              {quest.completions > 0 && ` · completada ×${quest.completions}`}
+                ? t("detail.reappears", { time: formatRemaining((quest.cooldownMinutes ?? 0) * 60_000) })
+                : t("detail.once")}
+              {quest.completions > 0 && t("detail.completedTimes", { n: quest.completions })}
             </span>
           </motion.div>
 
@@ -92,78 +100,75 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
 
           <motion.div variants={item} className="detail-meta">
             <div>
-              <span className="lbl">Encargado por</span>
+              <span className="lbl">{t("detail.client")}</span>
               <span>{quest.client || "—"}</span>
             </div>
             <div>
-              <span className="lbl">Área</span>
+              <span className="lbl">{t("detail.area")}</span>
               <span>{quest.area || "—"}</span>
             </div>
             <div>
-              <span className="lbl">Tipo</span>
+              <span className="lbl">{t("detail.kind")}</span>
               <span>{quest.kind || "—"}</span>
             </div>
           </motion.div>
 
           {quest.description && (
-            <Section tag="Request" label="Descripción">
+            <Section tag="Request" label={t("detail.description")}>
               <p className="desc">{quest.description}</p>
             </Section>
           )}
 
-          <Section tag="Condition" label="Objetivos">
-            <div className="conds">
-              {quest.conditions.map((c) => {
-                const v = active ? quest.progress[c.id] ?? 0 : 0;
-                const done = v >= c.target;
-                return (
-                  <div key={c.id} className={`cond ${done ? "done" : ""}`}>
-                    <span className="cond-kind">{done ? "✓" : "✕"} {quest.kind || "Objetivo"}</span>
-                    <span className="cond-label">{c.label}</span>
-                    <span className="cond-bar">
-                      <motion.span
-                        className="cond-fill"
-                        animate={{ width: `${(v / c.target) * 100}%` }}
-                        transition={{ type: "spring", stiffness: 260, damping: 30 }}
-                      />
-                    </span>
-                    <span className="num cond-val">
-                      {v} <small>/ {c.target}</small>
-                    </span>
-                    {active && (
-                      <span className="cond-btns">
-                        <button disabled={v <= 0} onClick={() => addProgress(quest.id, c.id, -1)} title="Quitar">
-                          −
-                        </button>
-                        <button disabled={done} onClick={() => addProgress(quest.id, c.id, 1)} title="Añadir">
-                          +
-                        </button>
+          {quest.conditions.length > 0 && (
+            <Section tag="Condition" label={t("detail.conditions")}>
+              <div className="conds">
+                {quest.conditions.map((c) => {
+                  if (isPomodoroCondition(c)) return <PomodoroCondition key={c.id} quest={quest} cond={c} />;
+                  const v = active ? quest.progress[c.id] ?? 0 : 0;
+                  const done = v >= c.target;
+                  return (
+                    <div key={c.id} className={`cond ${done ? "done" : ""}`}>
+                      <span className="cond-kind">{done ? "✓" : "✕"} {quest.kind || t("detail.objective")}</span>
+                      <span className="cond-label">{c.label}</span>
+                      <span className="cond-bar">
+                        <motion.span
+                          className="cond-fill"
+                          animate={{ width: `${(v / c.target) * 100}%` }}
+                          transition={{ type: "spring", stiffness: 260, damping: 30 }}
+                        />
                       </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Section>
+                      <span className="num cond-val">
+                        {v} <small>/ {c.target}</small>
+                      </span>
+                      {active && (
+                        <span className="cond-btns">
+                          <button disabled={v <= 0} onClick={() => addProgress(quest.id, c.id, -1)} title={t("detail.remove")}>
+                            −
+                          </button>
+                          <button disabled={done} onClick={() => addProgress(quest.id, c.id, 1)} title={t("detail.add")}>
+                            +
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
 
-          <Section tag="Reward" label="Recompensa">
+          <Section tag="Reward" label={t("detail.reward")}>
             <div className="rewards">
               <span className="reward">
                 <span className="reward-ico xp">XP</span>
-                <b className="num">{quest.reward.xp.toLocaleString("es-ES")}</b>
+                <b className="num">{num(quest.reward.xp)}</b>
               </span>
               <span className="reward">
                 <GoldIcon />
-                <b className="num">{quest.reward.gold.toLocaleString("es-ES")}</b>
+                <b className="num">{num(quest.reward.gold)}</b>
                 <small className="muted">G</small>
               </span>
-              {quest.reward.item && (
-                <span className="reward">
-                  <span className="reward-ico item">◈</span>
-                  <span>{quest.reward.item}</span>
-                  <small className="muted">×1</small>
-                </span>
-              )}
+              <QuestLoot quest={quest} />
             </div>
           </Section>
         </motion.div>
@@ -181,7 +186,7 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
         {active ? (
           <button className="btn btn-ghost btn-danger" onClick={() => abandonQuest(quest.id)}>
             <span className="btn-key">X</span>
-            Abandonar
+            {t("actions.abandon")}
           </button>
         ) : (
           <button
@@ -189,10 +194,10 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
             onClick={async () => {
               if (!confirmDelete) return setConfirmDelete(true);
               await dispatch({ type: "quest_deleted", questId: quest.id });
-              say(`«${quest.title}» retirada del tablón`);
+              say(() => i18n.t("toast.retired", { title: quest.title }));
             }}
           >
-            {confirmDelete ? "¿Seguro? Retirar" : "Retirar del tablón"}
+            {confirmDelete ? t("actions.retireConfirm") : t("actions.retire")}
           </button>
         )}
         <Toast />
@@ -203,6 +208,7 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
 
 function Toast() {
   const toast = useGame((s) => s.toast);
+  useTranslation(); // vuelve a pintar el aviso al cambiar de idioma
   return (
     <AnimatePresence mode="wait">
       {toast && (
@@ -214,7 +220,7 @@ function Toast() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
         >
-          「 {toast.text} 」
+          {toast.text()}
         </motion.span>
       )}
     </AnimatePresence>

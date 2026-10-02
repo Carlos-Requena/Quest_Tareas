@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { AnimatePresence, LayoutGroup } from "motion/react";
+import { useTranslation } from "react-i18next";
+import { toggleLang } from "./i18n";
 import { useGame } from "./store/game";
 import { effectiveStatus } from "./domain/projection";
 import type { Category } from "./domain/types";
@@ -13,6 +15,9 @@ import { QuestDetail } from "./components/QuestDetail";
 import { Footer } from "./components/Footer";
 import { CreateQuestModal } from "./components/CreateQuestModal";
 import { ClearOverlay } from "./components/ClearOverlay";
+import { PomodoroWatcher } from "./features/pomodoro";
+import { music } from "./features/music";
+import { CollectionModal } from "./features/items";
 
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
@@ -26,6 +31,7 @@ export default function App() {
   const selectedId = useGame((s) => s.selectedId);
   const select = useGame((s) => s.select);
   const now = useNow();
+  const { t } = useTranslation();
 
   useEffect(() => {
     init();
@@ -48,7 +54,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useGame.getState();
-      if (s.creating || s.clear || e.metaKey || e.ctrlKey) return;
+      if (s.creating || s.clear || s.collection || e.metaKey || e.ctrlKey) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       const idx = visible.findIndex((q) => q.id === selected?.id);
@@ -73,6 +79,9 @@ export default function App() {
         case "q": cycleTab(-1); break;
         case "e": case "Tab": cycleTab(e.shiftKey ? -1 : 1); break;
         case "n": s.setCreating(true); break;
+        case "i": sfx.move(); s.setCollection("inventory"); break;
+        case "l": sfx.move(); toggleLang(); break;
+        case "m": music.toggle(); break;
         case "Enter": case "a": if (selected) primaryAction(selected.id); break;
         case "x": case "Backspace": if (selected) abandonQuest(selected.id); break;
         case "+": case "=": if (selected) bumpNext(selected.id); break;
@@ -95,11 +104,11 @@ export default function App() {
           <h3 className="sec-h board-h">
             <span className="gem" />
             <span className="tag">Postings</span>
-            <span className="sec-sub">{visible.length} en el tablón</span>
+            <span className="sec-sub">{t("board.onBoard", { n: visible.length })}</span>
             <span className="sec-line" />
           </h3>
           <div className="grid">
-            {error && <p className="err">No se pudo abrir la base de datos: {error}</p>}
+            {error && <p className="err">{t("app.dbError", { error })}</p>}
             <LayoutGroup>
               <AnimatePresence mode="popLayout">
                 {ready &&
@@ -129,6 +138,8 @@ export default function App() {
       <Footer />
       <CreateQuestModal />
       <ClearOverlay />
+      <CollectionModal />
+      <PomodoroWatcher />
     </div>
   );
 }

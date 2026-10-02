@@ -1,6 +1,9 @@
 import { useGame } from "./game";
 import { conditionsMet, effectiveStatus } from "../domain/projection";
+import { isPomodoroCondition } from "../domain/types";
 import { sfx } from "../lib/sfx";
+import i18n from "../i18n";
+import { dropTableFor, rollDrops } from "../features/items/model";
 
 function activeCount() {
   return [...useGame.getState().state.quests.values()].filter((q) => q.status === "active").length;
@@ -12,11 +15,11 @@ export async function acceptQuest(id: string) {
   if (!q || effectiveStatus(q, Date.now()) !== "available") return;
   if (activeCount() >= state.player.maxActive) {
     sfx.cancel();
-    say("No quedan huecos libres: completa o abandona otra quest");
+    say(() => i18n.t("toast.noSlots"));
     return;
   }
   await dispatch({ type: "quest_accepted", questId: id });
-  say(`«${q.title}» aceptada`);
+  say(() => i18n.t("toast.accepted", { title: q.title }));
 }
 
 export async function abandonQuest(id: string) {
@@ -25,14 +28,14 @@ export async function abandonQuest(id: string) {
   if (q?.status !== "active") return;
   sfx.cancel();
   await dispatch({ type: "quest_abandoned", questId: id });
-  say(`Has abandonado «${q.title}»`);
+  say(() => i18n.t("toast.abandoned", { title: q.title }));
 }
 
 export async function addProgress(id: string, conditionId: string, amount: number) {
   const { state, dispatch } = useGame.getState();
   const q = state.quests.get(id);
   const c = q?.conditions.find((c) => c.id === conditionId);
-  if (!q || !c || q.status !== "active") return;
+  if (!q || !c || isPomodoroCondition(c) || q.status !== "active") return;
   const cur = q.progress[c.id] ?? 0;
   if (cur + amount < 0 || cur + amount > c.target) return;
   sfx.tick();
@@ -42,18 +45,22 @@ export async function addProgress(id: string, conditionId: string, amount: numbe
 /** Suma 1 al primer objetivo incompleto (atajo de teclado). */
 export async function bumpNext(id: string) {
   const q = useGame.getState().state.quests.get(id);
-  const c = q?.conditions.find((c) => (q.progress[c.id] ?? 0) < c.target);
+  const c = q?.conditions.find((c) => !isPomodoroCondition(c) && (q.progress[c.id] ?? 0) < c.target);
   if (q && c) await addProgress(id, c.id, 1);
 }
 
 export async function reportQuest(id: string) {
   const { state, dispatch, setClear, say } = useGame.getState();
   const q = state.quests.get(id);
-  if (q?.status !== "active" || !conditionsMet(q)) return;
+  if (q?.status !== "active" || !conditionsMet(q, Date.now())) return;
   const before = state.player;
-  await dispatch({ type: "quest_completed", questId: id, reward: q.reward });
-  setClear({ questId: id, before, after: useGame.getState().state.player });
-  say(`«${q.title}» completada`);
+  // El azar se resuelve aquí y el resultado viaja en el evento: la proyección es determinista.
+  const drops = rollDrops(dropTableFor(q.category), state.items.values(), before.pity, Math.random);
+  const itemId = q.reward.itemId;
+  const guaranteed = itemId && state.items.has(itemId) ? itemId : undefined;
+  await dispatch({ type: "quest_completed", questId: id, reward: q.reward, drops });
+  setClear({ questId: id, before, after: useGame.getState().state.player, guaranteed, drops });
+  say(() => i18n.t("toast.completed", { title: q.title }));
 }
 
 /** Acción principal (Enter / A): aceptar o reportar según el estado. */

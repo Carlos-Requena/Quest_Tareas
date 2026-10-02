@@ -1,4 +1,7 @@
 import type { QuestDef, RewardDef } from "./types";
+import type { PomodoroEventBody } from "../features/pomodoro/events";
+import type { ItemEventBody } from "../features/items/events";
+import type { Drop } from "../features/items/model";
 
 /**
  * Todo cambio de estado es un evento inmutable. El estado (quests, XP, nivel…)
@@ -16,7 +19,16 @@ export type EventBody =
       conditionId: string;
       amount: number;
     }
-  | { type: "quest_completed"; questId: string; reward: RewardDef };
+  | {
+      type: "quest_completed";
+      questId: string;
+      /** Copia de la recompensa: editar la quest después no cambia lo ganado. */
+      reward: RewardDef;
+      /** Drops aleatorios ya tirados (falta en los datos antiguos). */
+      drops?: Drop[];
+    }
+  | PomodoroEventBody
+  | ItemEventBody;
 
 export interface EventMeta {
   id: string;

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useGame } from "../store/game";
 
 function Key({ k, label }: { k: string; label: string }) {
@@ -11,16 +12,23 @@ function Key({ k, label }: { k: string; label: string }) {
 
 export function Footer() {
   const setCreating = useGame((s) => s.setCreating);
+  const setCollection = useGame((s) => s.setCollection);
+  const { t } = useTranslation();
   return (
     <footer className="ft">
-      <Key k="Enter" label="Aceptar / Reportar" />
-      <Key k="X" label="Abandonar" />
-      <Key k="+" label="Progreso" />
-      <Key k="Q E" label="Categoría" />
-      <button className="ft-new" onClick={() => setCreating(true)}>
-        <kbd>N</kbd>Nueva quest
+      <Key k="Enter" label={t("footer.acceptReport")} />
+      <Key k="X" label={t("footer.abandon")} />
+      <Key k="+" label={t("footer.progress")} />
+      <Key k="Q E" label={t("footer.category")} />
+      <button className="ft-new ft-items" onClick={() => setCollection("inventory")}>
+        <kbd>I</kbd>
+        {t("items.open")}
       </button>
-      <span className="ft-right muted">↑↓←→ Tablón</span>
+      <button className="ft-new" onClick={() => setCreating(true)}>
+        <kbd>N</kbd>
+        {t("footer.newQuest")}
+      </button>
+      <span className="ft-right muted">↑↓←→ {t("footer.board")}</span>
     </footer>
   );
 }

@@ -1,89 +1,88 @@
 import type { EventBody } from "./events";
-import type { QuestDef } from "./types";
+import type { Category, ConditionDef, RewardDef } from "./types";
+import type { PomodoroConfig } from "../features/pomodoro/model";
+import type { ItemDef, Rarity } from "../features/items/model";
 import { uid } from "../lib/id";
+import { currentLang, locales } from "../i18n";
 
-type SeedQuest = Omit<QuestDef, "id" | "createdAt" | "conditions"> & {
-  conditions: [string, number][];
-};
+type SeedKey = keyof (typeof locales)["es"]["seed"];
+type ItemKey = keyof (typeof locales)["es"]["items"]["seed"];
 
-const SEED: SeedQuest[] = [
-  {
-    title: "Derrotar al Dragón del Papeleo",
-    category: "elite",
-    client: "Gremio del Yo Adulto",
-    area: "Administración",
-    kind: "Trámite",
-    description:
-      "La pila de papeles de la mesa no deja de crecer.\nDicen que si se deja un mes más cobrará vida propia.\nAcaba con ella antes de que sea tarde.",
-    conditions: [
-      ["Clasificar documentos", 1],
-      ["Pagar facturas pendientes", 3],
-    ],
-    reward: { xp: 400, gold: 250, item: "Sello del Archivero" },
-  },
-  {
-    title: "Asalto a la Torre del Proyecto",
-    category: "elite",
-    client: "Academia del Foco",
-    area: "Estudio",
-    kind: "Asedio",
-    description:
-      "En lo alto de la torre aguarda el proyecto final.\nSolo quien mantenga la concentración llegará a la cima.",
-    conditions: [["Sesiones de 50 min de foco", 5]],
-    reward: { xp: 500, gold: 300, item: "Pluma de Fénix" },
-  },
-  {
-    title: "Patrulla del Gimnasio",
-    category: "repeat",
-    client: "Cuartel del Cuerpo",
-    area: "Salud",
-    kind: "Entrenamiento",
-    description:
-      "El cuartel necesita patrullas diarias.\nUn guerrero que no entrena pierde su filo.",
-    conditions: [
-      ["Entrenar", 1],
-      ["Estirar 10 minutos", 1],
-    ],
-    reward: { xp: 120, gold: 60, item: "Poción de Vigor" },
-    cooldownMinutes: 20 * 60,
-  },
-  {
-    title: "Guardia en la Biblioteca",
-    category: "repeat",
-    client: "Biblioteca Arcana",
-    area: "Lectura",
-    kind: "Estudio",
-    description:
-      "Los tomos antiguos piden ser leídos.\nCada página leída refuerza los sellos de la biblioteca.",
-    conditions: [["Leer páginas", 20]],
-    reward: { xp: 80, gold: 40 },
-    cooldownMinutes: 20 * 60,
-  },
-  {
-    title: "Recado del Mercado",
-    category: "request",
-    client: "Taberna de Casa",
-    area: "Hogar",
-    kind: "Entrega",
-    description:
-      "Perdona, se nos han acabado los ingredientes para la cena.\n¿Podrías pasarte por el mercado?\nHay comida caliente y una recompensa esperándote.",
-    conditions: [
-      ["Fruta", 3],
-      ["Verduras", 3],
-    ],
-    reward: { xp: 150, gold: 80, item: "Ingredientes frescos" },
-  },
+/** Almanaque inicial: al menos un objeto de cada rareza para que los drops tengan dónde caer. */
+const SEED_ITEMS: { key: ItemKey; rarity: Rarity }[] = [
+  { key: "scroll", rarity: "common" },
+  { key: "ingredients", rarity: "common" },
+  { key: "potion", rarity: "common" },
+  { key: "bookmark", rarity: "uncommon" },
+  { key: "seal", rarity: "uncommon" },
+  { key: "hourglass", rarity: "rare" },
+  { key: "feather", rarity: "rare" },
+  { key: "tome", rarity: "epic" },
+  { key: "scale", rarity: "mythic" },
+  { key: "crown", rarity: "legendary" },
+];
+
+/** Datos numéricos de las quests de ejemplo; los textos salen del idioma activo. */
+const SEED: {
+  key: SeedKey;
+  category: Category;
+  /** Por objetivo: un número (contador) o un pomodoro con sus rondas. */
+  conds: (number | (PomodoroConfig & { rounds: number }))[];
+  reward: Omit<RewardDef, "itemId">;
+  /** Objeto garantizado (de SEED_ITEMS). */
+  item?: ItemKey;
+  cooldownMinutes?: number;
+}[] = [
+  { key: "dragon", category: "elite", conds: [1, 3], reward: { xp: 400, gold: 250 }, item: "seal" },
+  { key: "tower", category: "elite", conds: [{ rounds: 5, focusMinutes: 50, breakMinutes: 10 }], reward: { xp: 500, gold: 300 }, item: "feather" },
+  { key: "gym", category: "repeat", conds: [1, 1], reward: { xp: 120, gold: 60 }, item: "potion", cooldownMinutes: 20 * 60 },
+  { key: "library", category: "repeat", conds: [20], reward: { xp: 80, gold: 40 }, cooldownMinutes: 20 * 60 },
+  { key: "market", category: "request", conds: [3, 3], reward: { xp: 150, gold: 80 }, item: "ingredients" },
 ];
 
 export function seedEvents(): EventBody[] {
   const now = Date.now();
-  return SEED.map((s, i) => ({
-    type: "quest_created",
-    quest: {
-      ...s,
-      id: uid(),
-      createdAt: now + i,
-      conditions: s.conditions.map(([label, target]) => ({ id: uid(), label, target })),
-    },
-  }));
+  const lang = locales[currentLang()];
+  const texts = lang.seed;
+
+  const items = new Map<ItemKey, ItemDef>(
+    SEED_ITEMS.map((it, i) => {
+      const tx = lang.items.seed[it.key];
+      return [it.key, { id: uid(), name: tx.name, rarity: it.rarity, kind: tx.kind, description: tx.description, droppable: true, createdAt: now + i }];
+    }),
+  );
+  const itemEvents: EventBody[] = [...items.values()].map((item) => ({ type: "item_created", item }));
+
+  const questEvents = SEED.map((s, i): EventBody => {
+    const tx = texts[s.key];
+    return {
+      type: "quest_created",
+      quest: {
+        id: uid(),
+        title: tx.title,
+        category: s.category,
+        client: tx.client,
+        area: tx.area,
+        kind: tx.kind,
+        description: tx.description,
+        conditions: s.conds.map(
+          (spec, c): ConditionDef =>
+            typeof spec === "number"
+              ? { id: uid(), kind: "count", label: tx.conditions[c], target: spec }
+              : {
+                  id: uid(),
+                  kind: "pomodoro",
+                  label: tx.conditions[c],
+                  target: spec.rounds,
+                  focusMinutes: spec.focusMinutes,
+                  breakMinutes: spec.breakMinutes,
+                },
+        ),
+        reward: { ...s.reward, itemId: s.item && items.get(s.item)?.id },
+        cooldownMinutes: s.cooldownMinutes,
+        createdAt: now + i,
+      },
+    };
+  });
+  return [...itemEvents, ...questEvents];
 }

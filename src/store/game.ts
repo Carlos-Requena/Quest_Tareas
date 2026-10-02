@@ -6,13 +6,20 @@ import type { Category, GameState } from "../domain/types";
 import { seedEvents } from "../domain/seed";
 import { openEventStore, type EventStore } from "../storage/eventStore";
 import { uid } from "../lib/id";
+import type { Drop } from "../features/items/model";
 
 export type Tab = "all" | Category;
+
+/** Pestaña abierta en la ventana de objetos (inventario, almanaque o probabilidades). */
+export type CollectionTab = "inventory" | "almanac" | "rates";
 
 export interface ClearResult {
   questId: string;
   before: GameState["player"];
   after: GameState["player"];
+  /** Objeto garantizado de la quest, si existía al reportarla. */
+  guaranteed?: string;
+  drops: Drop[];
 }
 
 interface GameStore {
@@ -27,7 +34,9 @@ interface GameStore {
   selectedId?: string;
   creating: boolean;
   clear?: ClearResult;
-  toast?: { text: string; key: number };
+  collection?: CollectionTab;
+  /** El texto es una función para traducirlo al pintar: así sigue al idioma activo. */
+  toast?: { text: () => string; key: number };
 
   init(): Promise<void>;
   dispatch(body: EventBody): Promise<void>;
@@ -35,7 +44,8 @@ interface GameStore {
   select(id?: string): void;
   setCreating(v: boolean): void;
   setClear(c?: ClearResult): void;
-  say(text: string): void;
+  setCollection(tab?: CollectionTab): void;
+  say(text: () => string): void;
 }
 
 let initOnce: Promise<void> | undefined;
@@ -84,6 +94,7 @@ export const useGame = create<GameStore>((set, get) => {
     select: (selectedId) => set({ selectedId }),
     setCreating: (creating) => set({ creating }),
     setClear: (clear) => set({ clear }),
+    setCollection: (collection) => set({ collection }),
     say: (text) => {
       const key = Date.now();
       set({ toast: { text, key } });

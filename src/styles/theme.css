@@ -21,9 +21,27 @@
   --repeat: #a495ee;
   --request: #63c98e;
 
+  /* Rarezas de los objetos (src/features/items) */
+  --r-common: #9d988d;
+  --r-uncommon: #5dbb72;
+  --r-rare: #4f94e8;
+  --r-epic: #a970f0;
+  --r-mythic: #e5483f;
+  --r-legendary: #f2b53c;
+
+  /* Cofre del botín y libro del almanaque */
+  --wood: #6a4426;
+  --wood-lo: #2e1c0f;
+  --leather: #2f1d12;
+  --leather-lo: #170e08;
+  --paper: #241d15;
+  --paper-lo: #18130d;
+  --paper-edge: #e8dcc0;
+
   --f-display: "Cormorant Garamond", "Times New Roman", serif;
   --f-tag: "Cinzel", "Cormorant Garamond", serif;
-  --f-body: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
+  /* Shippori Mincho solo trae el subconjunto latino; el japonés cae en el mincho del sistema. */
+  --f-body: "Shippori Mincho", "Hiragino Mincho ProN", "YuMincho", "Yu Mincho", "MS PMincho", Georgia, serif;
 
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 
