@@ -5,6 +5,7 @@
 // una entrega, un examen, un cumpleaños… Se clava en su propio tablón como un
 // cartel de pergamino, con calaveras rojas según su dificultad.
 
+import type { QuestState } from "../../domain/types";
 import type { TemporalEventBody } from "./events";
 
 // ───────────── Tipos de cartel ─────────────
@@ -85,13 +86,18 @@ export interface TemporalDef {
   notes: string;
   reward: TemporalReward;
   attachments: AttachmentRef[];
+  /**
+   * Quests enlazadas, en orden: hay que terminarlas todas para cumplir el encargo.
+   * Falta en los datos anteriores (se lee como []).
+   */
+  questIds: string[];
   createdAt: number;
 }
 
-/** Campos editables con `temporal_updated`. Los adjuntos van con sus propios eventos (deltas). */
-export type TemporalPatch = Partial<Omit<TemporalDef, "id" | "createdAt" | "attachments">>;
+/** Campos editables con `temporal_updated`. Los adjuntos y las quests van con sus propios eventos (deltas). */
+export type TemporalPatch = Partial<Omit<TemporalDef, "id" | "createdAt" | "attachments" | "questIds">>;
 
-export const TEMPORAL_LIMITS = { title: 80, place: 60, notes: 600, attachments: 8, fileMb: 20 } as const;
+export const TEMPORAL_LIMITS = { title: 80, place: 60, notes: 600, attachments: 8, fileMb: 20, quests: 12 } as const;
 
 export type TemporalStatus = "pending" | "done";
 
@@ -101,6 +107,8 @@ export interface TemporalState extends TemporalDef {
   completedAt?: number;
   /** Recompensa ganada: copia del evento, no cambia si se edita después. */
   earned?: TemporalReward;
+  /** Cuándo se enlazó cada quest (ts del evento): una repetible cuenta si se completa después. */
+  linkedAt: Record<string, number>;
 }
 
 // ───────────── Tiempo ─────────────
@@ -165,6 +173,37 @@ export function remindersDue(list: Iterable<TemporalState>, now: number, windowM
   return [...list].filter((t) => t.status === "pending" && !t.allDay && t.dueAt > now && t.dueAt - now <= windowMs);
 }
 
+// ───────────── Quests enlazadas ─────────────
+
+/**
+ * Una quest enlazada está terminada si se completó del todo (`done`) o, si es de las
+ * que vuelven, si se ha completado después de enlazarla: una vuelta anterior no cuenta.
+ */
+export const linkedQuestDone = (q: Pick<QuestState, "status" | "lastCompletedAt">, since: number): boolean =>
+  q.status === "done" || (q.lastCompletedAt ?? -Infinity) >= since;
+
+/** Quests enlazadas que siguen en el tablón de quests (las retiradas ya no cuentan), en su orden. */
+export function linkedQuests(t: Pick<TemporalState, "questIds">, quests: Pick<Map<string, QuestState>, "get">): QuestState[] {
+  return t.questIds.map((id) => quests.get(id)).filter((q): q is QuestState => !!q);
+}
+
+/** Quests enlazadas que faltan por terminar: mientras haya alguna, el encargo no se puede cumplir. */
+export function pendingLinks(t: Pick<TemporalState, "questIds" | "linkedAt">, quests: Pick<Map<string, QuestState>, "get">): QuestState[] {
+  return linkedQuests(t, quests).filter((q) => !linkedQuestDone(q, t.linkedAt[q.id] ?? 0));
+}
+
+/** Quests que se pueden enlazar a un encargo: sin terminar y sin otro encargo pendiente. */
+export function linkCandidates(quests: Iterable<QuestState>, temporalId?: string): QuestState[] {
+  return [...quests].filter((q) => q.status !== "done" && (!q.temporalId || q.temporalId === temporalId)).sort((a, b) => a.createdAt - b.createdAt);
+}
+
+/** Encargo pendiente al que pertenece cada quest (índice inverso de los enlaces). */
+export function questOwners(board: Iterable<TemporalState>): Map<string, string> {
+  const owners = new Map<string, string>();
+  for (const t of board) if (t.status === "pending") for (const id of t.questIds) owners.set(id, t.id);
+  return owners;
+}
+
 // ───────────── Proyección ─────────────
 
 /** Acumulador que usa project() mientras reproduce los eventos. */
@@ -188,29 +227,41 @@ function normalize(def: TemporalDef): TemporalDef {
     notes: def.notes ?? "",
     reward: { xp: Math.max(0, def.reward?.xp ?? 0), gold: Math.max(0, def.reward?.gold ?? 0) },
     attachments: Array.isArray(def.attachments) ? def.attachments : [],
+    // Los encargos anteriores a las quests enlazadas no traen `questIds`.
+    questIds: Array.isArray(def.questIds) ? [...new Set(def.questIds.filter((id) => typeof id === "string" && id))].slice(0, TEMPORAL_LIMITS.quests) : [],
   };
 }
 
+/** Otro encargo pendiente ya tiene esta quest: una quest pertenece a un solo encargo. */
+const ownedElsewhere = (acc: TemporalAcc, questId: string, temporalId: string) =>
+  [...acc.board.values()].some((o) => o.id !== temporalId && o.status === "pending" && o.questIds.includes(questId));
+
+/** ¿Está terminada la quest `questId` (enlazada desde `since`)? Una quest que ya no existe no bloquea. */
+export type LinkDone = (questId: string, since: number) => boolean;
+
 /**
  * Aplica un evento de encargo temporal. Cada caso tiene su guarda, como project():
- * los eventos imposibles (cumplir dos veces, editar uno retirado…) se ignoran.
+ * los eventos imposibles (cumplir dos veces, editar uno retirado, cumplir con quests
+ * enlazadas sin terminar…) se ignoran. `linkDone` lo pone project(), que conoce las quests.
  * Devuelve la recompensa si el evento la concede (solo `temporal_completed`).
  */
-export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: number): TemporalReward | undefined {
+export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: number, linkDone: LinkDone = () => true): TemporalReward | undefined {
   switch (e.type) {
     case "temporal_created": {
       const id = e.temporal.id;
       if (acc.board.has(id) || acc.deleted.has(id)) return;
-      acc.board.set(id, { ...normalize(e.temporal), status: "pending" });
+      const def = normalize(e.temporal);
+      const questIds = def.questIds.filter((q) => !ownedElsewhere(acc, q, id));
+      acc.board.set(id, { ...def, questIds, status: "pending", linkedAt: Object.fromEntries(questIds.map((q) => [q, ts])) });
       return;
     }
     case "temporal_updated": {
       const t = acc.board.get(e.temporalId);
       // Lo cumplido ya no se edita: su recompensa y su fecha son historia.
       if (t?.status !== "pending") return;
-      // Solo los campos editables: la identidad, los adjuntos y el estado no se tocan con un parche.
+      // Solo los campos editables: la identidad, los adjuntos, las quests y el estado no se tocan con un parche.
       const patch: Partial<TemporalState> = { ...e.patch };
-      for (const k of ["id", "createdAt", "attachments", "status", "completedAt", "earned"] as const) delete patch[k];
+      for (const k of ["id", "createdAt", "attachments", "questIds", "linkedAt", "status", "completedAt", "earned"] as const) delete patch[k];
       acc.board.set(t.id, { ...t, ...normalize({ ...t, ...patch }), status: t.status });
       return;
     }
@@ -226,10 +277,27 @@ export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: n
       acc.board.set(t.id, { ...t, attachments: t.attachments.filter((a) => a.id !== e.attachmentId) });
       return;
     }
+    case "temporal_linked": {
+      const t = acc.board.get(e.temporalId);
+      // Solo en pendientes, sin repetir, sin pasar del límite y si ningún otro encargo pendiente la tiene.
+      if (t?.status !== "pending" || t.questIds.includes(e.questId) || t.questIds.length >= TEMPORAL_LIMITS.quests) return;
+      if (ownedElsewhere(acc, e.questId, t.id)) return;
+      acc.board.set(t.id, { ...t, questIds: [...t.questIds, e.questId], linkedAt: { ...t.linkedAt, [e.questId]: ts } });
+      return;
+    }
+    case "temporal_unlinked": {
+      const t = acc.board.get(e.temporalId);
+      if (t?.status !== "pending" || !t.questIds.includes(e.questId)) return;
+      const { [e.questId]: _gone, ...linkedAt } = t.linkedAt;
+      acc.board.set(t.id, { ...t, questIds: t.questIds.filter((q) => q !== e.questId), linkedAt });
+      return;
+    }
     case "temporal_completed": {
       const t = acc.board.get(e.temporalId);
       // Si dos dispositivos lo cumplen sin conexión, solo cuenta el primero.
       if (t?.status !== "pending") return;
+      // Con quests enlazadas sin terminar no se puede cumplir.
+      if (t.questIds.some((q) => !linkDone(q, t.linkedAt[q] ?? 0))) return;
       const earned = { xp: Math.max(0, e.reward.xp), gold: Math.max(0, e.reward.gold) };
       acc.board.set(t.id, { ...t, status: "done", completedAt: ts, earned });
       return earned;

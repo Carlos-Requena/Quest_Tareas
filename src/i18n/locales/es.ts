@@ -3,6 +3,8 @@ import { pomodoroEs } from "../../features/pomodoro/i18n";
 import { musicEs } from "../../features/music/i18n";
 import { itemsEs } from "../../features/items/i18n";
 import { temporalEs } from "../../features/temporal/i18n";
+import { complexEs } from "../../features/complex/i18n";
+import { horizonEs } from "../../features/horizon/i18n";
 
 export const es = {
   app: {
@@ -100,7 +102,6 @@ export const es = {
     addCondition: "+ Añadir objetivo",
     xp: "Experiencia",
     gold: "Oro",
-    cooldown: "Reaparece tras completarla",
     publish: "publicar",
     close: "cerrar",
     cancel: "Cancelar",
@@ -133,6 +134,8 @@ export const es = {
   music: musicEs,
   items: itemsEs,
   temporal: temporalEs,
+  complex: complexEs,
+  horizon: horizonEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {

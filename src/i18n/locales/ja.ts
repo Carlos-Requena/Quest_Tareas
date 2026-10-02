@@ -3,6 +3,8 @@ import { pomodoroJa } from "../../features/pomodoro/i18n";
 import { musicJa } from "../../features/music/i18n";
 import { itemsJa } from "../../features/items/i18n";
 import { temporalJa } from "../../features/temporal/i18n";
+import { complexJa } from "../../features/complex/i18n";
+import { horizonJa } from "../../features/horizon/i18n";
 
 // Mismo esquema que es.ts: TypeScript avisa si falta o sobra alguna clave.
 // En japonés no hay plural; las formas _one existen solo para cumplir el tipo.
@@ -102,7 +104,6 @@ export const ja: Translation = {
     addCondition: "+ 条件を追加",
     xp: "経験値",
     gold: "ゴールド",
-    cooldown: "達成後、再受注できるまで",
     publish: "掲示",
     close: "閉じる",
     cancel: "キャンセル",
@@ -134,6 +135,8 @@ export const ja: Translation = {
   music: musicJa,
   items: itemsJa,
   temporal: temporalJa,
+  complex: complexJa,
+  horizon: horizonJa,
   seed: {
     dragon: {
       title: "書類ドラゴンの討伐",

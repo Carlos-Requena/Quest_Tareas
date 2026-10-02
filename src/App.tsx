@@ -19,6 +19,8 @@ import { PomodoroWatcher } from "./features/pomodoro";
 import { music } from "./features/music";
 import { CollectionModal } from "./features/items";
 import { TemporalBoard, TemporalOverlays, switchSection, temporalBusy } from "./features/temporal";
+import { HorizonFilter, countHorizons, cycleHorizon, matchesHorizon, questDue, useHorizonUi } from "./features/horizon";
+import { blockers } from "./features/complex";
 
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
@@ -28,7 +30,9 @@ export default function App() {
   const error = useGame((s) => s.error);
   const init = useGame((s) => s.init);
   const quests = useGame((s) => s.state.quests);
+  const temporals = useGame((s) => s.state.temporals);
   const tab = useGame((s) => s.tab);
+  const horizon = useHorizonUi((s) => s.filter.board);
   const selectedId = useGame((s) => s.selectedId);
   const select = useGame((s) => s.select);
   const section = useGame((s) => s.section);
@@ -39,13 +43,16 @@ export default function App() {
     init();
   }, [init]);
 
-  const visible = useMemo(
+  // Quests de la pestaña; el plazo (features/horizon) se cuenta sobre ellas y luego filtra.
+  const inTab = useMemo(
     () =>
       [...quests.values()]
         .filter((q) => q.status !== "done" && (tab === "all" || q.category === tab))
         .sort((a, b) => ORDER[a.category] - ORDER[b.category] || a.createdAt - b.createdAt),
     [quests, tab],
   );
+  const counts = useMemo(() => countHorizons(inTab, (q) => questDue(q, temporals), now), [inTab, temporals, now]);
+  const visible = useMemo(() => inTab.filter((q) => matchesHorizon(horizon, questDue(q, temporals), now)), [inTab, horizon, temporals, now]);
 
   const selected = visible.find((q) => q.id === selectedId) ?? visible[0];
 
@@ -65,6 +72,8 @@ export default function App() {
         i: () => (sfx.move(), s.setCollection("inventory")),
         l: () => (sfx.move(), toggleLang()),
         m: () => music.toggle(),
+        h: () => (sfx.move(), cycleHorizon(s.section, 1)),
+        H: () => (sfx.move(), cycleHorizon(s.section, -1)),
       };
       if (common[e.key]) {
         common[e.key]();
@@ -120,6 +129,7 @@ export default function App() {
         <main className="main">
           <aside className="board">
             <Tabs />
+            <HorizonFilter section="board" counts={counts} />
             <h3 className="sec-h board-h">
               <span className="gem" />
               <span className="tag">Postings</span>
@@ -137,6 +147,8 @@ export default function App() {
                         quest={q}
                         status={effectiveStatus(q, now)}
                         now={now}
+                        due={questDue(q, temporals)}
+                        lock={blockers(q, quests)}
                         selected={q.id === selected?.id}
                         onSelect={() => {
                           if (q.id !== selected?.id) sfx.move();

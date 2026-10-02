@@ -211,7 +211,24 @@ Fíjate en las **guardas** (`if q?.status === "active"`). Hacen que los eventos 
    if (q.status === "cooldown" && now >= q.availableAt) return "available";
    ```
 
-   Así, una repetible «vuelve» sola aunque la app esté cerrada, sin que nadie emita nada.
+   Así, una repetible «vuelve» sola aunque la app esté cerrada, sin que nadie emita nada. Desde las quests complejas, **cualquier** quest con `cooldownMinutes` vuelve igual: la proyección pregunta `recurs(q)` en lugar de mirar la categoría ([src/features/complex/README.md](../src/features/complex/README.md)).
+
+### Guardas que miran otras entidades
+
+Algunas guardas no dependen solo de la entidad del evento, sino del estado de otras **en ese punto de la reproducción**:
+
+| Evento | Se ignora si… | Función |
+|---|---|---|
+| `quest_accepted` | La quest pide requisitos que aún no se han completado | `prerequisitesMet(q, quests)` (`features/complex/model.ts`) |
+| `temporal_completed` | Alguna quest enlazada al encargo no está terminada | `linkDone(questId, since)`, que `project()` pasa a `applyTemporalEvent` (`features/temporal/model.ts`) |
+
+`applyTemporalEvent` no conoce las quests: `project()` le pasa una función que las consulta. Así el modelo de los encargos sigue siendo puro y la regla vive en un solo sitio. Como las guardas se evalúan en el orden de los eventos, el resultado es el mismo en todos los dispositivos.
+
+Al terminar el recorrido, `project()` calcula además **a qué encargo pendiente pertenece cada quest** (`QuestState.temporalId`, con `questOwners`). No se guarda en ningún evento: sale de los enlaces de los encargos.
+
+### Lo que depende de la hora, en la interfaz
+
+El **plazo** de una quest o un encargo (1 día, 7 días, 2 semanas, 1 mes, +1 mes) también se calcula al pintar: `horizonOf({ dueAt, allDay }, now)` en `features/horizon/model.ts`. La fecha de una quest es la suya (`QuestDef.dueAt`) o la de su encargo (`questDue`). Nada de esto genera eventos.
 
 ### El azar también se guarda
 
@@ -378,12 +395,13 @@ La segunda llamada recibe la misma promesa que la primera.
 
 **Archivos:** `src/App.tsx`, `src/components/*`
 
-- **Filtrado y orden.** `App` toma las quests de la proyección, oculta las `done`, filtra por pestaña y ordena por categoría (élite, repetible, encargo) y fecha de creación. El orden no cambia al aceptar una quest, para que la tarjeta no salte de sitio a mitad de la animación.
+- **Filtrado y orden.** `App` toma las quests de la proyección, oculta las `done`, filtra por pestaña y ordena por categoría (élite, repetible, encargo) y fecha de creación. El orden no cambia al aceptar una quest, para que la tarjeta no salte de sitio a mitad de la animación. Después filtra por **plazo** (`features/horizon`): los contadores del filtro cuentan las quests de la pestaña, y el plazo elegido vive en el store de la funcionalidad (`useHorizonUi`), uno por tablón.
 - **Selección.** Si la quest seleccionada desaparece (completada o retirada), se selecciona automáticamente la primera visible.
 - **Teclado.** Un único `keydown` en `window` traduce teclas a acciones. Se ignora mientras escribes en un campo o hay un modal o el overlay abierto (estos tienen sus propios atajos). Las flechas mueven ±1 en horizontal y ±2 en vertical, porque la cuadrícula tiene 2 columnas.
 - **Reloj.** `useNow()` actualiza `now` cada 20 segundos para que «Vuelve en 3 h» avance y las repetibles reaparezcan sin recargar.
 - **Avisos.** `say(texto)` muestra el mensaje dorado junto a los botones y lo borra a los 4,5 s, salvo que haya llegado otro aviso entretanto. Se ve también con el tablón vacío y, en el tablón de encargos, abajo, sobre la madera.
-- **Dos tablones.** `section` (en el store) elige entre el Quest Board y los encargos temporales. Se cambia con el selector de la cabecera o la tecla `T`. `App` maneja las teclas comunes (`T`, `I`, `L`, `M`) y, en el tablón de encargos, deja el resto a `TemporalBoard`, que mueve la selección por la posición de los carteles en pantalla (su rejilla es irregular).
+- **Dos tablones.** `section` (en el store) elige entre el Quest Board y los encargos temporales. Se cambia con el selector de la cabecera o la tecla `T`. `App` maneja las teclas comunes (`T`, `H`, `I`, `L`, `M`) y, en el tablón de encargos, deja el resto a `TemporalBoard`, que mueve la selección por la posición de los carteles en pantalla (su rejilla es irregular).
+- **Saltar de un tablón a otro.** Desde el cartel abierto se va a una de sus quests (`goToQuest`) y desde el detalle de una quest, a su encargo (`goToTemporal`). Los dos ponen el plazo del tablón de destino en «Todo»: si no, lo elegido podría quedar oculto por el filtro y `App` seleccionaría otra cosa.
 - **Borrado en dos pasos.** «Retirar del tablón» pide un segundo clic («¿Seguro? Retirar») durante 3 s. No se usa `window.confirm` porque no está garantizado que funcione en el WebView de Tauri en todas las plataformas.
 
 ---
@@ -671,6 +689,8 @@ Cada funcionalidad nueva va en su propia carpeta, `src/features/<nombre>/`. El p
 5. Integración mínima fuera de la carpeta: tipos, proyección y el componente que la aloja.
 
 El dominio importa solo `model.ts` y `events.ts` de la funcionalidad, nunca su `index.ts`, para no crear ciclos con el store.
+
+No todas necesitan eventos: `complex` (repetición y requisitos) y `horizon` (plazos) solo añaden campos opcionales a `QuestDef` y funciones puras. Si una funcionalidad necesita la proyección para su lógica de interfaz (`effectiveStatus`), esa parte va fuera de `model.ts` (por ejemplo, `features/temporal/links.ts`), porque el dominio importa `model.ts` y se crearía un ciclo.
 
 ### Añadir una animación a un cambio de estado
 

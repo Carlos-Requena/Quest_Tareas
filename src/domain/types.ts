@@ -47,8 +47,15 @@ export interface QuestDef {
   kind: string;
   conditions: ConditionDef[];
   reward: RewardDef;
-  /** Solo para repetibles: minutos hasta que vuelve a estar disponible. */
+  /**
+   * Repetición: minutos hasta que vuelve a estar disponible tras completarla. Las
+   * repetibles siempre vuelven; las demás, solo si lo tienen (features/complex).
+   */
   cooldownMinutes?: number;
+  /** Requisitos: quests que hay que completar antes de poder aceptar esta (features/complex). */
+  requires?: string[];
+  /** Fecha límite opcional, todo el día: medianoche local de ese día (features/horizon). */
+  dueAt?: number;
   createdAt: number;
 }
 
@@ -63,6 +70,10 @@ export interface QuestState extends QuestDef {
   acceptedAt?: number;
   availableAt?: number;
   completions: number;
+  /** Última vez que se completó (ts del evento). */
+  lastCompletedAt?: number;
+  /** Encargo temporal pendiente al que pertenece, si lo hay (calculado a partir de sus enlaces). */
+  temporalId?: string;
 }
 
 export interface PlayerState {
@@ -92,6 +103,13 @@ export interface GameState {
   temporals: Map<string, TemporalState>;
   player: PlayerState;
 }
+
+/** Recompensa propuesta para una quest nueva de cada categoría (formulario y quests de un encargo). */
+export const DEFAULT_REWARD: Record<Category, { xp: number; gold: number }> = {
+  elite: { xp: 400, gold: 200 },
+  repeat: { xp: 100, gold: 50 },
+  request: { xp: 150, gold: 80 },
+};
 
 /** Presentación de cada categoría. El nombre traducido está en el diccionario (`category.*`). */
 export const CATEGORY_META: Record<Category, { tag: string; color: string }> = {

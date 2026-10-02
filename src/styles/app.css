@@ -80,6 +80,11 @@ kbd {
   .xpbar-track {
     width: 84px;
   }
+  /* El pie tiene una tecla más (H, plazo): menos separación para que no se parta. */
+  .ft {
+    gap: 14px;
+    padding: 0 18px;
+  }
 }
 .hdr-block {
   display: grid;
@@ -218,7 +223,7 @@ kbd {
 
 .main {
   display: grid;
-  grid-template-columns: minmax(420px, 500px) 1px 1fr;
+  grid-template-columns: minmax(420px, 500px) 1px minmax(0, 1fr);
   padding: 20px 28px 0;
   min-height: 0;
 }
@@ -367,6 +372,35 @@ kbd {
   font-size: 9px;
   margin-bottom: 6px;
   position: relative;
+}
+/* Cabecera de la tarjeta: categoría, repetición y plazo (features/complex y features/horizon). */
+.card-tagline {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin-bottom: 6px;
+  padding-right: 16px;
+}
+.card.has-count .card-tagline {
+  padding-right: 40px;
+}
+.card.has-pomo .card-tagline {
+  padding-right: 98px;
+}
+.card-tagline .card-tag {
+  margin-bottom: 0;
+}
+.card-tagline .due-chip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-cycle {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--repeat);
 }
 .card-gem {
   position: absolute;
@@ -724,6 +758,8 @@ kbd {
 }
 
 .toast {
+  /* Sin min-width: 0, un aviso largo ensanchaba el detalle y la ventana entera. */
+  min-width: 0;
   color: var(--gold);
   font-size: 13px;
   overflow: hidden;
@@ -745,12 +781,14 @@ kbd {
 .ft-key {
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
 }
 .ft-new {
   display: inline-flex;
   align-items: center;
   color: var(--gold);
   font-size: 12px;
+  white-space: nowrap;
 }
 .ft-new kbd {
   border-color: var(--gold);
@@ -761,6 +799,13 @@ kbd {
 }
 .ft-right {
   margin-left: auto;
+  white-space: nowrap;
+}
+/* En la ventana mínima no cabe todo el pie: sobra la pista de las flechas. */
+@media (max-width: 1100px) {
+  .ft-right {
+    display: none;
+  }
 }
 
 /* ───────────── Modal de creación ───────────── */

@@ -10,6 +10,7 @@ import { createTemporal, draftOf, emptyDraft, isValidDraft, updateTemporal, type
 import { useTemporalUi } from "../ui";
 import { Skull } from "./Skull";
 import { ClipIcon } from "./Poster";
+import { TemporalQuestsField } from "./TemporalQuestsField";
 
 /** Tecla modificadora del atajo de guardar: ⌘ en macOS, Ctrl en Windows. */
 const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl";
@@ -49,7 +50,7 @@ export function useFilePicker(onReady: (files: PreparedFile[]) => void) {
 function Modal({ editId }: { editId?: string }) {
   const editing = useGame((s) => (editId ? s.state.temporals.get(editId) : undefined));
   const { t } = useTranslation();
-  const [d, setD] = useState<TemporalDraft>(() => (editing ? draftOf(editing) : emptyDraft()));
+  const [d, setD] = useState<TemporalDraft>(() => (editing ? draftOf(editing, useGame.getState().state.quests) : emptyDraft()));
   const [rewardTouched, setRewardTouched] = useState(!!editing);
   const [hoverSkull, setHoverSkull] = useState<number>();
   const [saving, setSaving] = useState(false);
@@ -209,6 +210,8 @@ function Modal({ editId }: { editId?: string }) {
             <span className="lbl">{t("temporal.form.notes")}</span>
             <textarea rows={3} value={d.notes} maxLength={TEMPORAL_LIMITS.notes} onChange={(e) => set({ notes: e.target.value })} placeholder={t("temporal.form.notesPh")} />
           </label>
+
+          <TemporalQuestsField d={d} set={set} editId={editId} />
 
           <div className="field">
             <span className="lbl">

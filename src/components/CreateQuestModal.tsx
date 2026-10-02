@@ -2,30 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { Category, ConditionDef, QuestDef } from "../domain/types";
-import { CATEGORY_META } from "../domain/types";
+import { CATEGORY_META, DEFAULT_REWARD } from "../domain/types";
 import { useGame } from "../store/game";
 import { uid } from "../lib/id";
 import { sfx } from "../lib/sfx";
 import i18n from "../i18n";
 import { DEFAULT_POMODORO, PomodoroConditionInputs, clampPlan } from "../features/pomodoro";
 import { GuaranteedItemSelect, LootHint } from "../features/items";
+import { RecurrenceField, RequiresField, recurs } from "../features/complex";
+import { DeadlineField, useHorizonUi } from "../features/horizon";
 
-const DEFAULT_REWARD: Record<Category, { xp: number; gold: number }> = {
-  elite: { xp: 400, gold: 200 },
-  repeat: { xp: 100, gold: 50 },
-  request: { xp: 150, gold: 80 },
-};
-
-type CooldownOption = { minutes: number; unit: "hours" | "days" | "week"; count: number; daily?: boolean };
-
-const COOLDOWNS: CooldownOption[] = [
-  { minutes: 60, unit: "hours", count: 1 },
-  { minutes: 4 * 60, unit: "hours", count: 4 },
-  { minutes: 8 * 60, unit: "hours", count: 8 },
-  { minutes: 20 * 60, unit: "hours", count: 20, daily: true },
-  { minutes: 3 * 24 * 60, unit: "days", count: 3 },
-  { minutes: 7 * 24 * 60, unit: "week", count: 1 },
-];
+/** Espera por defecto de una repetible: 20 h (diaria con margen). */
+const DEFAULT_COOLDOWN = 20 * 60;
 
 /** Tecla modificadora del atajo de publicar: ⌘ en macOS, Ctrl en Windows. */
 const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl";
@@ -70,11 +58,6 @@ function Modal() {
   const say = useGame((s) => s.say);
   const { t } = useTranslation();
 
-  const cooldownLabel = (o: CooldownOption) => {
-    const base = o.unit === "week" ? t("cooldowns.week") : t(`cooldowns.${o.unit}`, { count: o.count });
-    return o.daily ? t("cooldowns.daily", { label: base }) : base;
-  };
-
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<Category>("request");
   const [client, setClient] = useState("");
@@ -86,7 +69,12 @@ function Modal() {
   const [gold, setGold] = useState(DEFAULT_REWARD.request.gold);
   const [rewardTouched, setRewardTouched] = useState(false);
   const [itemId, setItemId] = useState("");
-  const [cooldown, setCooldown] = useState(20 * 60);
+  // Repetición (cualquier categoría), requisitos y fecha límite: features/complex y features/horizon.
+  const [cooldown, setCooldown] = useState<number | undefined>(undefined);
+  const [cooldownTouched, setCooldownTouched] = useState(false);
+  const [requires, setRequires] = useState<string[]>([]);
+  const [dueAt, setDueAt] = useState<number>();
+  const recurring = recurs({ category, cooldownMinutes: cooldown });
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => titleRef.current?.focus(), []);
@@ -109,12 +97,17 @@ function Modal() {
       description: description.trim(),
       conditions: conds.filter(isUsable).map(toCondition),
       reward: { xp: Math.max(0, xp), gold: Math.max(0, gold), itemId: itemId || undefined },
-      cooldownMinutes: category === "repeat" ? cooldown : undefined,
+      cooldownMinutes: category === "repeat" ? cooldown ?? DEFAULT_COOLDOWN : cooldown,
+      requires: requires.length ? requires : undefined,
+      // Las que se repiten no tienen fecha límite: tras la primera vuelta quedaría vencida.
+      dueAt: recurring ? undefined : dueAt,
       createdAt: Date.now(),
     };
     await dispatch({ type: "quest_created", quest });
     sfx.tick();
     setTab("all");
+    // Que la quest nueva se vea aunque hubiera un plazo elegido en el filtro.
+    useHorizonUi.getState().setFilter("board", "all");
     select(quest.id);
     say(() => i18n.t("toast.published", { title: quest.title }));
     close();
@@ -128,6 +121,9 @@ function Modal() {
 
   const pickCategory = (c: Category) => {
     setCategory(c);
+    // La repetición sigue a la categoría hasta que se toca; una repetible siempre vuelve.
+    if (!cooldownTouched) setCooldown(c === "repeat" ? DEFAULT_COOLDOWN : undefined);
+    else if (c === "repeat" && cooldown === undefined) setCooldown(DEFAULT_COOLDOWN);
     if (!rewardTouched) {
       setXp(DEFAULT_REWARD[c].xp);
       setGold(DEFAULT_REWARD[c].gold);
@@ -283,18 +279,17 @@ function Modal() {
           </div>
           <LootHint category={category} />
 
-          {category === "repeat" && (
-            <label className="field">
-              <span className="lbl">{t("modal.cooldown")}</span>
-              <select value={cooldown} onChange={(e) => setCooldown(Number(e.target.value))}>
-                {COOLDOWNS.map((o) => (
-                  <option key={o.minutes} value={o.minutes}>
-                    {cooldownLabel(o)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <RecurrenceField
+            key={category === "repeat" ? "repeat" : "other"}
+            category={category}
+            value={cooldown}
+            onChange={(v) => {
+              setCooldown(v);
+              setCooldownTouched(true);
+            }}
+          />
+          <DeadlineField value={dueAt} onChange={setDueAt} disabled={recurring} />
+          <RequiresField value={requires} onChange={setRequires} />
         </div>
 
         <footer className="modal-f">

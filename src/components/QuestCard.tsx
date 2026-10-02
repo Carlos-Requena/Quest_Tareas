@@ -9,12 +9,19 @@ import { sfx } from "../lib/sfx";
 import { formatRemaining } from "../lib/time";
 import { num } from "../i18n";
 import { PomodoroBadge } from "../features/pomodoro";
+import { DueChip, type Due } from "../features/horizon";
+import { LockIcon, recurs } from "../features/complex";
+import { Skull, type TemporalState } from "../features/temporal";
 
 interface Props {
   quest: QuestState;
   status: QuestStatus;
   selected: boolean;
   now: number;
+  /** Fecha límite (propia o de su encargo temporal), si la tiene. */
+  due?: Due & { temporal?: TemporalState };
+  /** Requisitos que aún la bloquean (features/complex). */
+  lock?: QuestState[];
   onSelect(): void;
 }
 
@@ -52,7 +59,7 @@ const BURST = Array.from({ length: 16 }, (_, i) => {
 });
 
 export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard(
-  { quest, status, selected, now, onSelect },
+  { quest, status, selected, now, due, lock = [], onSelect },
   outerRef,
 ) {
   const meta = CATEGORY_META[quest.category];
@@ -77,6 +84,8 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
       gsap.set(stampRef.current, { opacity: active ? 1 : 0, scale: 1, rotate: -9 });
       gsap.set(cracksRef.current, { opacity: active ? 1 : 0 });
       gsap.set(crackEls, { strokeDashoffset: 0 });
+      // Si se cortó la animación de aceptar (p. ej. al reportar enseguida), sin destello congelado.
+      gsap.set([burstRef.current, flashRef.current], { opacity: 0 });
       return;
     }
 
@@ -115,6 +124,9 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
 
   const isActive = status === "active";
   const isCooldown = status === "cooldown";
+  const isLocked = status === "available" && lock.length > 0;
+  const hasPomo = isActive && quest.conditions.some(isPomodoroCondition);
+  const hasCount = quest.completions > 0 && !isCooldown && !isActive;
 
   return (
     <motion.button
@@ -124,7 +136,7 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.18 } }}
       transition={{ type: "spring", stiffness: 420, damping: 34 }}
-      className={`card ${selected ? "is-selected" : ""} ${isActive ? "is-active" : ""} ${isCooldown ? "is-cooldown" : ""}`}
+      className={`card ${selected ? "is-selected" : ""} ${isActive ? "is-active" : ""} ${isCooldown ? "is-cooldown" : ""} ${isLocked ? "is-locked" : ""} ${hasPomo ? "has-pomo" : ""} ${hasCount ? "has-count" : ""}`}
       style={{ "--cat": meta.color } as React.CSSProperties}
       onClick={onSelect}
     >
@@ -148,17 +160,33 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
           />
         </svg>
 
-        <span className="card-tag tag">{meta.tag}</span>
+        <span className="card-tagline">
+          <span className="card-tag tag">{meta.tag}</span>
+          {quest.category !== "repeat" && recurs(quest) && (
+            <span className="card-cycle" title={t("complex.recurrence.label")}>
+              ↻
+            </span>
+          )}
+          {due && <DueChip due={due} now={now} icon={due.temporal ? <Skull /> : undefined} />}
+        </span>
         <span className="card-gem gem" />
         <span className="card-title">{quest.title}</span>
         <span className="card-foot">
-          <span className="muted">{quest.kind}</span>
+          {isLocked ? (
+            // Bloqueada: en lugar del tipo, qué quest le falta (features/complex).
+            <span className="card-lock-note">
+              <LockIcon />
+              <span>{t("complex.card.locked", { count: lock.length, title: lock[0].title })}</span>
+            </span>
+          ) : (
+            <span className="muted">{quest.kind}</span>
+          )}
           <b className="num">{num(quest.reward.xp)}</b>
           <span className="card-unit">XP</span>
         </span>
 
         {isCooldown && <span className="card-cd">{t("card.backIn", { time: formatRemaining((quest.availableAt ?? 0) - now) })}</span>}
-        {quest.completions > 0 && !isCooldown && !isActive && <span className="card-count">×{quest.completions}</span>}
+        {hasCount && <span className="card-count">×{quest.completions}</span>}
         {quest.conditions.some(isPomodoroCondition) && <PomodoroBadge quest={quest} />}
 
         <div className="card-flash" ref={flashRef} />

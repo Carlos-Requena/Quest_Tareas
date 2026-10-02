@@ -6,7 +6,8 @@ import { applyPomodoroEvent, newPomodoro, planOf, viewPomodoro } from "../featur
 import { upcastQuestDef } from "../features/pomodoro/legacy";
 import { applyItemEvent, newItemsAcc, receiveItems, registerItem } from "../features/items/model";
 import { upcastReward } from "../features/items/legacy";
-import { applyTemporalEvent, newTemporalAcc } from "../features/temporal/model";
+import { applyTemporalEvent, linkedQuestDone, newTemporalAcc, questOwners } from "../features/temporal/model";
+import { cleanRequires, prerequisitesMet, recurs } from "../features/complex/model";
 
 /** Reproduce los eventos (ya ordenados) y devuelve el estado actual del juego. */
 export function project(events: GameEvent[]): GameState {
@@ -16,6 +17,11 @@ export function project(events: GameEvent[]): GameState {
   let xp = 0;
   let gold = 0;
   let completedCount = 0;
+  // Para los encargos con quests enlazadas: una quest que ya no existe no bloquea.
+  const linkDone = (questId: string, since: number) => {
+    const q = quests.get(questId);
+    return !q || linkedQuestDone(q, since);
+  };
 
   for (const e of events) {
     const q = "questId" in e ? quests.get(e.questId) : undefined;
@@ -29,6 +35,8 @@ export function project(events: GameEvent[]): GameState {
           if (item) registerItem(items, item);
           quests.set(def.id, {
             ...def,
+            requires: cleanRequires(def),
+            dueAt: Number.isFinite(def.dueAt) ? def.dueAt : undefined,
             reward,
             status: "available",
             progress: {},
@@ -43,10 +51,12 @@ export function project(events: GameEvent[]): GameState {
         break;
 
       case "quest_accepted":
+        // Una quest con requisitos no se puede aceptar hasta completarlos (features/complex).
         if (
           q &&
           (q.status === "available" ||
-            (q.status === "cooldown" && e.ts >= (q.availableAt ?? 0)))
+            (q.status === "cooldown" && e.ts >= (q.availableAt ?? 0))) &&
+          prerequisitesMet(q, quests)
         ) {
           q.status = "active";
           q.acceptedAt = e.ts;
@@ -89,10 +99,12 @@ export function project(events: GameEvent[]): GameState {
           receiveItems(items, reward.itemId, e.drops ?? [], e.ts);
           completedCount++;
           q.completions++;
+          q.lastCompletedAt = e.ts;
           q.progress = {};
           q.acceptedAt = undefined;
           q.pomodoros = freshPomodoros(q.conditions);
-          if (q.category === "repeat") {
+          // Las repetibles, y cualquier quest con repetición, vuelven tras su espera.
+          if (recurs(q)) {
             q.status = "cooldown";
             q.availableAt = e.ts + (q.cooldownMinutes ?? 0) * 60_000;
           } else {
@@ -126,10 +138,13 @@ export function project(events: GameEvent[]): GameState {
       case "temporal_updated":
       case "temporal_attached":
       case "temporal_detached":
+      case "temporal_linked":
+      case "temporal_unlinked":
       case "temporal_completed":
       case "temporal_deleted": {
         // Cumplir un encargo temporal también da XP y oro (copiados en el evento).
-        const earned = applyTemporalEvent(temporals, e, e.ts);
+        // Solo se puede si sus quests enlazadas están terminadas.
+        const earned = applyTemporalEvent(temporals, e, e.ts, linkDone);
         if (earned) {
           xp += earned.xp;
           gold += earned.gold;
@@ -137,6 +152,12 @@ export function project(events: GameEvent[]): GameState {
         break;
       }
     }
+  }
+
+  // Cada quest sabe a qué encargo pendiente pertenece (para su fecha y su enlace).
+  for (const [questId, temporalId] of questOwners(temporals.board.values())) {
+    const q = quests.get(questId);
+    if (q) q.temporalId = temporalId;
   }
 
   const lv = levelFromXp(xp);

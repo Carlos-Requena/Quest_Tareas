@@ -3,12 +3,14 @@ import { uid } from "../../lib/id";
 import { sfx } from "../../lib/sfx";
 import i18n from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
+import { DEFAULT_REWARD, type QuestDef, type QuestState } from "../../domain/types";
 import {
   TEMPORAL_KINDS,
   TEMPORAL_LIMITS,
   clampSkulls,
   clampText,
   liveBlobIds,
+  pendingLinks,
   suggestedReward,
   type AttachmentRef,
   type TemporalDef,
@@ -17,6 +19,7 @@ import {
 } from "./model";
 import type { PreparedFile } from "./files";
 import { useTemporalUi } from "./ui";
+import { useHorizonUi } from "../horizon/ui";
 
 /** Lo que rellena el formulario de encargo. */
 export interface TemporalDraft {
@@ -35,7 +38,22 @@ export interface TemporalDraft {
   attachments: AttachmentRef[];
   /** Archivos nuevos elegidos en el formulario. */
   files: PreparedFile[];
+  /** Quests del tablón ya enlazadas (o elegidas para enlazar), en orden. */
+  questIds: string[];
+  /** Quests nuevas que se crearán en el Quest Board al guardar. */
+  newQuests: QuestSeed[];
+  /** En cadena: cada quest nueva requiere la anterior de la lista. */
+  chain: boolean;
 }
+
+/** Quest nueva escrita en el formulario del encargo: un título y cuántas veces hay que hacerla. */
+export interface QuestSeed {
+  key: string;
+  title: string;
+  target: number;
+}
+
+export const newQuestSeed = (): QuestSeed => ({ key: uid(), title: "", target: 1 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const isoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -62,10 +80,14 @@ export function emptyDraft(now = Date.now()): TemporalDraft {
     ...suggestedReward(1),
     attachments: [],
     files: [],
+    questIds: [],
+    newQuests: [],
+    chain: false,
   };
 }
 
-export function draftOf(t: TemporalDef): TemporalDraft {
+/** Borrador para editar. Las quests enlazadas que ya no existen se quedan fuera (y se desenlazan al guardar). */
+export function draftOf(t: TemporalDef, quests?: Map<string, QuestState>): TemporalDraft {
   const d = new Date(t.dueAt);
   return {
     title: t.title,
@@ -79,11 +101,14 @@ export function draftOf(t: TemporalDef): TemporalDraft {
     gold: t.reward.gold,
     attachments: t.attachments,
     files: [],
+    questIds: quests ? t.questIds.filter((id) => quests.has(id)) : t.questIds,
+    newQuests: [],
+    chain: false,
   };
 }
 
 /** Valida y normaliza. Sin título o sin fecha no hay encargo. */
-function clean(d: TemporalDraft): Omit<TemporalDef, "id" | "createdAt" | "attachments"> | undefined {
+function clean(d: TemporalDraft): Omit<TemporalDef, "id" | "createdAt" | "attachments" | "questIds"> | undefined {
   const title = clampText(d.title, TEMPORAL_LIMITS.title);
   const dueAt = dueAtOf(d.date, d.time);
   if (!title || !Number.isFinite(dueAt) || !TEMPORAL_KINDS.includes(d.kind)) return undefined;
@@ -127,7 +152,40 @@ function fail(err: unknown) {
   useGame.getState().say(() => i18n.t("temporal.toast.fileError"));
 }
 
-/** Clava un encargo nuevo en el tablón y lanza la animación de «cartel clavado». */
+const usableSeeds = (d: TemporalDraft) =>
+  d.newQuests.filter((q) => q.title.trim()).slice(0, Math.max(0, TEMPORAL_LIMITS.quests - d.questIds.length));
+
+/**
+ * Crea en el Quest Board las quests nuevas del formulario: encargos de un objetivo
+ * («título ×N»), con la recompensa propuesta de un encargo. En cadena, cada una
+ * requiere la anterior de la lista (`prev` es la última ya enlazada, si la hay).
+ */
+async function createSeedQuests(seeds: QuestSeed[], event: { title: string; place: string }, chain: boolean, prev?: string): Promise<string[]> {
+  const { dispatch } = useGame.getState();
+  const ids: string[] = [];
+  for (const s of seeds) {
+    const title = s.title.trim().slice(0, TEMPORAL_LIMITS.title);
+    const quest: QuestDef = {
+      id: uid(),
+      title,
+      category: "request",
+      client: event.title,
+      area: event.place,
+      kind: "",
+      description: "",
+      conditions: [{ id: uid(), kind: "count", label: title, target: Math.max(1, Math.min(999, Math.round(s.target) || 1)) }],
+      reward: { ...DEFAULT_REWARD.request },
+      requires: chain && prev ? [prev] : undefined,
+      createdAt: Date.now(),
+    };
+    await dispatch({ type: "quest_created", quest });
+    ids.push(quest.id);
+    prev = quest.id;
+  }
+  return ids;
+}
+
+/** Clava un encargo nuevo en el tablón (con sus quests) y lanza la animación de «cartel clavado». */
 export async function createTemporal(d: TemporalDraft): Promise<boolean> {
   const fields = clean(d);
   if (!fields) return false;
@@ -138,14 +196,23 @@ export async function createTemporal(d: TemporalDraft): Promise<boolean> {
     fail(err);
     return false;
   }
-  const temporal: TemporalDef = { ...fields, id: uid(), attachments, createdAt: Date.now() };
+  // Primero las quests (así el encargo nace enlazado a ellas) y después el encargo.
+  const linked = d.questIds.slice(0, TEMPORAL_LIMITS.quests);
+  const created = await createSeedQuests(usableSeeds(d), fields, d.chain, linked[linked.length - 1]);
+  const temporal: TemporalDef = { ...fields, id: uid(), attachments, questIds: [...linked, ...created], createdAt: Date.now() };
   const { dispatch, say } = useGame.getState();
   await dispatch({ type: "temporal_created", temporal });
   const ui = useTemporalUi.getState();
   ui.setForm(undefined);
   ui.select(temporal.id);
   ui.setPosted(temporal.id);
-  say(() => i18n.t("temporal.toast.posted", { title: temporal.title }));
+  // Que el cartel nuevo se vea al llegar al tablón, sea cual sea el plazo elegido.
+  useHorizonUi.getState().setFilter("temporal", "all");
+  say(() =>
+    created.length
+      ? i18n.t("temporal.toast.questsCreated", { title: temporal.title, count: created.length })
+      : i18n.t("temporal.toast.posted", { title: temporal.title }),
+  );
   return true;
 }
 
@@ -175,6 +242,13 @@ export async function updateTemporal(id: string, d: TemporalDraft): Promise<bool
   for (const a of removed) await dispatch({ type: "temporal_detached", temporalId: id, attachmentId: a.id });
   for (const a of added) await dispatch({ type: "temporal_attached", temporalId: id, attachment: a });
   await collect(removed.map((a) => a.blobId));
+
+  // Quests: desenlazar las quitadas (siguen en el Quest Board), enlazar las elegidas y crear las nuevas.
+  const keepQuests = new Set(d.questIds);
+  for (const q of cur.questIds) if (!keepQuests.has(q)) await dispatch({ type: "temporal_unlinked", temporalId: id, questId: q });
+  const linked = d.questIds.filter((q) => !cur.questIds.includes(q));
+  const created = await createSeedQuests(usableSeeds(d), fields, d.chain, d.questIds[d.questIds.length - 1]);
+  for (const q of [...linked, ...created]) await dispatch({ type: "temporal_linked", temporalId: id, questId: q });
 
   useTemporalUi.getState().setForm(undefined);
   sfx.tick();
@@ -217,6 +291,13 @@ export async function completeTemporal(id: string) {
   const { state, dispatch, say } = useGame.getState();
   const t = state.temporals.get(id);
   if (t?.status !== "pending") return;
+  // Con quests enlazadas sin terminar, el encargo no se puede cumplir (la proyección también lo impide).
+  const missing = pendingLinks(t, state.quests);
+  if (missing.length) {
+    sfx.cancel();
+    say(() => i18n.t("temporal.toast.questsPending", { count: missing.length, title: missing[0].title }));
+    return;
+  }
   const before = state.player;
   const reward = { ...t.reward };
   await dispatch({ type: "temporal_completed", temporalId: id, reward });
@@ -243,4 +324,27 @@ export async function deleteTemporal(id: string) {
 /** Lee el contenido de un adjunto. `undefined` si este equipo no tiene el archivo. */
 export async function loadAttachment(a: AttachmentRef): Promise<Blob | undefined> {
   return (await openBlobStore()).get(a.blobId);
+}
+
+/** Lleva al Quest Board con la quest elegida (desde un cartel o el formulario). */
+export function goToQuest(questId: string) {
+  const g = useGame.getState();
+  if (!g.state.quests.has(questId)) return;
+  sfx.page();
+  useTemporalUi.getState().closeView();
+  // Pestaña y plazo a «todo»: si no, la quest podría quedar fuera del tablón filtrado.
+  useHorizonUi.getState().setFilter("board", "all");
+  g.setTab("all");
+  g.setSection("board");
+  g.select(questId);
+}
+
+/** Lleva al tablón de encargos y abre el cartel (desde el detalle de una quest). */
+export function goToTemporal(temporalId: string) {
+  const g = useGame.getState();
+  if (!g.state.temporals.has(temporalId)) return;
+  sfx.page();
+  useHorizonUi.getState().setFilter("temporal", "all");
+  g.setSection("temporal");
+  useTemporalUi.getState().open(temporalId);
 }
