@@ -97,13 +97,17 @@ await db.execute("INSERT OR IGNORE INTO events ...", [id, ...]);
 
 …no está tocando SQLite directamente. `@tauri-apps/plugin-sql` serializa la llamada y la envía por IPC al proceso Rust. Allí, `tauri-plugin-sql` (que usa la librería `sqlx`) ejecuta la consulta y devuelve el resultado.
 
-El lado Rust de Quests es mínimo; solo registra el plugin:
+El lado Rust de Quests es pequeño: registra el plugin y los comandos propios de la sincronización (`src-tauri/src/sync`):
 
 ```rust
 tauri::Builder::default()
     .plugin(tauri_plugin_sql::Builder::default().build())
+    .manage(sync::SyncState::default())
+    .invoke_handler(tauri::generate_handler![sync::sync_sign_in, sync::drive_list, /* … */])
     .run(tauri::generate_context!())
 ```
+
+Los comandos propios se llaman con `invoke("drive_list", { kind })` desde `@tauri-apps/api/core`. Los argumentos van en camelCase (`fileId` llega a Rust como `file_id`). Un error de Rust llega al JavaScript como el objeto que serializa (`{ code, status, detail }` en `SyncError`). Para devolver binarios sin pasar por JSON, el comando devuelve un `tauri::ipc::Response`, que llega como `ArrayBuffer`.
 
 ### Permisos (capabilities)
 
@@ -388,7 +392,24 @@ Detalles y límites en el [README de los encargos temporales](../src/features/te
 
 ### Datos de ejemplo
 
-Si la base está vacía al arrancar, `seedEvents()` (`src/domain/seed.ts`) crea cinco quests de ejemplo. Son eventos `quest_created` normales, así que el usuario puede retirarlas como cualquier otra.
+Si la base está vacía al arrancar, `seedEvents()` (`src/domain/seed.ts`) crea cinco quests y diez objetos de ejemplo. Son eventos `quest_created` normales, así que el usuario puede retirarlas como cualquier otra. Sus ids son fijos (`seed:quest:dragon`, `seed:item:potion`…): si dos equipos arrancan vacíos y se sincronizan, los ejemplos se juntan en uno, porque la proyección ignora crear algo que ya existe. Tampoco vuelve una quest retirada: `quest_deleted` la apunta en `ProjectionAcc.deletedQuests`.
+
+### Sincronización con Google Drive
+
+**Archivos:** `src/features/sync/`, `src-tauri/src/sync/`. Diseño completo en [su README](../src/features/sync/README.md).
+
+Cada equipo sube **su** archivo, `events-<deviceId>.jsonl` (todos sus eventos, un JSON por línea), a la carpeta `QuestsApp/` de tu Drive. También baja los de los demás y los fusiona con `EventStore.merge`, que ignora los que ya tiene. Como nunca hay dos equipos escribiendo el mismo archivo, no hay conflictos de escritura. El orden (reloj híbrido) y las guardas de la proyección hacen que todos lleguen al mismo estado. Los binarios viajan aparte, uno por archivo y con su SHA-256 como nombre, así que cada uno se sube y se baja una sola vez.
+
+Lo que hace cada parte:
+
+| Parte | Hace |
+|---|---|
+| `src-tauri/src/sync/oauth.rs` | Inicio de sesión de Google con PKCE: abre el navegador y espera la vuelta en `127.0.0.1:<puerto libre>`. Guarda el refresh token en el llavero y renueva el access token, que solo vive en memoria |
+| `src-tauri/src/sync/drive.rs` | Listar archivos de Quests (por `appProperties`), bajar y subir (subida reanudable, vale para 20 MB) |
+| `features/sync/engine.ts` | `runSync`: bajar lo nuevo de los demás (por la `version` de cada archivo, guardada como cursor en `meta`), fusionar, recalcular, subir lo propio y mover los binarios |
+| `features/sync/actions.ts` | Cuándo: al abrir, cada 5 minutos, al volver a la ventana y al cerrarla (como mucho 8 s). Una sincronización a la vez |
+
+El token nunca llega al JavaScript y la CSP no cambia: toda conexión con Google sale de Rust. La credencial de la app (no la tuya) se incrusta al compilar desde `src-tauri/google-client.json`, que no está en el repositorio.
 
 ---
 
@@ -712,7 +733,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 - **CI** (`.github/workflows/ci.yml`): en cada push a `main` o a una rama `feature/`, `fix/` o `docs/`, y en cada pull request, GitHub Actions comprueba tipos, pasa los tests y compila la app con `tauri-action` en macOS y en Windows. Los instaladores sin firmar quedan 14 días como artefactos del run.
 - **Navegador integrado** con `pnpm dev`: capturas durante las animaciones, inspección del DOM y llamadas directas a las acciones importando los módulos desde Vite (`await import('/src/store/actions.ts')`).
 - **App nativa** con `pnpm tauri dev`: lectura de los logs y comprobación de la base real con `sqlite3`.
-- **Tests** con Vitest (`pnpm test`): 314 tests en 23 archivos, en un par de segundos. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
+- **Tests** con Vitest (`pnpm test`): 332 tests en 24 archivos, en un par de segundos. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
 
 | Archivo | Qué protege |
 |---|---|
@@ -723,6 +744,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | `src/features/merchant/*.test.ts`, `equipment/model.test.ts`, `attributes/model.test.ts` | Precios y rangos, el escaparate semanal (con los cambios de hora), las guardas de la compra y del equipo, los atributos por área; con el store de verdad, comprar con cada bloqueo y ponerse lo comprado. En `projection.test.ts`, además: el oro solo baja al comprar, el doble gasto entre dispositivos y los invariantes del equipo |
 | `src/features/armory`, `checklist`, `streaks`, `chronicle` (`model.test.ts`) | El catálogo de serie completo, en los dos idiomas y sin SVG rotos, y que no se edita con eventos; la lista (casillas limpias, marcar dos veces cuenta una, solo en curso); las rachas (plazos, se rompen solas, un duplicado no las sube); la crónica (una entrada por hecho que cuenta, su XP cuadra con la del jugador en historiales aleatorios, las páginas no se pasan de renglones) |
 | `src/storage/eventStore.test.ts` | El almacén del navegador: orden, `since` / `countUpTo` y `merge` idempotente |
+| `src/features/sync/engine.test.ts` | La puerta de la fase 2: dos y tres equipos en memoria con un Drive falso (`src/test/memory.ts`) llegan al mismo estado en cualquier orden. Además: sin novedades no se mueve nada, lo que se hace durante la subida no se pierde, archivos dañados, eventos de una versión futura, adjuntos y los datos de ejemplo de dos equipos |
 | `src/store/game.test.ts` | El store tal como lo usa la app (happy-dom): arranque, `dispatch` incremental, snapshot, reloj atrasado, eventos fusionados de un equipo adelantado (reloj híbrido) y las acciones de quests, encargos, objetos y pomodoro |
 | `src/features/recovery/model.test.ts` | Lo que muestra y copia la pantalla de recuperación |
 

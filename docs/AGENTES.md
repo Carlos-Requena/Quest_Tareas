@@ -6,7 +6,7 @@ Esta guía es para cualquier agente (o persona) que vaya a hacer tareas en este 
 
 ## 1. Qué es Quests, en 30 segundos
 
-App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú (con 69 piezas **de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos); junto al muñeco, los **atributos**: un nivel por cada área de las quests. Las quests que se repiten llevan su **racha**, los objetivos pueden ser **listas de casillas** y todo lo que haces queda en la **crónica del aventurero**, un diario gastado. Interfaz en español y japonés, con música de fondo.
+App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú (con 69 piezas **de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos); junto al muñeco, los **atributos**: un nivel por cada área de las quests. Las quests que se repiten llevan su **racha**, los objetivos pueden ser **listas de casillas** y todo lo que haces queda en la **crónica del aventurero**, un diario gastado. Interfaz en español y japonés, con música de fondo. Los datos se **sincronizan entre equipos por Google Drive** (cada equipo sube sus eventos y baja los de los demás).
 
 - **Stack:** Tauri 2 (Rust) + React 19 + TypeScript 6 + Vite 8 + Zustand 5 + Motion + GSAP + i18next, con SQLite vía `tauri-plugin-sql`.
 - **Modelo de datos:** *event sourcing* local-first. Se guardan **eventos inmutables** en SQLite y el estado se **calcula** reproduciéndolos (`project()`).
@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo J
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle` y `recovery`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle`, `recovery` y `sync`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -40,7 +40,8 @@ pnpm tauri build        # instalador para el sistema actual
 
 - El puerto **1420 es fijo** (`strictPort`). Si ya está ocupado, probablemente el propietario tiene la app abierta: **úsala** (`http://localhost:1420`) en vez de arrancar otra copia. Si arrancas un servidor tú, **páralo al terminar**.
 - La base de datos nativa está en `~/Library/Application Support/com.quests.app/quests.db` (macOS) y `%APPDATA%\com.quests.app\` (Windows). Para inspeccionarla: `sqlite3 <ruta> "SELECT json_extract(body,'$.type'), count(*) FROM events GROUP BY 1;"`.
-- **No borres nunca** `quests.db` ni el `localStorage` del propietario sin su permiso explícito: es su progreso real.
+- **No borres nunca** `quests.db` ni el `localStorage` del propietario sin su permiso explícito: es su progreso real. Si hay que empezar de cero, **muévelo** a una copia (por ejemplo, `~/Documents/Quests-copias/<fecha>/`) en vez de borrarlo.
+- **Sincronización:** la credencial de Google va en `src-tauri/google-client.json` (fuera del repositorio por `.gitignore`; `build.rs` la incrusta al compilar). Sin ella, la app compila igual y la sincronización sale «sin configurar». Para probar dos equipos en un mismo Mac, compila una segunda copia con otro identificador: `pnpm tauri build --debug --no-bundle --config '{"identifier":"com.quests.app.equipob"}'` (otra base de datos y otro `deviceId`; comparten la sesión del llavero). Ten en cuenta que lo que hagas en ella llega al Drive del propietario.
 
 ---
 
@@ -56,7 +57,7 @@ src/
     leveling.ts        Curva de XP, rangos F→S, huecos de quest activa
     seed.ts            Quests de ejemplo del primer arranque (en el idioma activo)
   storage/
-    eventStore.ts      Interfaz EventStore (all, since, countUpTo, append…) + SQLite (Tauri) + localStorage (navegador)
+    eventStore.ts      Interfaz EventStore (all, since, countUpTo, byDevice, append, merge…) + SQLite (Tauri, inserciones por lotes) + localStorage (navegador)
     blobStore.ts       Almacén de binarios de los adjuntos: tabla blobs (Tauri) / IndexedDB (navegador)
   store/
     game.ts            Store Zustand: proyección incremental, estado proyectado, estado de UI (sección, pestaña…), dispatch(), rebuild()
@@ -78,13 +79,14 @@ src/
     checklist/         Objetivo de tipo lista: casillas que se marcan (checklist_checked)
     chronicle/         Crónica del aventurero: diario de lo que ha pasado, apuntado por la proyección (sin eventos)
     recovery/          Error boundary y pantalla de recuperación ante fallos de la interfaz (sin eventos)
+    sync/              Sincronización con Google Drive: un JSONL por equipo y los binarios por SHA-256 (sin eventos; la parte nativa en src-tauri/src/sync)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
   test/              Utilidades de los tests (historiales aleatorios con semilla)
   lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), useMuted, id/PRNG, time (useNow, formatRemaining)
   styles/            theme.css (tokens), app.css (componentes)
 public/music/        Pistas de música (Vite las copia a dist/music/)
 public/merchant/     Vídeo de Hu Tao en bucle (MP4 + WebM) y su póster (se reproduce desde memoria, blob:)
-src-tauri/           Rust: lib.rs (plugin SQL), tauri.conf.json (con la CSP), capabilities/default.json
+src-tauri/           Rust: lib.rs (plugin SQL y comandos), sync/ (OAuth con PKCE, llavero y Drive), build.rs (credencial de Google), tauri.conf.json (con la CSP), capabilities/default.json
 .github/workflows/   CI: tipos, tests y build de la app en macOS y Windows
 docs/                Esta guía, informe técnico, cómo funciona, img/ con los diagramas
 ```
@@ -124,9 +126,9 @@ components ──▶ store ──▶ domain ◀── storage
 
 ### 5.3 Qué va en eventos y qué no
 
-| Va en eventos (se sincroniza) | No va en eventos (`localStorage`, por equipo) |
+| Va en eventos (se sincroniza) | No va en eventos (por equipo) |
 |---|---|
-| Quests, aceptar, progreso (contadores y casillas de las listas), completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales y la referencia de sus adjuntos, el catálogo del mercader (con su icono), las compras (con su precio) y lo que lleva puesto el personaje | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador. Tampoco van en eventos, porque se calculan: rachas, atributos y crónica. Ni las piezas de serie, que están en el código |
+| Quests, aceptar, progreso (contadores y casillas de las listas), completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales y la referencia de sus adjuntos, el catálogo del mercader (con su icono), las compras (con su precio) y lo que lleva puesto el personaje | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador. Tampoco van en eventos, porque se calculan: rachas, atributos y crónica. Ni las piezas de serie, que están en el código. La sincronización guarda en la tabla `meta` sus cursores y la cuenta conectada, y el token en el llavero del sistema |
 
 **Archivos adjuntos (norma):** en el evento solo va la referencia (nombre, tipo, tamaño, una miniatura pequeña y el `blobId`). El contenido va al almacén de binarios (`src/storage/blobStore.ts`), con su SHA-256 como clave. Nunca metas un archivo grande en un evento: se leería en cada arranque y no cabe en el `localStorage` del navegador. La imagen grande del **fondo del menú** (mercader) sigue la misma norma. El almacén lo comparten varias funcionalidades: **antes de borrar un binario, comprueba que no lo use ninguna** (`liveBlobIds` de los encargos y `gearBlobIds` del mercader).
 
@@ -156,7 +158,7 @@ src/features/<nombre>/
 
 - **La integración fuera de la carpeta debe ser mínima:** tipos (`domain/types.ts`), la unión de eventos (`domain/events.ts`), la proyección (`domain/projection.ts`), los diccionarios (`i18n/locales/{es,ja}.ts`, montando `xxxEs` / `xxxJa`) y el componente que la aloja. Enuméralo en la tabla «Puntos de integración» del README.
 - **El dominio nunca importa el `index.ts` de una funcionalidad**: ese archivo reexporta `actions.ts`, que importa el store, y se crearía un ciclo.
-- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`). `src/features/merchant/` es el de una funcionalidad con **economía** (precios calculados, un gasto que la proyección vigila) y **reglas que dependen de la semana** (el escaparate, calculado con semilla); `src/features/equipment/` lee el catálogo de otra funcionalidad, y `src/features/attributes/` es el de una que **no tiene eventos** y se calcula de los eventos de otra (`quest_completed`). `src/features/armory/` es el de **datos de serie en el código** (no en eventos ni en el snapshot) que otra funcionalidad suma a los suyos, y `src/features/chronicle/` el de una que **apunta un registro** desde la proyección cuando un evento pasa sus guardas.
+- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`). `src/features/merchant/` es el de una funcionalidad con **economía** (precios calculados, un gasto que la proyección vigila) y **reglas que dependen de la semana** (el escaparate, calculado con semilla); `src/features/equipment/` lee el catálogo de otra funcionalidad, y `src/features/attributes/` es el de una que **no tiene eventos** y se calcula de los eventos de otra (`quest_completed`). `src/features/sync/` es el de una funcionalidad con **parte nativa en Rust** (comandos en `src-tauri/src/sync`) y un motor con todo inyectado (`engine.ts`) que se prueba con almacenes en memoria y un Drive falso (`src/test/memory.ts`). `src/features/armory/` es el de **datos de serie en el código** (no en eventos ni en el snapshot) que otra funcionalidad suma a los suyos, y `src/features/chronicle/` el de una que **apunta un registro** desde la proyección cuando un evento pasa sus guardas.
 
 - **Una funcionalidad puede importar el `model.ts` de otra** (`horizon` usa `daysUntil` de `temporal`), pero si su lógica necesita la proyección (`effectiveStatus`), va en otro archivo (como `temporal/links.ts`): `model.ts` lo importa el dominio y se crearía un ciclo.
 
@@ -190,7 +192,7 @@ src/features/<nombre>/
 - **Música:** se copia a `public/music/` y se registra en `src/features/music/tracks.ts` y en `i18n.ts`.
 - **Permisos de Tauri:** se conceden de forma explícita y mínima en `src-tauri/capabilities/default.json`. Cada plugin nuevo necesita su permiso y su registro en `src-tauri/src/lib.rs`.
 - **CSP (norma):** `app.security.csp` en `tauri.conf.json` solo permite lo propio (`'self'`, `data:` y `blob:` donde hace falta, e IPC). Si algo nuevo carga de otro origen (la fase 2 con Google), añade ese origen a la directiva exacta, también en `devCsp`, y explícalo en la tabla de [COMO-FUNCIONA.md](COMO-FUNCIONA.md) («Content Security Policy»). Nunca vuelvas a `csp: null`.
-- **Secretos:** nunca en el repositorio ni en SQLite. Los tokens OAuth de la fase 2 irán al llavero del sistema.
+- **Secretos:** nunca en el repositorio ni en SQLite. El refresh token de Google va al llavero del sistema (crate `keyring`) y el access token solo vive en la memoria de Rust: **el JavaScript nunca ve un token**. Toda llamada a Google la hace Rust (`src-tauri/src/sync`), así que la CSP sigue sin permitir conexiones de fuera.
 
 ---
 
@@ -246,10 +248,11 @@ Lo mismo vale para los otros diagramas (arquitectura, ciclo de vida, hoja de rut
 ## 11. Deuda conocida: no la empeores
 
 La fase 1.5 (endurecimiento) cerró la versión de los eventos (`v` + `UPCASTERS`), el reloj lógico híbrido, el error boundary (`features/recovery`), la CSP estricta y la CI en macOS y Windows. Queda pendiente:
-- **Tests:** el dominio y el store están cubiertos (314 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones.
+- **Tests:** el dominio, el store y la sincronización están cubiertos (332 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones.
 - **Windows a mano:** la CI compila y pasa los tests en Windows, pero nadie ha abierto la app allí (fuentes, animaciones, visor de PDF de WebView2). Los instaladores están en los artefactos de cada run de la CI.
 - **CSP sin revisar a simple vista en la app nativa:** se probó la misma política en Chromium y que la app de macOS arranca y abre la base de datos con ella, pero no se vio la ventana. Si algo no carga (vídeo, PDF, fondo), mira primero la CSP.
 - **Reloj con mucha deriva:** un equipo que vaya más de 1 minuto por detrás de un evento ya aplicado recalcula todo en cada acción hasta que su reloj lo alcanza.
+- **Sincronización (fase 2):** sin probar en Windows, ni con dos equipos físicos, ni los adjuntos con Drive de verdad, ni al cerrar la ventana. Los binarios que dejan de usarse no se borran de Drive. Cada sincronización con novedades reescribe el archivo entero del equipo (unos KB o MB).
 
 Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, no añadas más casos.
 

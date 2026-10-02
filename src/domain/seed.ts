@@ -2,7 +2,6 @@ import type { EventBody } from "./events";
 import type { Category, ConditionDef, RewardDef } from "./types";
 import type { PomodoroConfig } from "../features/pomodoro/model";
 import type { ItemDef, Rarity } from "../features/items/model";
-import { uid } from "../lib/id";
 import { currentLang, locales } from "../i18n";
 
 type SeedKey = keyof (typeof locales)["es"]["seed"];
@@ -40,6 +39,14 @@ const SEED: {
   { key: "market", category: "request", conds: [3, 3], reward: { xp: 150, gold: 80 }, item: "ingredients" },
 ];
 
+/**
+ * Ids fijos para los datos de ejemplo: si dos equipos arrancan vacíos y luego se
+ * sincronizan (features/sync), sus ejemplos se juntan en uno (la proyección ignora
+ * crear algo que ya existe o que se retiró) en vez de salir dos veces.
+ */
+export const seedQuestId = (key: string) => `seed:quest:${key}`;
+export const seedItemId = (key: string) => `seed:item:${key}`;
+
 export function seedEvents(): EventBody[] {
   const now = Date.now();
   const lang = locales[currentLang()];
@@ -48,7 +55,7 @@ export function seedEvents(): EventBody[] {
   const items = new Map<ItemKey, ItemDef>(
     SEED_ITEMS.map((it, i) => {
       const tx = lang.items.seed[it.key];
-      return [it.key, { id: uid(), name: tx.name, rarity: it.rarity, kind: tx.kind, description: tx.description, droppable: true, createdAt: now + i }];
+      return [it.key, { id: seedItemId(it.key), name: tx.name, rarity: it.rarity, kind: tx.kind, description: tx.description, droppable: true, createdAt: now + i }];
     }),
   );
   const itemEvents: EventBody[] = [...items.values()].map((item) => ({ type: "item_created", item }));
@@ -58,7 +65,7 @@ export function seedEvents(): EventBody[] {
     return {
       type: "quest_created",
       quest: {
-        id: uid(),
+        id: seedQuestId(s.key),
         title: tx.title,
         category: s.category,
         client: tx.client,
@@ -68,9 +75,9 @@ export function seedEvents(): EventBody[] {
         conditions: s.conds.map(
           (spec, c): ConditionDef =>
             typeof spec === "number"
-              ? { id: uid(), kind: "count", label: tx.conditions[c], target: spec }
+              ? { id: `${seedQuestId(s.key)}:c${c}`, kind: "count", label: tx.conditions[c], target: spec }
               : {
-                  id: uid(),
+                  id: `${seedQuestId(s.key)}:c${c}`,
                   kind: "pomodoro",
                   label: tx.conditions[c],
                   target: spec.rounds,

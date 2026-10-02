@@ -23,7 +23,7 @@ import { newChronicleAcc, noteStart, record, type ChronicleAcc, type ChronicleFi
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 3;
+export const PROJECTION_VERSION = 4;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -31,6 +31,8 @@ export const PROJECTION_VERSION = 3;
  */
 export interface ProjectionAcc {
   quests: Map<string, QuestState>;
+  /** Quests retiradas: crear otra vez el mismo id no la devuelve (los ejemplos de otro equipo, features/sync). */
+  deletedQuests: Set<string>;
   items: ItemsAcc;
   temporals: TemporalAcc;
   merchant: MerchantAcc;
@@ -44,6 +46,7 @@ export interface ProjectionAcc {
 
 export const newProjectionAcc = (): ProjectionAcc => ({
   quests: new Map(),
+  deletedQuests: new Set(),
   items: newItemsAcc(),
   temporals: newTemporalAcc(),
   merchant: newMerchantAcc(),
@@ -83,7 +86,7 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
 
   switch (e.type) {
     case "quest_created":
-      if (!quests.has(e.quest.id)) {
+      if (!quests.has(e.quest.id) && !acc.deletedQuests.has(e.quest.id)) {
         // datos antiguos → formato actual
         const def = upcastQuestDef(e.quest);
         const { reward, item } = upcastReward(def.reward, e.ts);
@@ -105,7 +108,7 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
       break;
 
     case "quest_deleted":
-      quests.delete(e.questId);
+      if (quests.delete(e.questId)) acc.deletedQuests.add(e.questId);
       break;
 
     case "quest_accepted":

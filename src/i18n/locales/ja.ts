@@ -13,6 +13,7 @@ import { checklistJa } from "../../features/checklist/i18n";
 import { streaksJa } from "../../features/streaks/i18n";
 import { chronicleJa } from "../../features/chronicle/i18n";
 import { recoveryJa } from "../../features/recovery/i18n";
+import { syncJa } from "../../features/sync/i18n";
 
 // Mismo esquema que es.ts: TypeScript avisa si falta o sobra alguna clave.
 // En japonés no hay plural; las formas _one existen solo para cumplir el tipo.
@@ -153,6 +154,7 @@ export const ja: Translation = {
   streaks: streaksJa,
   chronicle: chronicleJa,
   recovery: recoveryJa,
+  sync: syncJa,
   seed: {
     dragon: {
       title: "書類ドラゴンの討伐",

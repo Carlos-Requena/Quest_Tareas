@@ -21,6 +21,7 @@ function memoryStore(events: GameEvent[]) {
     all: async () => (calls.all++, [...events]),
     since: async (pos) => (calls.since++, events.filter((e) => comparePos(e, pos) > 0)),
     countUpTo: async (pos) => (calls.countUpTo++, events.filter((e) => comparePos(e, pos) <= 0).length),
+    byDevice: async (d) => events.filter((e) => e.deviceId === d),
     append: async (e) => void events.push(e),
     merge: async () => 0,
     unsynced: async () => [],

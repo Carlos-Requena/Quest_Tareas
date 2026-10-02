@@ -13,6 +13,8 @@ pnpm test           # tests (Vitest)
 pnpm tauri build    # instalador para la plataforma actual
 ```
 
+> **Sincronización con Google Drive:** copia el JSON de tu cliente OAuth («App de escritorio», en Google Cloud) a `src-tauri/google-client.json`. Está en `.gitignore` y se incrusta al compilar. Sin él, la app funciona igual, pero sin sincronizar. En la CI, los secretos `QUESTS_GOOGLE_CLIENT_ID` y `QUESTS_GOOGLE_CLIENT_SECRET`.
+
 > El instalador de Windows (`.msi` / `.exe`) se compila en Windows o en la CI: `.github/workflows/ci.yml` comprueba tipos, pasa los tests y compila la app en macOS y Windows en cada push y pull request, y deja los instaladores (sin firmar) como artefactos del run.
 
 ## Documentación
@@ -60,8 +62,9 @@ src/
     equipment/      Personaje: el muñeco con su equipo, el armario y la decoración del menú (fondo y emblema)
     attributes/     Atributos: un nivel por cada área de las quests, con su radar
     recovery/       Error boundary: pantalla de recuperación si falla la interfaz, en vez de la ventana en negro
+    sync/           Sincronización con Google Drive: un archivo de eventos por equipo y los adjuntos, con su nube en la cabecera
   test/            Utilidades de los tests (historiales aleatorios con semilla)
-src-tauri/         Backend Rust (plugin SQL); la CSP estricta está en tauri.conf.json
+src-tauri/         Backend Rust: plugin SQL, inicio de sesión con Google y Drive (src/sync, token en el llavero); la CSP estricta está en tauri.conf.json
 ```
 
 **Una carpeta por implementación:** cada funcionalidad nueva vive en `src/features/<nombre>/` con su modelo puro, eventos, acciones, componentes, estilos, textos y un `README.md` de diseño. Fuera de la carpeta solo se tocan los puntos de integración (tipos, unión de eventos, proyección y los componentes que la alojan). Ejemplo: [src/features/pomodoro/README.md](src/features/pomodoro/README.md).
@@ -134,9 +137,9 @@ En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · 
 - [x] Mercader con Hu Tao (`src/features/merchant/`), personaje con su equipo (`src/features/equipment/`) y atributos por área (`src/features/attributes/`)
 - [x] Equipo de serie (`src/features/armory/`), rachas (`src/features/streaks/`), objetivo de tipo lista (`src/features/checklist/`) y crónica del aventurero (`src/features/chronicle/`)
 - [x] **Fase 1.5 (endurecimiento):** eventos versionados, reloj lógico híbrido, error boundary (`src/features/recovery/`), CSP estricta y CI en verde en macOS y Windows (314 tests)
-- [ ] **Fase 2:** sincronización con Google Drive
-  - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`
-  - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`
+- [x] **Fase 2:** sincronización con Google Drive (`src/features/sync/`)
+  - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`, token en el llavero
+  - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`, y los adjuntos como `blob-<sha256>`
   - Descargar los ficheros de los demás → `EventStore.merge()` → reproyectar
-  - Publicar la app de Google Cloud en modo *In production* (en *Testing* el token caduca cada 7 días)
+  - Pendiente: publicar la app de Google Cloud en modo *In production* (en *Testing* hay que volver a conectar cada 7 días) y probarla en Windows
 - [ ] Logros, estadísticas, editar quests, consecuencias, icono propio

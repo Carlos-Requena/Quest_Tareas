@@ -15,12 +15,17 @@ export interface EventStore {
   since(pos: EventPos): Promise<GameEvent[]>;
   /** Cuántos eventos hay hasta `pos`, incluido. Si no cuadra con el snapshot, este no vale. */
   countUpTo(pos: EventPos): Promise<number>;
+  /** Los eventos que generó un equipo (los de este, para subirlos a su archivo de Drive). */
+  byDevice(deviceId: string): Promise<GameEvent[]>;
   append(event: GameEvent): Promise<void>;
   /** Inserta eventos remotos ignorando los que ya existen. Devuelve cuántos eran nuevos. */
   merge(events: GameEvent[]): Promise<number>;
   unsynced(): Promise<GameEvent[]>;
   markSynced(ids: string[]): Promise<void>;
 }
+
+/** Filas por sentencia al insertar: 5 parámetros cada una, lejos del límite de SQLite (999 en las versiones antiguas). */
+const BATCH = 150;
 
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
@@ -61,13 +66,22 @@ async function openSqliteStore(): Promise<EventStore> {
   const toEvent = (r: Row) =>
     ({ ...JSON.parse(r.body), id: r.id, deviceId: r.device_id, ts: r.ts }) as GameEvent;
 
-  const insert = async (e: GameEvent, synced: number) => {
-    const { id, deviceId: dev, ts, ...body } = e;
-    const res = await db.execute(
-      "INSERT OR IGNORE INTO events (id, device_id, ts, body, synced) VALUES ($1, $2, $3, $4, $5)",
-      [id, dev, ts, JSON.stringify(body), synced],
-    );
-    return res.rowsAffected;
+  /** Inserta en lotes de BATCH filas por sentencia (una sentencia por evento era lenta al fusionar miles). */
+  const insert = async (events: GameEvent[], synced: number) => {
+    let added = 0;
+    for (let i = 0; i < events.length; i += BATCH) {
+      const chunk = events.slice(i, i + BATCH);
+      const params: unknown[] = [];
+      const rows = chunk.map((e, k) => {
+        const { id, deviceId: dev, ts, ...body } = e;
+        params.push(id, dev, ts, JSON.stringify(body), synced);
+        const b = k * 5;
+        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5})`;
+      });
+      const res = await db.execute(`INSERT OR IGNORE INTO events (id, device_id, ts, body, synced) VALUES ${rows.join(", ")}`, params);
+      added += res.rowsAffected;
+    }
+    return added;
   };
 
   return {
@@ -90,13 +104,15 @@ async function openSqliteStore(): Promise<EventStore> {
       );
       return r[0]?.n ?? 0;
     },
-    async append(e) {
-      await insert(e, 0);
+    async byDevice(deviceId) {
+      const r = await db.select<Row[]>("SELECT id, device_id, ts, body FROM events WHERE device_id = $1 ORDER BY ts, id", [deviceId]);
+      return r.map(toEvent);
     },
-    async merge(events) {
-      let added = 0;
-      for (const e of events) added += await insert(e, 1);
-      return added;
+    async append(e) {
+      await insert([e], 0);
+    },
+    merge(events) {
+      return insert(events, 1);
     },
     async unsynced() {
       const r = await db.select<Row[]>(
@@ -105,7 +121,10 @@ async function openSqliteStore(): Promise<EventStore> {
       return r.map(toEvent);
     },
     async markSynced(ids) {
-      for (const id of ids) await db.execute("UPDATE events SET synced = 1 WHERE id = $1", [id]);
+      for (let i = 0; i < ids.length; i += BATCH * 5) {
+        const chunk = ids.slice(i, i + BATCH * 5);
+        await db.execute(`UPDATE events SET synced = 1 WHERE id IN (${chunk.map((_, k) => `$${k + 1}`).join(", ")})`, chunk);
+      }
     },
   };
 }
@@ -140,6 +159,11 @@ async function openLocalStore(): Promise<EventStore> {
     },
     async countUpTo(pos) {
       return read().filter((e) => comparePos(e, pos) <= 0).length;
+    },
+    async byDevice(deviceId) {
+      return read()
+        .filter((e) => e.deviceId === deviceId)
+        .sort(compareEvents);
     },
     async append(e) {
       write([...read(), e]);

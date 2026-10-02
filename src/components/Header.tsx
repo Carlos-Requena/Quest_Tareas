@@ -11,6 +11,7 @@ import { MerchantButton } from "../features/merchant";
 import { CharacterButton, DecorEmblem } from "../features/equipment";
 import { ChronicleButton } from "../features/chronicle";
 import { SectionSwitch } from "../features/temporal";
+import { SyncControl } from "../features/sync";
 
 export function Emblem({ size = 64 }: { size?: number }) {
   return (
@@ -90,6 +91,7 @@ export function Header() {
         </div>
 
         <LangSwitch />
+        <SyncControl />
         <MusicControl />
         <button
           className="mute"

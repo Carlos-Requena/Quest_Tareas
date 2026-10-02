@@ -19,6 +19,10 @@ export interface BlobStore {
   put(data: Blob): Promise<string>;
   get(id: string): Promise<Blob | undefined>;
   remove(id: string): Promise<void>;
+  /** Ids de todo lo guardado (para saber qué falta subir o bajar, features/sync). */
+  ids(): Promise<Set<string>>;
+  /** El contenido en base64, tal como viaja por el puente con Rust (features/sync). */
+  readBase64(id: string): Promise<{ mime: string; data: string } | undefined>;
 }
 
 let opened: Promise<BlobStore> | undefined;
@@ -67,6 +71,14 @@ async function openSqliteBlobs(): Promise<BlobStore> {
     },
     async remove(id) {
       await db.execute("DELETE FROM blobs WHERE id = $1", [id]);
+    },
+    async ids() {
+      const rows = await db.select<{ id: string }[]>("SELECT id FROM blobs");
+      return new Set(rows.map((r) => r.id));
+    },
+    async readBase64(id) {
+      const rows = await db.select<{ mime: string; data: string }[]>("SELECT mime, data FROM blobs WHERE id = $1", [id]);
+      return rows[0];
     },
   };
 }
@@ -117,6 +129,13 @@ async function openIdbBlobs(): Promise<BlobStore> {
     },
     async remove(id) {
       await req(store("readwrite").delete(id));
+    },
+    async ids() {
+      return new Set((await req(store("readonly").getAllKeys())) as string[]);
+    },
+    async readBase64(id) {
+      const rec = (await req(store("readonly").get(id))) as { blob: Blob; mime: string } | undefined;
+      return rec && { mime: rec.mime || rec.blob.type, data: await toBase64(rec.blob) };
     },
   };
 }

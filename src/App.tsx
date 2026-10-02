@@ -16,6 +16,7 @@ import { Footer } from "./components/Footer";
 import { CreateQuestModal } from "./components/CreateQuestModal";
 import { ClearOverlay } from "./components/ClearOverlay";
 import { PomodoroWatcher } from "./features/pomodoro";
+import { SyncWatcher } from "./features/sync";
 import { music } from "./features/music";
 import { CollectionModal } from "./features/items";
 import { TemporalBoard, TemporalOverlays, switchSection, temporalBusy } from "./features/temporal";
@@ -181,6 +182,7 @@ export default function App() {
       <CharacterModal />
       <ChronicleModal />
       <PomodoroWatcher />
+      <SyncWatcher />
       <TemporalOverlays />
     </div>
   );

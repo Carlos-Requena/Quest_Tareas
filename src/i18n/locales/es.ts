@@ -13,6 +13,7 @@ import { checklistEs } from "../../features/checklist/i18n";
 import { streaksEs } from "../../features/streaks/i18n";
 import { chronicleEs } from "../../features/chronicle/i18n";
 import { recoveryEs } from "../../features/recovery/i18n";
+import { syncEs } from "../../features/sync/i18n";
 
 export const es = {
   app: {
@@ -152,6 +153,7 @@ export const es = {
   streaks: streaksEs,
   chronicle: chronicleEs,
   recovery: recoveryEs,
+  sync: syncEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {

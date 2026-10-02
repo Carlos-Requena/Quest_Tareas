@@ -47,8 +47,13 @@ jobs:
           workspaces: src-tauri -> target
 
       # Sin tagName, tauri-action solo compila (pnpm build + cargo) y empaqueta.
+      # La credencial de Google (sincronización, features/sync) sale de los secretos del
+      # repositorio; sin ellos, la app se compila igual con la sincronización «sin configurar».
       - name: Build de la app
         uses: tauri-apps/tauri-action@v0
+        env:
+          QUESTS_GOOGLE_CLIENT_ID: ${{ secrets.QUESTS_GOOGLE_CLIENT_ID }}
+          QUESTS_GOOGLE_CLIENT_SECRET: ${{ secrets.QUESTS_GOOGLE_CLIENT_SECRET }}
 
       - uses: actions/upload-artifact@v7
         with:
