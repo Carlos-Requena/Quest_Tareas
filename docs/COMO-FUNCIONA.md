@@ -449,6 +449,16 @@ if (!active || was === "active") {
 // …solo si pasa de no-activa a activa: línea de tiempo completa
 ```
 
+### 9.6 El cofre del botín
+
+Al final de «Quest Clear», si hay objetos, cae un cofre (`src/features/items/components/LootChest.tsx`). El overlay lo controla con dos métodos: `appear()` al terminar su línea de tiempo y `advance()` con cada clic o `Enter` (abrir, saltar al final). La apertura es una línea de tiempo larga con cinco fases: carga, compresión, estallido, objetos y final. El diseño completo está en el [README de los objetos](../src/features/items/README.md).
+
+Tres detalles técnicos:
+
+- **Partículas fuera de React.** `src/lib/fx.ts` crea `<span>` sueltos, los anima con el plugin `Physics2D` de GSAP (velocidad, ángulo y gravedad) y los borra al acabar. Así React no tiene que reconciliar cientos de nodos.
+- **Sacudidas en el contenido y destellos fuera.** La vibración mueve `.cl-stage`. El destello a pantalla completa y la lluvia de monedas van en un portal en `<body>`, para no moverse con ella (un `transform` en un antecesor rompería el `position: fixed`).
+- **`immediateRender: false` en las líneas de tiempo largas.** Un `fromTo()` pinta su estado inicial nada más crearse, aunque empiece a los 2 s. Sin esa opción, el destello y las ondas se verían encendidos desde el primer clic.
+
 ---
 
 ## 10. El sonido: sintetizado, sin archivos
@@ -574,11 +584,13 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | Ventana en negro tras «Quest Clear» en la app nativa | Al cerrar, GSAP revertía el contador y su `onUpdate` usaba una referencia de React que ya era `null` | Capturar el elemento en una constante (`const el = root.current`) |
 | El aviso «aceptada» se quedaba para siempre | No había caducidad | Borrado automático a los 4,5 s |
 | Build de 27 MB | Subconjuntos japoneses de la fuente | Solo subconjunto latino |
+| El color del cofre no subía de rareza | `gsap.set(el, { "--rc": "var(--r-epic)" })` no aplica un valor `var(...)` a una variable CSS | `el.style.setProperty("--rc", …)` |
+| Imágenes del almanaque en negro | El estilo de «no conseguido» era una silueta (`brightness(0)`) | Color apagado (`saturate` + `opacity`) |
 
 ### Trampas del entorno de pruebas (no son fallos de la app)
 
 - **Dos copias del mismo módulo.** Tras una recarga en caliente, Vite sirve el módulo editado como `game.ts?t=123…`. Importar `/src/store/game.ts` a mano daba **otra instancia** del store, con otros datos. Solución: recargar la página o importar la URL con `?t=`.
-- **Animaciones que no avanzan.** Si la pestaña está oculta (`document.hidden`), el navegador frena `requestAnimationFrame`, que es el reloj de GSAP. En la ventana real de la app esto no ocurre.
+- **Animaciones que no avanzan.** Si la pestaña está oculta (`document.hidden`), el navegador frena `requestAnimationFrame`, que es el reloj de GSAP. En la ventana real de la app esto no ocurre. Para revisar una animación fotograma a fotograma, se importa la misma instancia de GSAP que usa la app (la URL `/node_modules/.vite/deps/gsap.js?v=…` aparece en el código que sirve Vite, por ejemplo en `fetch('/src/lib/fx.ts')`). Después se pausa `gsap.globalTimeline` y se avanza con `.time(t + 1/60)` en bucle: los callbacks se disparan en orden. La captura de pantalla puede repetir un fotograma viejo hasta que algo fuerza el repintado, como cambiar el tamaño del viewport.
 
 ---
 

@@ -1095,7 +1095,7 @@ input[type="number"]::-webkit-inner-spin-button {
   font-size: 12px;
 }
 
-/* ───────────── Partículas (src/lib/particles.ts) ───────────── */
+/* ───────────── Partículas (src/lib/fx.ts) ───────────── */
 
 .cl-fx {
   position: absolute;
@@ -1105,7 +1105,8 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 .fx-coin,
 .fx-spark,
-.fx-star {
+.fx-star,
+.fx-glow {
   position: absolute;
   pointer-events: none;
   will-change: transform, opacity;
@@ -1130,6 +1131,12 @@ input[type="number"]::-webkit-inner-spin-button {
   transform: rotate(45deg);
   background: var(--fx);
   box-shadow: 0 0 6px var(--fx), 0 0 12px var(--fx);
+}
+/* Punto de luz difuso (polvo, ascuas, motas): sin sombras, barato de pintar. */
+.fx-glow {
+  --fx: var(--gold-hi);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0.9) 0, var(--fx) 35%, transparent 70%);
 }
 .fx-star {
   --fx: var(--gold-hi);

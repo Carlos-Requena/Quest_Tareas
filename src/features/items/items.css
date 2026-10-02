@@ -39,7 +39,7 @@
   bottom: 3px;
   font-size: 8px;
   letter-spacing: 0.5px;
-  color: #ffe9a8;
+  color: var(--star);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
@@ -457,7 +457,7 @@
 }
 .rates-stars {
   font-size: 8px;
-  color: #ffe9a8;
+  color: var(--star);
   letter-spacing: 0.5px;
 }
 .rates-bar {
@@ -574,10 +574,11 @@
 
 /* ───────────── Cofre del botín (Quest Clear) ───────────── */
 
+/* Coordenadas: la zona mide 270 px; la boca del cofre queda a 162 px y la rendija a 178 px. */
 .chest-zone {
   --rc: var(--r-common);
   position: relative;
-  height: 220px;
+  height: 270px;
   margin-top: 10px;
 }
 .chest-fx {
@@ -604,13 +605,47 @@
 }
 .chest-body:hover .chest-svg {
   transform: scale(1.06);
-  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 12px color-mix(in srgb, var(--rc) 70%, transparent));
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 14px color-mix(in srgb, var(--rc) 75%, transparent));
+}
+.chest-svg .wood-a {
+  stop-color: var(--wood);
+}
+.chest-svg .wood-b {
+  stop-color: var(--wood-lo);
+}
+.chest-svg .metal-a {
+  stop-color: var(--gold-hi);
+}
+.chest-svg .metal-b {
+  stop-color: var(--gold);
+}
+.chest-svg .metal-c {
+  stop-color: var(--gold-lo);
+}
+.chest-svg .wood {
+  fill: url(#chest-wood);
+  stroke: var(--gold-lo);
+}
+.chest-svg .metal {
+  fill: url(#chest-metal);
+}
+.chest-svg .lock-plate {
+  stroke: var(--gold-lo);
+}
+.chest-svg .rivet {
+  fill: var(--gold-hi);
+}
+.chest-svg .gloss {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 .chest-plank {
   stroke: rgba(0, 0, 0, 0.35);
   stroke-width: 1;
 }
-/* La luz de dentro se escapa por la rendija y la cerradura, con el color de la mejor rareza. */
+/* La luz de dentro se escapa por la rendija y la cerradura. */
 .chest-seam {
   fill: var(--rc);
   opacity: 0.35;
@@ -619,6 +654,32 @@
 .chest-keyhole {
   fill: var(--rc);
   filter: drop-shadow(0 0 2px var(--rc));
+}
+.chest-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  width: 160px;
+  height: 22px;
+  margin-left: -80px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.75), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+/* Penumbra centrada en el cofre: durante la apertura todo lo demás se apaga. */
+.chest-vignette {
+  position: absolute;
+  left: 50%;
+  top: 170px;
+  width: 2600px;
+  height: 2600px;
+  margin: -1300px 0 0 -1300px;
+  background: radial-gradient(circle, transparent 0, transparent 120px, rgba(4, 3, 2, 0.6) 300px, rgba(4, 3, 2, 0.9) 700px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 .chest-aura {
   position: absolute;
@@ -630,62 +691,84 @@
   border-radius: 50%;
   background: radial-gradient(ellipse at 50% 68%, color-mix(in srgb, var(--rc) 60%, transparent), transparent 62%);
   filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+/* Rayos de luz que giran detrás del cofre al estallar. */
+.chest-godrays {
+  position: absolute;
+  left: 50%;
+  top: 162px;
+  width: 780px;
+  height: 780px;
+  margin: -390px 0 0 -390px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--rc) 55%, transparent) 0deg 5deg, transparent 5deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, #000 8%, rgba(0, 0, 0, 0.5) 35%, transparent 68%);
+  mask-image: radial-gradient(circle, #000 8%, rgba(0, 0, 0, 0.5) 35%, transparent 68%);
+  mix-blend-mode: screen;
+  opacity: 0;
   pointer-events: none;
   z-index: 1;
 }
 .chest-beam {
   position: absolute;
   left: 50%;
-  bottom: 80px;
-  width: 150px;
-  height: 440px;
-  margin-left: -75px;
+  bottom: 104px;
+  width: 160px;
+  height: 460px;
+  margin-left: -80px;
   transform-origin: 50% 100%;
-  background: linear-gradient(to top, color-mix(in srgb, var(--rc) 80%, white), color-mix(in srgb, var(--rc) 40%, transparent) 45%, transparent);
+  background: linear-gradient(to top, color-mix(in srgb, var(--rc) 75%, white), color-mix(in srgb, var(--rc) 40%, transparent) 45%, transparent);
   clip-path: polygon(32% 100%, 68% 100%, 100% 0, 0 0);
   filter: blur(5px);
   mix-blend-mode: screen;
+  opacity: 0;
   pointer-events: none;
   z-index: 2;
+}
+/* Haces finos que salen por la rendija mientras el cofre se carga. */
+.chest-leak {
+  position: absolute;
+  left: 50%;
+  top: 58px;
+  width: 8px;
+  height: 120px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background: linear-gradient(to top, #fff, color-mix(in srgb, var(--rc) 70%, white) 30%, color-mix(in srgb, var(--rc) 60%, transparent) 70%, transparent);
+  filter: blur(1px) drop-shadow(0 0 6px var(--rc)) drop-shadow(0 0 14px var(--rc));
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
 }
 .chest-flash {
   position: absolute;
   left: 50%;
-  bottom: 30px;
+  top: 162px;
   width: 260px;
   height: 260px;
-  margin-left: -130px;
+  margin: -130px 0 0 -130px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 250, 235, 0.95), color-mix(in srgb, var(--rc) 70%, transparent) 35%, transparent 68%);
+  opacity: 0;
   pointer-events: none;
   z-index: 4;
 }
 .chest-ring {
   position: absolute;
   left: 50%;
-  bottom: 50px;
+  top: 162px;
   width: 170px;
   height: 170px;
-  margin-left: -85px;
+  margin: -85px 0 0 -85px;
   border-radius: 50%;
-  border: 2px solid var(--rc);
-  box-shadow: 0 0 16px var(--rc), inset 0 0 16px var(--rc);
-  pointer-events: none;
-  z-index: 4;
-}
-/* Destello a pantalla completa (mítico y legendario). */
-.chest-screenflash {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 220vw;
-  height: 220vh;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--rc) 65%, white), color-mix(in srgb, var(--rc) 25%, transparent) 35%, transparent 60%);
-  mix-blend-mode: screen;
+  border: 3px solid var(--rc);
+  box-shadow: 0 0 18px var(--rc), inset 0 0 18px var(--rc);
   opacity: 0;
   pointer-events: none;
-  z-index: 7;
+  z-index: 4;
 }
 .chest-hint {
   position: absolute;
@@ -708,12 +791,12 @@
 }
 .chest-items {
   position: absolute;
-  left: -80px;
-  right: -80px;
+  left: -90px;
+  right: -90px;
   top: 12px;
   display: flex;
   justify-content: center;
-  gap: 24px;
+  gap: 26px;
   perspective: 800px;
   z-index: 5;
 }
@@ -725,6 +808,7 @@
 .chest-item .itile-name {
   font-size: 11px;
   color: var(--rc);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.8);
 }
 .chest-item .iart-mono {
   font-size: 34px;
@@ -733,22 +817,48 @@
   position: absolute;
   left: 50%;
   top: 46px;
-  width: 160px;
-  height: 160px;
-  margin: -80px 0 0 -80px;
+  width: 170px;
+  height: 170px;
+  margin: -85px 0 0 -85px;
   border-radius: 50%;
   background: radial-gradient(circle, color-mix(in srgb, var(--rc) 90%, white), transparent 65%);
   opacity: 0;
   pointer-events: none;
+}
+.chest-item-ring {
+  position: absolute;
+  left: 50%;
+  top: 46px;
+  width: 110px;
+  height: 110px;
+  margin: -55px 0 0 -55px;
+  border-radius: 50%;
+  border: 2px solid var(--rc);
+  box-shadow: 0 0 14px var(--rc);
+  opacity: 0;
+  pointer-events: none;
+}
+/* Fogonazo blanco sobre el cromo en el momento del impacto. */
+.chest-item-flash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 92px;
+  height: 92px;
+  border-radius: 4px 4px 16px 4px;
+  background: radial-gradient(circle, #fff 20%, color-mix(in srgb, var(--rc) 50%, white) 60%, transparent 85%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
 }
 /* Rayos que giran detrás de los objetos épicos o mejores. */
 .chest-rays {
   position: absolute;
   left: 50%;
   top: 46px;
-  width: 220px;
-  height: 220px;
-  margin: -110px 0 0 -110px;
+  width: 230px;
+  height: 230px;
+  margin: -115px 0 0 -115px;
   border-radius: 50%;
   background: repeating-conic-gradient(color-mix(in srgb, var(--rc) 65%, transparent) 0deg 7deg, transparent 7deg 20deg);
   -webkit-mask-image: radial-gradient(circle, #000 15%, transparent 68%);
@@ -756,6 +866,93 @@
   opacity: 0;
   pointer-events: none;
   z-index: -1;
+}
+/* Reflejo que recorre los cromos raros o mejores. */
+.chest-item:is(.is-rare, .is-epic, .is-mythic, .is-legendary) .iart::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.55) 50%, transparent 62%);
+  transform: translateX(-130%);
+  animation: item-sheen 2.6s ease-in-out 1.2s infinite;
+  pointer-events: none;
+}
+@keyframes item-sheen {
+  0% {
+    transform: translateX(-130%);
+  }
+  45%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+/* Capa a pantalla completa (portal en <body>): destello, lluvia de monedas y rótulo. */
+.chest-screen {
+  --cx: 50%;
+  --cy: 60%;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+.chest-screenflash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--cx) var(--cy),
+    rgba(255, 252, 240, 0.95),
+    color-mix(in srgb, var(--rc) 60%, transparent) 25%,
+    color-mix(in srgb, var(--rc) 22%, transparent) 50%,
+    transparent 80%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+.chest-screen-fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.chest-banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 24%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+}
+.chest-banner-stars {
+  font-size: 18px;
+  letter-spacing: 6px;
+  color: var(--star);
+  filter: drop-shadow(0 0 8px var(--rc));
+}
+.chest-banner-text {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 78px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  background: linear-gradient(100deg, var(--rc) 30%, #fff 48%, var(--rc) 66%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px var(--rc)) drop-shadow(0 0 42px var(--rc));
+  animation: banner-shine 1.6s linear infinite;
+}
+@keyframes banner-shine {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -130% 0;
+  }
 }
 
 /* ───────────── Almanaque: libro abierto ───────────── */

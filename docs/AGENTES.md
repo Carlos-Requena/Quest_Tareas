@@ -64,7 +64,7 @@ src/
     music/             Música de fondo (servicio local, sin eventos)
     items/             Objetos con rareza: almanaque, inventario, drops con pity (eventos item_*)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
-  lib/               sfx (Web Audio + silencio general), useMuted, id/PRNG, time (useNow, formatRemaining)
+  lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), useMuted, id/PRNG, time (useNow, formatRemaining)
   styles/            theme.css (tokens), app.css (componentes)
 public/music/        Pistas de música (Vite las copia a dist/music/)
 src-tauri/           Rust: lib.rs (plugin SQL), tauri.conf.json, capabilities/default.json
@@ -152,6 +152,7 @@ src/features/<nombre>/
 - **Colores:** usa siempre los tokens de `theme.css` (`--gold`, `--elite`, `--repeat`, `--request`, `--stamp`, las rarezas `--r-common` … `--r-legendary`…), sin colores sueltos.
 - **Fuentes:** importa solo subconjuntos latinos (`@fontsource/<fuente>/latin-<peso>.css`). Los subconjuntos japoneses sumaban **26 MB**; el japonés usa el mincho del sistema.
 - **Sonido:** los efectos van en `lib/sfx.ts` y respetan `isMuted()`. El botón ♪ de la cabecera es el **silencio general** (efectos y música).
+- **Celebraciones:** partículas y sacudidas, siempre con `lib/fx.ts`, que ya respeta «reducir movimiento». Las sacudidas mueven el contenido (`.cl-stage`), nunca una capa `position: fixed`.
 
 ---
 
@@ -177,7 +178,8 @@ src/features/<nombre>/
 
 - **Recarga en caliente de Vite:** un módulo editado se sirve como `archivo.ts?t=…`. Importar `/src/store/game.ts` a mano puede dar **otra instancia** del store. Recarga la página antes de inspeccionar estado.
 - **Recargas que fallan a medias** al crear varios archivos seguidos: pueden dejar módulos viejos vivos. Recarga entera (⌘R) antes de concluir nada.
-- **Pestaña en segundo plano** (`document.hidden`): `requestAnimationFrame` se frena y las animaciones de GSAP no avanzan. No es un fallo de la app.
+- **Pestaña en segundo plano** (`document.hidden`): `requestAnimationFrame` se frena y las animaciones de GSAP no avanzan. No es un fallo de la app. Para capturar fotogramas, pausa `gsap.globalTimeline` y avánzalo a mano (ver «Trampas del entorno» en [COMO-FUNCIONA.md](COMO-FUNCIONA.md)).
+- **`gsap.set` y variables CSS con `var(...)`:** no las aplica. Usa `el.style.setProperty("--x", "var(--y)")`.
 - **Ventana emulada en el panel del navegador:** los clics por coordenadas pueden caer fuera. Comprueba con un registro de eventos antes de dar un botón por roto.
 
 ---
@@ -191,6 +193,17 @@ src/features/<nombre>/
 | El modelo de datos, eventos o arquitectura | El [informe técnico](https://claude.ai/code/artifact/1cb3618f-d1e6-483e-a198-a1998279827b) (diagrama de clases), su copia [INFORME-TECNICO.md](INFORME-TECNICO.md) y `docs/img/` si cambian los diagramas |
 | Una decisión de arquitectura | Añade una fila ADR (decisión, alternativas descartadas, motivo, consecuencia) |
 | Comandos, estructura o atajos | [README.md](../README.md) y esta guía |
+
+### Norma: el diagrama de clases se redibuja siempre
+
+Si cambias cualquier tipo de `domain/types.ts`, un `model.ts` de una funcionalidad, `GameState`, `PlayerState` o la unión de eventos, **redibuja el diagrama de clases en la misma tarea**. Una nota del tipo «el diagrama aún no incluye X» no vale: los agentes leen el diagrama para entender el modelo y uno desfasado induce a error.
+
+1. El diagrama es un widget del informe técnico publicado: documento `1cb3618f-d1e6-483e-a198-a1998279827b`, nodo `894ac162-3228`. Léelo con las herramientas de Docs (antes, la guía `topic.diagram`).
+2. Cambia solo lo necesario con `draft-edit`, conservando los `data-claude-text-id` de las etiquetas, porque los comentarios cuelgan de ellos. Haz una captura (`screenshot`) para revisar que nada se cruce ni se corte, y después `publish`.
+3. Copia esa captura a `docs/img/diagrama-clases.png`.
+4. Actualiza el texto que acompaña al diagrama, tanto en el informe publicado como en su copia [INFORME-TECNICO.md](INFORME-TECNICO.md).
+
+Lo mismo vale para los otros diagramas (arquitectura, ciclo de vida, hoja de ruta) cuando cambie lo que muestran.
 
 ---
 
@@ -224,5 +237,25 @@ Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, 
 - [ ] Los textos están en `es.ts` y `ja.ts`.
 - [ ] Los assets están en `public/`.
 - [ ] `tsc` y `build` pasan, se ha probado en ejecución y se ha dicho qué no se probó.
-- [ ] Documentación actualizada (sección 10).
+- [ ] Documentación actualizada (sección 10), con el diagrama de clases redibujado si cambió el modelo.
+- [ ] El trabajo está en su rama `feature/<nombre>` y se une a `main` solo cuando todo lo anterior está hecho (sección 14).
 - [ ] Servidores de pruebas parados y viewport del navegador restaurado.
+
+---
+
+## 14. Norma: una rama por funcionalidad
+
+**No se trabaja directamente en `main`.** Cada funcionalidad o arreglo va en su propia rama y se une a `main` al terminar.
+
+1. **Antes de empezar**, parte de `main` actualizada:
+   ```bash
+   git switch main && git pull
+   git switch -c feature/<nombre>     # fix/<nombre> para arreglos, docs/<nombre> para documentación
+   ```
+   Usa el mismo `<nombre>` que la carpeta `src/features/<nombre>/` cuando la haya.
+2. **Durante el trabajo**, haz commits pequeños con mensajes en español que digan qué cambia y por qué.
+3. **Para unir a `main`**, completa antes el checklist de la sección 13: `tsc`, `build`, prueba en ejecución y documentación, con el diagrama de clases incluido. Si hay remoto, abre un pull request contra `main`; si no, haz `git switch main && git merge --no-ff feature/<nombre>`. Luego borra la rama.
+4. **Commits, push y merge** solo con el visto bueno del propietario. Pídelo al terminar e indica qué se verificó.
+
+Si al empezar una tarea hay cambios sin commit en `main`, avisa al propietario y propón moverlos a su rama antes de seguir.
+

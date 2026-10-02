@@ -2,7 +2,7 @@
 
 > **Copia del informe técnico a fecha de 2026-10-01.** El original vive como documento colaborativo en Claude: [Quests — Informe técnico de arquitectura](https://claude.ai/code/artifact/1cb3618f-d1e6-483e-a198-a1998279827b). Los diagramas de esta copia son capturas de ese documento (`docs/img/`).
 >
-> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`) y los objetos con rareza y drops (`src/features/items/`). El diagrama de clases (imagen) incluye el pomodoro y la música, pero **todavía no los objetos**: su diagrama está en [src/features/items/README.md](../src/features/items/README.md). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
+> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`) y los objetos con rareza y drops (`src/features/items/`). El diagrama de clases (imagen, redibujado el 2026-10-02) ya incluye el pomodoro, la música y los objetos (`ItemDef`, `Rarity`, `Drop`, `Pity`, `DropTable`). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
 
 ---
 
@@ -79,6 +79,8 @@ El modelo separa la definición inmutable de una quest (`QuestDef`) de su estado
 Son tipos de TypeScript, no clases con métodos: la lógica vive en funciones puras (`project`, `effectiveStatus`, `conditionsMet`), lo que facilita testearla. `quest_created` transporta un `QuestDef` completo y `quest_completed` una copia de `RewardDef`.
 
 Una condición es de dos tipos: **contador** (`target` = cantidad, avanza con +1) o **pomodoro** (`target` = rondas, avanza con el tiempo). Cada ronda de pomodoro es concentración más descanso, salvo la última, que no tiene descanso porque la tarea ya ha terminado. Cada condición de pomodoro tiene su `Pomodoro` en `QuestState.pomodoros` (1 : 1); su estado guarda solo el avance en una línea de tiempo, así que sobrevive a cerrar la app. Los datos de la versión anterior, cuando el pomodoro era un objeto único de la quest, se convierten al leerlos (`legacy.ts`): es el primer caso real de versionado de eventos. La música (`MusicPlayer`) es la excepción deliberada: una preferencia de cada equipo, sin eventos ni sincronización, y por eso sí es una clase.
+
+**Objetos.** `ItemDef` vive en el almanaque (`GameState.items`) y tiene nombre, rareza, tipo, descripción, imagen reducida y si sale en drops. `PlayerState` suma `inventory`, `discovered` y `pity`, todo calculado a partir de los eventos. `RewardDef.itemId` sustituye al antiguo texto `item`, que se convierte al leerlo (`features/items/legacy.ts`). Cada `Drop` de `quest_completed` copia su rareza, y `DropTable` define las probabilidades por rareza y las tiradas.
 
 ## Modelo de eventos y persistencia
 
@@ -200,7 +202,7 @@ Cinco puntos son de prioridad alta y conviene cerrarlos antes de empezar la sinc
 | Media | Content Security Policy desactivada (`csp: null`) | Superficie de ataque si se carga contenido externo | CSP estricta en `tauri.conf.json` |
 | Media | Windows sin probar | Diferencias de WebView2 frente a WKWebView en fuentes y animaciones | Build y prueba en CI |
 | Media | App sin firma ni notarización, icono por defecto | Avisos de Gatekeeper y SmartScreen al instalar | Certificados de Apple y Windows; icono propio |
-| Media | No respeta `prefers-reduced-motion` | Accesibilidad: animaciones intensas sin opción de reducirlas | Versión reducida de cada animación |
+| Media | No respeta `prefers-reduced-motion` (parcial: las partículas y sacudidas de `src/lib/fx.ts`, que usa el cofre del botín, sí lo respetan) | Accesibilidad: animaciones intensas sin opción de reducirlas | Versión reducida de cada animación; extender `calm()` al resto |
 | Baja | El límite [0, objetivo] del progreso depende del orden | Resultados distintos en casos raros de fusión | Aceptable; documentado |
 | Baja | Resuelto: los textos estaban fijos en español | Ninguno ya | Hecho: i18next con español y japonés en `src/i18n/`, diccionarios tipados |
 | Baja | No se pueden editar quests, solo crear y retirar | Fricción de uso | Evento `quest_updated` |

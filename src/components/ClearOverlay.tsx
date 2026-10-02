@@ -7,7 +7,7 @@ import { seededRandom } from "../lib/id";
 import { sfx } from "../lib/sfx";
 import { num } from "../i18n";
 import { GoldIcon } from "./Header";
-import { burst, centerIn } from "../lib/particles";
+import { burst, centerIn } from "../lib/fx";
 import { LootChest, chestContents, type ChestHandle } from "../features/items";
 
 const COLS = 4;

@@ -65,7 +65,7 @@ Así, fusionar datos de varios dispositivos consiste solo en unir eventos por `i
 | Progreso | Barra con muelle y sonido de *tick* |
 | Reportar | La tarjeta se rompe en pedazos → «QUEST CLEAR» → contadores de XP/oro → barra de nivel |
 | Subir de nivel | «LEVEL UP!» con destello y sonido de arpegio |
-| Botín | Cada objeto gira y brilla con el color de su rareza; más notas cuanto más raro |
+| Botín | Un cofre que se abre con un clic: se carga de luz (su color sube de rareza), estalla con monedas y rayos y la interfaz vibra; cada objeto aterriza con un golpe proporcional a su rareza y los mejores traen fanfarria y rótulo |
 
 ## Objetos
 

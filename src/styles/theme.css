@@ -37,6 +37,8 @@
   --paper: #241d15;
   --paper-lo: #18130d;
   --paper-edge: #e8dcc0;
+  /* Estrellas de rareza */
+  --star: #ffe9a8;
 
   --f-display: "Cormorant Garamond", "Times New Roman", serif;
   --f-tag: "Cinzel", "Cormorant Garamond", serif;
