@@ -5,6 +5,7 @@ import { useTemporalUi } from "../features/temporal";
 import { BagIcon } from "../features/items";
 import { LanternIcon, openMerchant } from "../features/merchant";
 import { HelmetIcon, openCharacter } from "../features/equipment";
+import { DiaryIcon, openChronicle } from "../features/chronicle";
 
 function Key({ k, label }: { k: string; label: string }) {
   return (
@@ -31,6 +32,7 @@ function Windows() {
       {win("I", t("items.open"), <BagIcon />, () => setCollection("inventory"))}
       {win("C", t("merchant.open"), <LanternIcon />, () => openMerchant())}
       {win("P", t("equipment.open"), <HelmetIcon />, () => openCharacter())}
+      {win("J", t("chronicle.open"), <DiaryIcon />, () => openChronicle())}
     </>
   );
 }

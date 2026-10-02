@@ -1,5 +1,6 @@
 // Textos de los atributos. Se montan bajo la clave `attributes` en src/i18n/locales/{es,ja}.ts.
-// Los nombres de los atributos son las áreas que escribe el usuario: no se traducen.
+// Los nombres de los atributos son las áreas que escribe el usuario: no se traducen,
+// salvo las áreas conocidas (KNOWN_AREAS en model.ts), que tienen nombre en `areas`.
 
 export const attributesEs = {
   title: "Atributos",
@@ -13,6 +14,25 @@ export const attributesEs = {
   quests_other: "{{count}} quests",
   xp: "{{xp}} XP",
   next: "{{xp}} XP para el nivel {{n}}",
+  areas: {
+    health: "Salud",
+    exercise: "Ejercicio",
+    study: "Estudio",
+    reading: "Lectura",
+    home: "Hogar",
+    admin: "Administración",
+    work: "Trabajo",
+    finance: "Finanzas",
+    social: "Vida social",
+    family: "Familia",
+    creativity: "Creatividad",
+    music: "Música",
+    languages: "Idiomas",
+    programming: "Programación",
+    cooking: "Cocina",
+    mind: "Mente",
+    hobbies: "Ocio",
+  },
 };
 
 export const attributesJa: typeof attributesEs = {
@@ -27,4 +47,23 @@ export const attributesJa: typeof attributesEs = {
   quests_other: "クエスト {{count}} 件",
   xp: "{{xp}} XP",
   next: "レベル {{n}} まで {{xp}} XP",
+  areas: {
+    health: "健康",
+    exercise: "運動",
+    study: "勉強",
+    reading: "読書",
+    home: "家事",
+    admin: "事務",
+    work: "仕事",
+    finance: "家計",
+    social: "交流",
+    family: "家族",
+    creativity: "創作",
+    music: "音楽",
+    languages: "語学",
+    programming: "プログラミング",
+    cooking: "料理",
+    mind: "心",
+    hobbies: "趣味",
+  },
 };

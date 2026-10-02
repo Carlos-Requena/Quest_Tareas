@@ -43,7 +43,7 @@ La cabecera de la ventana muestra el **prestigio**: la suma de estrellas de rare
 
 ### Decoración del menú
 
-- **Fondo** (`Backdrop`, en lugar del `<div className="backdrop">` de `App`): la imagen grande del almacén de binarios, a pantalla completa y oscurecida para que el tablón se siga leyendo. Mientras carga, o si este equipo no tiene el archivo (en la fase 2 la referencia puede llegar antes), usa el icono difuminado.
+- **Fondo** (`Backdrop`, en lugar del `<div className="backdrop">` de `App`): la imagen grande del almacén de binarios (o, en los fondos de serie, su escena en SVG: `builtinArt` de features/armory), a pantalla completa y oscurecida para que el tablón se siga leyendo. Mientras carga, o si este equipo no tiene el archivo (en la fase 2 la referencia puede llegar antes), usa el icono difuminado.
 - **Emblema** (`DecorEmblem`, en lugar de `<Emblem />` en la cabecera): la imagen recortada en rombo dentro del marco dorado, con el filo del color de su rareza.
 
 ### Estado de interfaz propio
@@ -126,7 +126,7 @@ Son eventos nuevos, sin datos antiguos que convertir. `PROJECTION_VERSION` pasa 
 |---|---|
 | `domain/types.ts` | `PlayerState.equipped` |
 | `domain/events.ts` | `EquipmentEventBody` en la unión |
-| `domain/projection.ts` | `ProjectionAcc.equipment`; `case` de sus dos eventos y `pruneEquipment` tras editar o retirar una pieza |
+| `domain/projection.ts` | `ProjectionAcc.equipment`; `case` de sus dos eventos y `pruneEquipment` tras editar o retirar una pieza. Las piezas se buscan con `gearOf` (también las de serie) |
 | `i18n/locales/{es,ja}.ts` | Montan `equipment` |
 | `styles/theme.css` | Tokens del muñeco: `--doll-skin`, `--doll-skin-lo`, `--doll-cloth`, `--doll-cloth-lo` y `--doll-hair` |
 | `components/Header.tsx` | `DecorEmblem` alrededor del emblema y el botón del yelmo junto al nivel |

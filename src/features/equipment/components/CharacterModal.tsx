@@ -12,6 +12,7 @@ import { equipGear, unequipSlot } from "../actions";
 import { prestige, wornIn } from "../model";
 import { useCharacterUi } from "../ui";
 import { Doll } from "./Doll";
+import { gearDescription, gearName } from "../../armory/labels";
 import "../equipment.css";
 
 const LEFT: ArmorSlot[] = ["head", "body", "hands", "feet"];
@@ -188,14 +189,14 @@ function SlotFrame({ slot, gear, on, right, wide, onPick, onHover }: SlotProps) 
       onClick={onPick}
       onMouseEnter={() => onHover(slot)}
       onMouseLeave={() => onHover(undefined)}
-      title={gear?.name ?? t(`merchant.slot.${slot}`)}
+      title={gear ? gearName(gear, t) : t(`merchant.slot.${slot}`)}
     >
       <span className="cslot-frame">
         {gear ? <GearArt gear={gear} stars={false} /> : <SlotGlyph slot={slot} className="cslot-glyph" />}
       </span>
       <span className="cslot-txt">
         <span className="cslot-lbl">{t(`merchant.slot.${slot}`)}</span>
-        <span className="cslot-name">{gear ? gear.name : t("equipment.empty")}</span>
+        <span className="cslot-name">{gear ? gearName(gear, t) : t("equipment.empty")}</span>
         {gear && <span className="cslot-stars">{"★".repeat(starsOf(gear))}</span>}
       </span>
     </button>
@@ -246,10 +247,10 @@ function Wardrobe({ slot, onBack }: { slot: GearSlot; onBack(): void }) {
                 <GearArt gear={g} className="wrow-art" />
                 <span className="wrow-main">
                   <span className="wrow-name">
-                    {g.name}
+                    {gearName(g, t)}
                     {worn && <span className="wrow-worn">{t("equipment.wardrobe.worn")}</span>}
                   </span>
-                  {g.description && <span className="wrow-desc muted">{g.description}</span>}
+                  {g.description && <span className="wrow-desc muted">{gearDescription(g, t)}</span>}
                 </span>
                 {worn ? (
                   <button className="wrow-btn is-off" onClick={() => unequipSlot(slot)}>

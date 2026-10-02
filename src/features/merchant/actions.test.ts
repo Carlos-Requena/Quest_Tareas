@@ -6,7 +6,7 @@ import { compareEvents, type GameEvent } from "../../domain/events";
 import { project } from "../../domain/projection";
 import { canonical } from "../snapshot/model";
 import { gearDef, questDef } from "../../test/streams";
-import { PRICES, SHOWCASE_SIZE, type GearDef } from "./model";
+import { PRICES, SHOWCASE_SIZE, priceOf, type GearDef } from "./model";
 
 vi.mock("../../lib/sfx", async () => (await import("../../test/sfxMock")).sfxMock());
 
@@ -51,13 +51,15 @@ afterEach(() => {
 describe("comprar al mercader", () => {
   it("con oro y rango, compra al precio de Hu Tao y lo copia en el evento", async () => {
     const b = await boot();
-    await earn(b, 2000, PRICES.rare + 50);
+    const price = priceOf({ slot: "weapon", rarity: "rare" });
+    expect(price).toBe(12_000);
+    await earn(b, 2000, price + 50);
     await addGear(b, "espada", { slot: "weapon", rarity: "rare" });
     expect(await b.merchant.buyGear("espada")).toBe("ok");
     const e = lastEvent();
-    expect(e).toMatchObject({ type: "gear_purchased", gearId: "espada", price: PRICES.rare });
+    expect(e).toMatchObject({ type: "gear_purchased", gearId: "espada", price });
     expect(b.g().state.player.gold).toBe(50);
-    expect(b.g().state.player.owned.espada?.price).toBe(PRICES.rare);
+    expect(b.g().state.player.owned.espada?.price).toBe(price);
     consistent(b);
   });
 
@@ -134,7 +136,7 @@ describe("crear, editar y retirar mercancía", () => {
     await b.merchant.deleteGear("casco");
     expect(b.g().state.player.equipped).toEqual({});
     expect(b.g().state.player.owned).toEqual({});
-    expect(b.g().state.player.gold).toBe(5000 - PRICES.common);
+    expect(b.g().state.player.gold).toBe(5000 - priceOf({ slot: "head", rarity: "common" }));
     consistent(b);
   });
 });

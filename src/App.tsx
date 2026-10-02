@@ -23,6 +23,7 @@ import { HorizonFilter, countHorizons, cycleHorizon, matchesHorizon, questDue, u
 import { blockers } from "./features/complex";
 import { MerchantModal, merchantBusy, openMerchant } from "./features/merchant";
 import { Backdrop, CharacterModal, characterBusy, openCharacter } from "./features/equipment";
+import { ChronicleModal, chronicleBusy, openChronicle } from "./features/chronicle";
 
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
@@ -65,7 +66,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useGame.getState();
-      if (s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || e.metaKey || e.ctrlKey) return;
+      if (s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || e.metaKey || e.ctrlKey) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       // Teclas comunes a los dos tablones.
@@ -74,6 +75,7 @@ export default function App() {
         i: () => (sfx.move(), s.setCollection("inventory")),
         c: () => (sfx.move(), openMerchant()),
         p: () => (sfx.move(), openCharacter()),
+        j: () => (sfx.move(), openChronicle()),
         l: () => (sfx.move(), toggleLang()),
         m: () => music.toggle(),
         h: () => (sfx.move(), cycleHorizon(s.section, 1)),
@@ -177,6 +179,7 @@ export default function App() {
       <CollectionModal />
       <MerchantModal />
       <CharacterModal />
+      <ChronicleModal />
       <PomodoroWatcher />
       <TemporalOverlays />
     </div>

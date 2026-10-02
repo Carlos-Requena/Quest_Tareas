@@ -94,7 +94,8 @@ export function decodeSnapshot(text: string | null | undefined): Snapshot | unde
       typeof s.upTo?.id === "string" &&
       s.acc?.quests instanceof Map &&
       s.acc.items?.catalog instanceof Map &&
-      s.acc.temporals?.board instanceof Map;
+      s.acc.temporals?.board instanceof Map &&
+      Array.isArray(s.acc.chronicle?.entries);
     return ok ? s : undefined;
   } catch {
     return;

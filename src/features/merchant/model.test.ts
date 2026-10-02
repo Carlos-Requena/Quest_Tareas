@@ -11,6 +11,8 @@ import {
   nextShowing,
   nextWeekStart,
   PRICES,
+  priceOf,
+  SLOT_PRICE_FACTOR,
   rankRequired,
   SHOWCASE_SIZE,
   showcase,
@@ -28,6 +30,20 @@ const catalog = (n: number, extra: Partial<GearDef> = {}) =>
   Array.from({ length: n }, (_, i) => gearDef(`g${String(i).padStart(2, "0")}`, { createdAt: OLD, ...extra }));
 
 describe("precios y requisitos", () => {
+  it("el recargo por ranura nunca abarata y redondea a precio de tienda", () => {
+    for (const f of Object.values(SLOT_PRICE_FACTOR)) expect(f).toBeGreaterThanOrEqual(1);
+    expect(priceOf({ slot: "hands", rarity: "common" })).toBe(PRICES.common);
+    expect(priceOf({ slot: "head", rarity: "common" })).toBe(1_300);
+    expect(priceOf({ slot: "weapon", rarity: "legendary" })).toBe(150_000);
+    expect(priceOf({ slot: "backdrop", rarity: "legendary" })).toBe(160_000);
+    expect(priceOf({ slot: "amulet", rarity: "mythic" })).toBe(59_000);
+    for (const r of RARITIES)
+      for (const slot of Object.keys(SLOT_PRICE_FACTOR) as (keyof typeof SLOT_PRICE_FACTOR)[]) {
+        const p = priceOf({ slot, rarity: r });
+        expect(p % (p < 10_000 ? 100 : 1000)).toBe(0);
+      }
+  });
+
   it("cuanto más rara, más cara y con más rango", () => {
     for (let i = 1; i < RARITIES.length; i++) {
       expect(PRICES[RARITIES[i]]).toBeGreaterThan(PRICES[RARITIES[i - 1]]);
@@ -130,7 +146,7 @@ describe("escaparate", () => {
 
 describe("comprar", () => {
   const g = gearDef("yelmo", { rarity: "rare" });
-  const rich = { level: 5, gold: PRICES.rare, owned: {} };
+  const rich = { level: 5, gold: priceOf(g), owned: {} };
 
   it("se puede con el escaparate, el rango y el oro justos", () => {
     expect(buyBlocker(g, rich, true)).toBeUndefined();
@@ -141,7 +157,7 @@ describe("comprar", () => {
     expect(buyBlocker(g, { ...rich, owned: { yelmo: { at: 0, price: 1 } } }, false)).toBe("owned");
     expect(buyBlocker(g, { ...rich, level: 1, gold: 0 }, false)).toBe("away");
     expect(buyBlocker(g, { ...rich, level: 4, gold: 0 }, true)).toBe("rank");
-    expect(buyBlocker(g, { ...rich, gold: PRICES.rare - 1 }, true)).toBe("gold");
+    expect(buyBlocker(g, { ...rich, gold: priceOf(g) - 1 }, true)).toBe("gold");
   });
 });
 

@@ -88,9 +88,15 @@ Seis rarezas con su color: común (gris), poco común (verde), raro (azul), épi
 
 ## Mercader, personaje y atributos
 
-- **Mercader** (tecla `C` o el farol de la cabecera): **Hu Tao** vende equipo para el personaje y decoración del menú. Comprar cuesta: el precio lo pone ella según la rareza (de 1.200 G a 100.000 G), lo bueno pide rango (de F a A) y cada semana solo saca 5 piezas a su escaparate, más las recién añadidas. Las piezas se añaden a mano desde la tienda, sin precio. Detalles: [src/features/merchant/README.md](src/features/merchant/README.md).
+- **Mercader** (tecla `C` o el farol de la cabecera): **Hu Tao** vende equipo para el personaje y decoración del menú. Comprar cuesta: el precio lo pone ella según la rareza y la ranura (de 1.200 G a 160.000 G), lo bueno pide rango (de F a A) y cada semana solo saca 5 piezas a su escaparate, más las recién añadidas. Trae **69 piezas de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos ([src/features/armory/README.md](src/features/armory/README.md)), y se pueden añadir más a mano desde la tienda, sin precio. Detalles: [src/features/merchant/README.md](src/features/merchant/README.md).
 - **Personaje** (tecla `P` o el yelmo de la cabecera): un muñeco que se pone lo que compras (cabeza, cuerpo, manos, pies, arma, escudo, capa y amuleto) y dos ranuras de decoración: el **fondo** de la app y el **emblema** de la cabecera. Detalles: [src/features/equipment/README.md](src/features/equipment/README.md).
-- **Atributos**: cada área de las quests (Salud, Estudio…) sube de nivel con su XP, y se ven en un radar junto al muñeco. Detalles: [src/features/attributes/README.md](src/features/attributes/README.md).
+- **Atributos**: cada área de las quests (Salud, Estudio…) sube de nivel con su XP, y se ven en un radar junto al muñeco. Las áreas habituales se traducen («Salud» y «健康» son la misma). Detalles: [src/features/attributes/README.md](src/features/attributes/README.md).
+
+## Rachas, listas y crónica
+
+- **Rachas**: las quests que se repiten cuentan las veces seguidas que las completas a tiempo, con una llama en la tarjeta. Detalles: [src/features/streaks/README.md](src/features/streaks/README.md).
+- **Objetivo de tipo lista**: casillas que se marcan una a una («Hacer la maleta: pasaporte, cargador…»). Detalles: [src/features/checklist/README.md](src/features/checklist/README.md).
+- **Crónica del aventurero** (tecla `J` o el libro de la cabecera): un diario gastado con lo que has hecho, día a día, con tus subidas de nivel y de atributo. Detalles: [src/features/chronicle/README.md](src/features/chronicle/README.md).
 
 ## Encargos temporales
 
@@ -109,7 +115,7 @@ Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en la c
 
 ## Atajos
 
-`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` nueva quest · `T` tablón de encargos temporales · `I` objetos · `C` mercader · `P` personaje · `L` idioma · `M` música
+`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` nueva quest · `T` tablón de encargos temporales · `I` objetos · `C` mercader · `P` personaje · `J` crónica · `L` idioma · `M` música
 
 En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `H` plazo · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` cumplir · `E` editar · `Esc` cerrar.
 
@@ -122,11 +128,12 @@ En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · 
 - [x] Objetos con rareza, inventario, almanaque y drops (`src/features/items/`)
 - [x] Encargos temporales con calaveras, adjuntos PDF/imagen y recordatorios (`src/features/temporal/`)
 - [x] Quests complejas: repetición y requisitos (`src/features/complex/`); plazos (`src/features/horizon/`); encargos enlazados con quests
-- [x] Snapshot de la proyección (`src/features/snapshot/`) y tests con Vitest del dominio y el store (278)
+- [x] Snapshot de la proyección (`src/features/snapshot/`) y tests con Vitest del dominio y el store (302)
 - [x] Mercader con Hu Tao (`src/features/merchant/`), personaje con su equipo (`src/features/equipment/`) y atributos por área (`src/features/attributes/`)
+- [x] Equipo de serie (`src/features/armory/`), rachas (`src/features/streaks/`), objetivo de tipo lista (`src/features/checklist/`) y crónica del aventurero (`src/features/chronicle/`)
 - [ ] **Fase 2:** sincronización con Google Drive
   - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`
   - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`
   - Descargar los ficheros de los demás → `EventStore.merge()` → reproyectar
   - Publicar la app de Google Cloud en modo *In production* (en *Testing* el token caduca cada 7 días)
-- [ ] Logros, estadísticas, quests diarias automáticas, icono propio
+- [ ] Logros, estadísticas, editar quests, consecuencias, icono propio

@@ -8,6 +8,10 @@ import { horizonEs } from "../../features/horizon/i18n";
 import { merchantEs } from "../../features/merchant/i18n";
 import { equipmentEs } from "../../features/equipment/i18n";
 import { attributesEs } from "../../features/attributes/i18n";
+import { armoryEs } from "../../features/armory/i18n";
+import { checklistEs } from "../../features/checklist/i18n";
+import { streaksEs } from "../../features/streaks/i18n";
+import { chronicleEs } from "../../features/chronicle/i18n";
 
 export const es = {
   app: {
@@ -142,6 +146,10 @@ export const es = {
   merchant: merchantEs,
   equipment: equipmentEs,
   attributes: attributesEs,
+  armory: armoryEs,
+  checklist: checklistEs,
+  streaks: streaksEs,
+  chronicle: chronicleEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {

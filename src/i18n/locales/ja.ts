@@ -8,6 +8,10 @@ import { horizonJa } from "../../features/horizon/i18n";
 import { merchantJa } from "../../features/merchant/i18n";
 import { equipmentJa } from "../../features/equipment/i18n";
 import { attributesJa } from "../../features/attributes/i18n";
+import { armoryJa } from "../../features/armory/i18n";
+import { checklistJa } from "../../features/checklist/i18n";
+import { streaksJa } from "../../features/streaks/i18n";
+import { chronicleJa } from "../../features/chronicle/i18n";
 
 // Mismo esquema que es.ts: TypeScript avisa si falta o sobra alguna clave.
 // En japonés no hay plural; las formas _one existen solo para cumplir el tipo.
@@ -143,6 +147,10 @@ export const ja: Translation = {
   merchant: merchantJa,
   equipment: equipmentJa,
   attributes: attributesJa,
+  armory: armoryJa,
+  checklist: checklistJa,
+  streaks: streaksJa,
+  chronicle: chronicleJa,
   seed: {
     dragon: {
       title: "書類ドラゴンの討伐",

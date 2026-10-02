@@ -13,7 +13,7 @@ Sigue la convención del proyecto: **una carpeta por implementación** (`src/fea
 | # | Requisito (del propietario) | Cómo se cumple |
 |---|---|---|
 | R1 | La mercader es Hu Tao, con el vídeo de su modelo moviéndose | `HuTaoStage`: el vídeo en bucle en el escaparate y su cuadro de diálogo de JRPG, con frases según lo que miras |
-| R2 | Comprar tiene que ser **realmente difícil** | Precio por rareza (de 1.200 G a 100.000 G), rango mínimo por rareza y un escaparate semanal con pocas piezas |
+| R2 | Comprar tiene que ser **realmente difícil** | Precio por rareza con recargo por ranura (de 1.200 G a 160.000 G), rango mínimo por rareza y un escaparate semanal con pocas piezas |
 | R3 | Lo que se vende: decoración del menú o armadura para el personaje | 8 ranuras de armadura (`ARMOR_SLOTS`) y 2 de decoración (`DECOR_SLOTS`: fondo y emblema) |
 | R4 | El equipo va en un **almanaque distinto** del de objetos, que es de coleccionar | Catálogo propio (`GearDef`, `GameState.gear`) con su pestaña «Catálogo» en la tienda; el almanaque de objetos no cambia |
 | R5 | Añadir las piezas a mano, con facilidad y **sin poner el precio ni nada más** | Formulario de la tienda (`GearForm`): nombre, tipo, rareza, imagen y descripción. El precio y el rango los calcula Hu Tao y el formulario solo los muestra |
@@ -38,6 +38,25 @@ Sigue la convención del proyecto: **una carpeta por implementación** (`src/fea
 | Legendario | 100.000 G | A (17) | 8 meses |
 
 Calibrado con las recompensas de las quests de ejemplo (40–300 G) y las que propone el formulario (50, 80 y 200 G): unas 4–6 quests al día dan 300–500 G. El rango es el primer nivel de cada letra (`rankFor` de `domain/leveling.ts`), así que lo legendario exige rango A además del oro.
+
+**Recargo por ranura** (`SLOT_PRICE_FACTOR`, desde el 2026-10-02, a petición del propietario: «pricing elevado»): lo que más se ve cuesta más, y ninguna ranura baja del precio base. El resultado se redondea a precio de tienda (centenas por debajo de 10.000 G y millares por encima).
+
+| Ranura | Recargo | Común | Rara | Legendaria |
+|---|---|---|---|---|
+| Manos, pies | ×1 | 1.200 G | 8.000 G | 100.000 G |
+| Cabeza | ×1,1 | 1.300 G | 8.800 G | 110.000 G |
+| Escudo, capa | ×1,2 | 1.400 G | 9.600 G | 120.000 G |
+| Emblema | ×1,25 | 1.500 G | 10.000 G | 125.000 G |
+| Amuleto | ×1,3 | 1.600 G | 10.000 G | 130.000 G |
+| Cuerpo | ×1,4 | 1.700 G | 11.000 G | 140.000 G |
+| Arma | ×1,5 | 1.800 G | 12.000 G | 150.000 G |
+| Fondo | ×1,6 | 1.900 G | 13.000 G | 160.000 G |
+
+Las compras ya hechas no cambian: `gear_purchased` copió su precio.
+
+### Piezas de serie
+
+El catálogo trae **69 piezas de serie** (`features/armory`), inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos, para todo el que instala la app. No son eventos: están en el código y se suman a las del jugador (`gearOf`, `fullCatalog`). No se editan ni se retiran. Ver [src/features/armory/README.md](../armory/README.md).
 
 ### El escaparate semanal
 
@@ -76,7 +95,8 @@ El primer clic (o `Enter`) arma el botón: «¿Seguro? Pagar 8000 G», en rojo. 
 
 ### Reglas que he fijado (ajustables en `model.ts`)
 
-- `PRICES` y `LEVEL_REQUIRED` (la tabla de arriba), `SHOWCASE_SIZE = 5` y `NEW_ARRIVAL_DAYS = 7`.
+- `PRICES`, `SLOT_PRICE_FACTOR` y `LEVEL_REQUIRED` (las tablas de arriba), `SHOWCASE_SIZE = 5` y `NEW_ARRIVAL_DAYS = 7`.
+- Con las 69 piezas de serie, cada pieza vuelve al escaparate, de media, cada unas 14 semanas (`nextShowing` dice cuándo). Es la palanca más fuerte de la dificultad: subir `SHOWCASE_SIZE` la reduce.
 - La semana empieza el lunes a las 00:00 de la hora local; con cambio de hora dura 167 o 169 horas.
 - El escaparate elige al azar sin mirar la rareza: lo legendario sale igual de a menudo que lo común.
 - Cada pieza es única: no se compra dos veces.
@@ -206,7 +226,7 @@ Las partículas y sacudidas usan `src/lib/fx.ts` y respetan «reducir movimiento
 |---|---|
 | `domain/types.ts` | `GameState.gear`; `PlayerState.owned` |
 | `domain/events.ts` | `MerchantEventBody` en la unión |
-| `domain/projection.ts` | `ProjectionAcc.merchant`; `case` de los cuatro eventos (el oro gastado se resta de `acc.gold`); `PROJECTION_VERSION` = 2 |
+| `domain/projection.ts` | `ProjectionAcc.merchant`; `case` de los cuatro eventos (el oro gastado se resta de `acc.gold`); `GameState.gear = fullCatalog(...)` con las piezas de serie; `PROJECTION_VERSION` = 2 (3 desde la crónica) |
 | `features/temporal/actions.ts` | La limpieza de binarios respeta también las imágenes del mercader |
 | `i18n/locales/{es,ja}.ts` | Montan `merchant` |
 | `styles/theme.css` | Tokens `--merchant`, `--merchant-hi`, `--merchant-lo` y `--merchant-deep` |
@@ -227,6 +247,16 @@ Hecho el 2026-10-02:
 - **Datos antiguos**: un historial sin eventos del mercader y un snapshot de la versión 1 (sin los acumuladores nuevos): se descarta, se recalcula y la app arranca sin errores.
 
 **No verificado:** la app nativa (`pnpm tauri dev`): ni el vídeo MP4 en el WKWebView de macOS (en las pruebas se reprodujo el WebM), ni la imagen grande del fondo en la tabla `blobs` de SQLite. Tampoco Windows ni los sonidos (no se han escuchado: sello, monedas, fanfarria).
+
+### El vídeo quieto en macOS (2026-10-02)
+
+El propietario vio a Hu Tao **quieta** en su equipo. Causas posibles, y lo que se hizo con cada una:
+
+1. **«Reducir movimiento» activado en macOS**: el vídeo no se ponía en marcha a propósito. Ahora se mueve siempre: es un bucle suave, sin desplazamientos, y quieta parecía un fallo.
+2. **El WebView de macOS pide los vídeos por trozos** (cabecera `Range`) y el protocolo con el que Tauri sirve la app empaquetada no siempre los atiende: el vídeo se queda en el póster. Ahora el vídeo se descarga entero y se reproduce desde memoria (`blob:`), una vez por sesión (`videoUrl` en `HuTaoStage.tsx`): MP4 si el WebView sabe leer H.264 (`canPlayType`) y, si no, WebM.
+3. **Autoplay**: WebKit solo deja arrancar solo un vídeo **mudo**, y React no pone el atributo `muted` en el HTML. Ahora se marca mudo (propiedad y atributo) antes de darle la fuente, se llama a `play()` cuando puede reproducirse y, si aun así no arranca, con el primer clic en la ventana.
+
+Verificado en el navegador (Chromium, WebM): el vídeo se carga como `blob:`, va mudo y avanza (2,1 s → 3,6 s en 1,5 s). **Sin verificar en la app nativa de macOS**: hay que comprobarlo allí.
 
 ## Posibles mejoras
 

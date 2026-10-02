@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { useGame } from "../../../store/game";
 import { num } from "../../../i18n";
 import { RADAR_AXES, RADAR_MIN_AXES, radarPoints, radarScale, type Attribute } from "../model";
+import { attributeName } from "../labels";
 import "../attributes.css";
 
 /** Panel de atributos: el radar de las áreas con más experiencia y la lista completa. */
@@ -32,8 +33,8 @@ export function AttributesPanel() {
           <ul className="attrs-list">
             {attrs.map((a, i) => (
               <li key={a.key} className="attr">
-                <span className="attr-name" title={a.name}>
-                  {a.name}
+                <span className="attr-name" title={attributeName(a, t)}>
+                  {attributeName(a, t)}
                 </span>
                 <span className="attr-lv num">{t("attributes.level", { n: a.level })}</span>
                 <span className="attr-bar" title={t("attributes.next", { xp: num(a.levelXpNeeded - a.levelXp), n: a.level + 1 })}>
@@ -63,6 +64,7 @@ const CY = 118;
 
 /** Radar: un eje por área, con el borde en el múltiplo de 5 por encima del nivel más alto. */
 function Radar({ attrs, label }: { attrs: Attribute[]; label: string }) {
+  const { t } = useTranslation();
   const scale = radarScale(attrs);
   const n = attrs.length;
   const ring = (f: number) =>
@@ -100,7 +102,8 @@ function Radar({ attrs, label }: { attrs: Attribute[]; label: string }) {
           const x = CX + p.x * (R + 14);
           const y = CY + p.y * (R + 14);
           const anchor = Math.abs(p.x) < 0.2 ? "middle" : p.x > 0 ? "start" : "end";
-          const name = attrs[i].name.length > 14 ? `${attrs[i].name.slice(0, 13)}…` : attrs[i].name;
+          const full = attributeName(attrs[i], t);
+          const name = full.length > 14 ? `${full.slice(0, 13)}…` : full;
           return (
             <text key={i} className="radar-lbl" x={x} y={y + (p.y > 0.2 ? 10 : p.y < -0.2 ? -4 : 4)} textAnchor={anchor}>
               {name}

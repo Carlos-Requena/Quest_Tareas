@@ -58,6 +58,23 @@
   --copper: #a3402a;
   --ink: #3b2a1a;
   --ink-faint: #a89577;
+
+  /* Rachas (src/features/streaks): brasa, fuego y llama azul de las rachas largas */
+  --streak: #ff7a2e;
+  --streak-core: #ffd27a;
+  --streak-blue: #6ec8ff;
+
+  /* Crónica del aventurero (src/features/chronicle): cuero gastado, papel viejo y tinta */
+  --diary-leather: #4a2a18;
+  --diary-leather-lo: #22120a;
+  --diary-paper-hi: #ead9ae;
+  --diary-paper: #d6bb85;
+  --diary-paper-lo: #a98550;
+  --diary-stain: rgba(120, 72, 28, 0.3);
+  --diary-ink: #2f2114;
+  --diary-ink-soft: #6a5236;
+  --diary-ink-red: #8a2418;
+  --diary-ribbon: #7a1c22;
   --ink-red: #a3262a;
 
   /* Mercader (src/features/merchant): el rojo de la funeraria de Hu Tao y su sello */

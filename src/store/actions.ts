@@ -1,6 +1,9 @@
 import { useGame } from "./game";
-import { conditionsMet, effectiveStatus } from "../domain/projection";
-import { isPomodoroCondition } from "../domain/types";
+import { isCountCondition } from "../domain/types";
+import { conditionProgress, conditionsMet, effectiveStatus } from "../domain/projection";
+import { checkNext } from "../features/checklist/actions";
+import { isChecklistCondition } from "../features/checklist/model";
+import { isStreakMilestone } from "../features/streaks/model";
 import { sfx } from "../lib/sfx";
 import i18n from "../i18n";
 import { dropTableFor, rollDrops } from "../features/items/model";
@@ -44,18 +47,21 @@ export async function addProgress(id: string, conditionId: string, amount: numbe
   const { state, dispatch } = useGame.getState();
   const q = state.quests.get(id);
   const c = q?.conditions.find((c) => c.id === conditionId);
-  if (!q || !c || isPomodoroCondition(c) || q.status !== "active") return;
+  if (!q || !c || !isCountCondition(c) || q.status !== "active") return;
   const cur = q.progress[c.id] ?? 0;
   if (cur + amount < 0 || cur + amount > c.target) return;
   sfx.tick();
   await dispatch({ type: "progress_added", questId: id, conditionId, amount });
 }
 
-/** Suma 1 al primer objetivo incompleto (atajo de teclado). */
+/** Avanza el primer objetivo incompleto (atajo de teclado): +1 a un contador o la siguiente casilla de una lista. */
 export async function bumpNext(id: string) {
   const q = useGame.getState().state.quests.get(id);
-  const c = q?.conditions.find((c) => !isPomodoroCondition(c) && (q.progress[c.id] ?? 0) < c.target);
-  if (q && c) await addProgress(id, c.id, 1);
+  if (q?.status !== "active") return;
+  const c = q.conditions.find((c) => (isCountCondition(c) || isChecklistCondition(c)) && conditionProgress(q, c, 0) < c.target);
+  if (!c) return;
+  if (isChecklistCondition(c)) await checkNext(id, c.id);
+  else await addProgress(id, c.id, 1);
 }
 
 export async function reportQuest(id: string) {
@@ -71,6 +77,9 @@ export async function reportQuest(id: string) {
   const after = useGame.getState().state;
   setClear({ questId: id, before, after: after.player, guaranteed, drops });
   say(() => i18n.t("toast.completed", { title: q.title }));
+  // Racha redonda en una quest que se repite (features/streaks).
+  const streak = after.quests.get(id)?.streak?.count ?? 0;
+  if (streak !== (q.streak?.count ?? 0) && isStreakMilestone(streak)) say(() => i18n.t("streaks.milestone", { n: streak, title: q.title }));
 
   // ¿Abre algo? Una quest que la tenía de requisito, o su encargo temporal, que ya se puede cumplir.
   const next = unlockedBetween(state.quests, after.quests)[0];

@@ -1,0 +1,94 @@
+/* Objetivo de tipo lista (features/checklist). La fila es la de cualquier objetivo (.cond)
+   y debajo, ocupando todo el ancho, las casillas. */
+
+.cond-list {
+  row-gap: 8px;
+}
+.clist {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 2px 14px;
+  margin: 0;
+  padding: 0 0 2px;
+  list-style: none;
+}
+.clist-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 5px 4px;
+  text-align: left;
+  color: var(--text-2);
+  font-size: 13px;
+  transition: color 0.2s, background 0.2s;
+}
+.clist-item:hover:not(:disabled) {
+  background: rgba(214, 178, 94, 0.06);
+  color: var(--text);
+}
+.clist-item:disabled {
+  cursor: default;
+}
+.clist-box {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line-strong);
+  transform: rotate(45deg);
+  color: var(--gold-hi);
+  transition: border-color 0.2s, background 0.2s;
+}
+.clist-box svg {
+  width: 13px;
+  height: 13px;
+  transform: rotate(-45deg);
+}
+.clist-item:hover:not(:disabled) .clist-box {
+  border-color: var(--gold);
+}
+.clist-item.is-on .clist-box {
+  border-color: var(--gold);
+  background: rgba(214, 178, 94, 0.14);
+}
+.clist-item.is-on .clist-text {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--gold) 60%, transparent);
+}
+
+/* Formulario */
+.clist-edit {
+  display: grid;
+  gap: 4px;
+  padding-left: 6px;
+}
+.clist-in {
+  display: grid;
+  grid-template-columns: 16px 1fr 28px;
+  align-items: center;
+  gap: 10px;
+}
+.clist-in .clist-box {
+  width: 10px;
+  height: 10px;
+  margin-left: 3px;
+}
+.clist-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.clist-hint {
+  font-size: 11px;
+}
+.clist-item:focus {
+  outline: none;
+}
+.clist-item:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 1px;
+}

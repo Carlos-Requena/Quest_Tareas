@@ -235,7 +235,7 @@ describe("invariantes sobre historiales aleatorios", () => {
         const delta = next.player.gold - prev.player.gold;
         if (e.type === "gear_purchased") {
           const bought = !prev.player.owned[e.gearId] && !!next.player.owned[e.gearId];
-          expect(delta).toBe(bought ? -e.price : 0);
+          expect(delta + 0).toBe(bought ? 0 - e.price : 0);
           if (bought) {
             expect(prev.player.gold).toBeGreaterThanOrEqual(e.price);
             purchases++;
@@ -293,7 +293,7 @@ describe("mercader, equipo y atributos", () => {
     const q = { type: "quest_created", quest: questDef("q", { area: " Salud ", reward: { xp: 150, gold: 30 } }) } as const;
     const st = project(withMeta([q, accept, complete, complete]));
     expect(st.player.attributes).toHaveLength(1);
-    expect(st.player.attributes[0]).toMatchObject({ key: "salud", name: "Salud", xp: 150, quests: 1, level: 2 });
+    expect(st.player.attributes[0]).toMatchObject({ key: "@health", name: "Salud", xp: 150, quests: 1, level: 2 });
   });
 
   it("las quests sin área y los encargos dan XP, pero no suben atributos", () => {

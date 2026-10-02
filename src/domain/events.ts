@@ -4,6 +4,7 @@ import type { ItemEventBody } from "../features/items/events";
 import type { TemporalEventBody } from "../features/temporal/events";
 import type { MerchantEventBody } from "../features/merchant/events";
 import type { EquipmentEventBody } from "../features/equipment/events";
+import type { ChecklistEventBody } from "../features/checklist/events";
 import type { Drop } from "../features/items/model";
 
 /**
@@ -34,7 +35,8 @@ export type EventBody =
   | ItemEventBody
   | TemporalEventBody
   | MerchantEventBody
-  | EquipmentEventBody;
+  | EquipmentEventBody
+  | ChecklistEventBody;
 
 export interface EventMeta {
   id: string;

@@ -6,7 +6,7 @@ Esta guía es para cualquier agente (o persona) que vaya a hacer tareas en este 
 
 ## 1. Qué es Quests, en 30 segundos
 
-App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú; junto al muñeco, los **atributos**: un nivel por cada área de las quests. Interfaz en español y japonés, con música de fondo.
+App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú (con 69 piezas **de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos); junto al muñeco, los **atributos**: un nivel por cada área de las quests. Las quests que se repiten llevan su **racha**, los objetivos pueden ser **listas de casillas** y todo lo que haces queda en la **crónica del aventurero**, un diario gastado. Interfaz en español y japonés, con música de fondo.
 
 - **Stack:** Tauri 2 (Rust) + React 19 + TypeScript 6 + Vite 8 + Zustand 5 + Motion + GSAP + i18next, con SQLite vía `tauri-plugin-sql`.
 - **Modelo de datos:** *event sourcing* local-first. Se guardan **eventos inmutables** en SQLite y el estado se **calcula** reproduciéndolos (`project()`).
@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo J
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `equipment` y `attributes`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist` y `chronicle`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -70,14 +70,18 @@ src/
     horizon/           Plazos: clasificación por lo que falta y fecha límite de las quests (sin eventos)
     snapshot/          Snapshot de la proyección: dispatch incremental y arranque sin reproducirlo todo (sin eventos)
     merchant/          Mercader (Hu Tao): catálogo de equipo y decoración, precios, escaparate semanal y compras (eventos gear_*)
+    armory/            Equipo de serie: 69 piezas en el código (no en eventos), con su arte en SVG generado y textos es + ja
     equipment/         Personaje: muñeco con su equipo, armario y decoración del menú (gear_equipped / gear_unequipped)
-    attributes/        Atributos: un nivel por área de las quests, calculado de quest_completed (sin eventos)
+    attributes/        Atributos: un nivel por área de las quests, calculado de quest_completed (sin eventos); áreas conocidas traducidas
+    streaks/           Rachas de las quests que se repiten (sin eventos: se calculan en quest_completed)
+    checklist/         Objetivo de tipo lista: casillas que se marcan (checklist_checked)
+    chronicle/         Crónica del aventurero: diario de lo que ha pasado, apuntado por la proyección (sin eventos)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
   test/              Utilidades de los tests (historiales aleatorios con semilla)
   lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), useMuted, id/PRNG, time (useNow, formatRemaining)
   styles/            theme.css (tokens), app.css (componentes)
 public/music/        Pistas de música (Vite las copia a dist/music/)
-public/merchant/     Vídeo de Hu Tao en bucle (MP4 + WebM) y su póster
+public/merchant/     Vídeo de Hu Tao en bucle (MP4 + WebM) y su póster (se reproduce desde memoria, blob:)
 src-tauri/           Rust: lib.rs (plugin SQL), tauri.conf.json, capabilities/default.json
 docs/                Esta guía, informe técnico, cómo funciona, img/ con los diagramas
 ```
@@ -118,7 +122,7 @@ components ──▶ store ──▶ domain ◀── storage
 
 | Va en eventos (se sincroniza) | No va en eventos (`localStorage`, por equipo) |
 |---|---|
-| Quests, aceptar, progreso, completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales y la referencia de sus adjuntos, el catálogo del mercader (con su icono), las compras (con su precio) y lo que lleva puesto el personaje | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador |
+| Quests, aceptar, progreso (contadores y casillas de las listas), completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales y la referencia de sus adjuntos, el catálogo del mercader (con su icono), las compras (con su precio) y lo que lleva puesto el personaje | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador. Tampoco van en eventos, porque se calculan: rachas, atributos y crónica. Ni las piezas de serie, que están en el código |
 
 **Archivos adjuntos (norma):** en el evento solo va la referencia (nombre, tipo, tamaño, una miniatura pequeña y el `blobId`). El contenido va al almacén de binarios (`src/storage/blobStore.ts`), con su SHA-256 como clave. Nunca metas un archivo grande en un evento: se leería en cada arranque y no cabe en el `localStorage` del navegador. La imagen grande del **fondo del menú** (mercader) sigue la misma norma. El almacén lo comparten varias funcionalidades: **antes de borrar un binario, comprueba que no lo use ninguna** (`liveBlobIds` de los encargos y `gearBlobIds` del mercader).
 
@@ -148,7 +152,7 @@ src/features/<nombre>/
 
 - **La integración fuera de la carpeta debe ser mínima:** tipos (`domain/types.ts`), la unión de eventos (`domain/events.ts`), la proyección (`domain/projection.ts`), los diccionarios (`i18n/locales/{es,ja}.ts`, montando `xxxEs` / `xxxJa`) y el componente que la aloja. Enuméralo en la tabla «Puntos de integración» del README.
 - **El dominio nunca importa el `index.ts` de una funcionalidad**: ese archivo reexporta `actions.ts`, que importa el store, y se crearía un ciclo.
-- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`). `src/features/merchant/` es el de una funcionalidad con **economía** (precios calculados, un gasto que la proyección vigila) y **reglas que dependen de la semana** (el escaparate, calculado con semilla); `src/features/equipment/` lee el catálogo de otra funcionalidad, y `src/features/attributes/` es el de una que **no tiene eventos** y se calcula de los eventos de otra (`quest_completed`).
+- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`). `src/features/merchant/` es el de una funcionalidad con **economía** (precios calculados, un gasto que la proyección vigila) y **reglas que dependen de la semana** (el escaparate, calculado con semilla); `src/features/equipment/` lee el catálogo de otra funcionalidad, y `src/features/attributes/` es el de una que **no tiene eventos** y se calcula de los eventos de otra (`quest_completed`). `src/features/armory/` es el de **datos de serie en el código** (no en eventos ni en el snapshot) que otra funcionalidad suma a los suyos, y `src/features/chronicle/` el de una que **apunta un registro** desde la proyección cuando un evento pasa sus guardas.
 
 - **Una funcionalidad puede importar el `model.ts` de otra** (`horizon` usa `daysUntil` de `temporal`), pero si su lógica necesita la proyección (`effectiveStatus`), va en otro archivo (como `temporal/links.ts`): `model.ts` lo importa el dominio y se crearía un ciclo.
 
@@ -237,7 +241,7 @@ Lo mismo vale para los otros diagramas (arquitectura, ciclo de vida, hoja de rut
 ## 11. Deuda conocida: no la empeores
 
 Prioridad alta, pendiente (fase 1.5 de la hoja de ruta):
-- **Tests: el dominio y el store están cubiertos** (278 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones. Tampoco hay CI que los ejecute.
+- **Tests: el dominio y el store están cubiertos** (302 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones. Tampoco hay CI que los ejecute.
 - **Eventos sin campo `v`.** El *upcasting* ya existe en `legacy.ts`, pero falta versión explícita.
 - **Orden por reloj local** (`ts`): falta un reloj lógico híbrido.
 - **Sin error boundary:** un fallo de React deja la ventana en negro.
@@ -254,6 +258,10 @@ Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, 
 - Las preferencias del propietario que surjan en el trabajo (como «una carpeta por implementación») se añaden a esta guía.
 - **Comprar tiene que costar.** Lo que se compra con oro (mercader) es una meta, no un gasto diario: precios altos por rareza, rango mínimo y escaparate semanal. No abarates precios ni quites requisitos sin preguntar.
 - **La mercancía se añade a mano y sin precio.** El propietario solo pone nombre, tipo, rareza, imagen y descripción; el precio y el rango los calcula el juego.
+- **Precios elevados.** El precio sale de la rareza y lleva un recargo por ranura (`SLOT_PRICE_FACTOR`, nunca por debajo de ×1): de 1.200 G a 160.000 G.
+- **Equipo de serie para todos.** Las piezas que trae la app (features/armory) son para todo el que la instale, inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos, con arte propio (nunca imágenes de las series). Se añaden en el código, no con eventos.
+- **Todo traducido en japonés.** Lo que no escribe el usuario se traduce, también lo que lo parece: las áreas habituales de las quests (los atributos) y las piezas de serie.
+- **El vídeo de Hu Tao es público.** Va en el repositorio (`public/merchant/`) y no necesita crédito: es un vídeo no oficial.
 
 ---
 

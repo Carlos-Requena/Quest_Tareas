@@ -9,6 +9,7 @@ import { MusicControl } from "../features/music";
 import { ItemsButton } from "../features/items";
 import { MerchantButton } from "../features/merchant";
 import { CharacterButton, DecorEmblem } from "../features/equipment";
+import { ChronicleButton } from "../features/chronicle";
 import { SectionSwitch } from "../features/temporal";
 
 export function Emblem({ size = 64 }: { size?: number }) {
@@ -50,6 +51,7 @@ export function Header() {
             <span>{t("header.level")}</span>
             <b className="num">{player.level}</b>
             <CharacterButton />
+            <ChronicleButton />
           </div>
           <div className="xpbar" title={t("header.xpTotal", { xp: num(player.xp) })}>
             <span className="xpbar-lbl">XP</span>

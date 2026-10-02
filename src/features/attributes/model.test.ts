@@ -5,6 +5,9 @@ import {
   attributeLevel,
   attributeXpToNext,
   gainAttribute,
+  KNOWN_AREAS,
+  knownArea,
+  knownAreaOfKey,
   listAttributes,
   newAttributesAcc,
   radarPoints,
@@ -12,11 +15,29 @@ import {
 } from "./model";
 
 describe("áreas", () => {
-  it("«  Salud », «salud» y «SALUD» son el mismo atributo", () => {
-    expect(areaKey("  Salud ")).toBe("salud");
-    expect(areaKey("SALUD")).toBe("salud");
+  it("«  Salud », «salud», «SALUD» y «健康» son el mismo atributo (área conocida)", () => {
+    expect(areaKey("  Salud ")).toBe("@health");
+    expect(areaKey("SALUD")).toBe("@health");
+    expect(areaKey("健康")).toBe("@health");
     expect(areaKey("Vida   social")).toBe("vida social");
+    expect(areaKey("Jardinería")).toBe("jardinería");
     expect(areaKey(undefined)).toBe("");
+  });
+
+  it("las áreas de las quests de ejemplo son conocidas en los dos idiomas", () => {
+    const pairs = [["Administración", "事務"], ["Estudio", "勉強"], ["Salud", "健康"], ["Lectura", "読書"], ["Hogar", "家事"]];
+    for (const [es, ja] of pairs) {
+      expect(knownArea(es)).toBeDefined();
+      expect(knownArea(es)).toBe(knownArea(ja));
+    }
+  });
+
+  it("ningún sinónimo está en dos áreas y las claves vuelven a su área", () => {
+    const all = Object.values(KNOWN_AREAS).flatMap((w) => w.map((x) => x.toLowerCase()));
+    expect(new Set(all).size).toBe(all.length);
+    expect(knownAreaOfKey("@study")).toBe("study");
+    expect(knownAreaOfKey("@nada")).toBeUndefined();
+    expect(knownAreaOfKey("study")).toBeUndefined();
   });
 
   it("suma la XP y las quests, y se queda con la última forma de escribirla", () => {
@@ -26,8 +47,8 @@ describe("áreas", () => {
     gainAttribute(acc, "Estudio", 80, T0 + 2);
     gainAttribute(acc, "   ", 999, T0 + 3);
     gainAttribute(acc, "Hogar", Number.NaN, T0 + 4);
-    expect(acc.get("salud")).toEqual({ key: "salud", name: "Salud", xp: 250, quests: 2, lastAt: T0 + 1 });
-    expect(acc.get("hogar")?.xp).toBe(0);
+    expect(acc.get("@health")).toEqual({ key: "@health", name: "Salud", xp: 250, quests: 2, lastAt: T0 + 1 });
+    expect(acc.get("@home")?.xp).toBe(0);
     expect(acc.size).toBe(3);
   });
 

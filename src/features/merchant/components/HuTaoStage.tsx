@@ -18,6 +18,33 @@ interface Props {
 }
 
 /**
+ * URL del vídeo en memoria (blob:), una por sesión. Se descarga entero en vez de darle
+ * al <video> la ruta del archivo porque el WebView de macOS pide los vídeos por trozos
+ * (cabecera Range) y el protocolo con el que Tauri sirve la app empaquetada no siempre
+ * los atiende: el vídeo se quedaba en el póster. Con un blob no hay trozos que pedir.
+ */
+let cached: Promise<string> | undefined;
+function videoUrl(): Promise<string> {
+  if (!cached) {
+    const probe = document.createElement("video");
+    // H.264 donde se pueda (WebKit, WebView2); si no (Chromium de las pruebas), VP9.
+    const mp4 = probe.canPlayType('video/mp4; codecs="avc1.64001F"') !== "";
+    const src = mp4 ? HUTAO_VIDEO.mp4 : HUTAO_VIDEO.webm;
+    cached = fetch(src)
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.blob();
+      })
+      .then((b) => URL.createObjectURL(b))
+      .catch((err) => {
+        cached = undefined;
+        throw err;
+      });
+  }
+  return cached;
+}
+
+/**
  * Escenario del mercader: Hu Tao en bucle, en su escaparate, con su cuadro de diálogo
  * como en un JRPG. Si el vídeo no está, queda su cartel y el diálogo sigue.
  */
@@ -25,19 +52,36 @@ export const HuTaoStage = forwardRef<HTMLDivElement, Props>(function HuTaoStage(
   const { t } = useTranslation();
   const [missing, setMissing] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
-  const last = useRef<HTMLSourceElement>(null);
 
   useEffect(() => {
     const v = video.current;
-    const src = last.current;
-    if (!v || !src) return;
-    // Solo cuenta el error del último <source>: el primero falla sin más si el navegador no sabe leer H.264.
-    const fail = () => setMissing(true);
-    src.addEventListener("error", fail);
+    if (!v) return;
+    let alive = true;
+    // Silenciado antes de darle la fuente: WebKit solo deja arrancar solo un vídeo mudo,
+    // y React no pone el atributo `muted` en el HTML.
     v.muted = true;
-    // Con «reducir movimiento», Hu Tao se queda quieta (el primer fotograma).
-    if (!calm()) v.play().catch(() => undefined);
-    return () => src.removeEventListener("error", fail);
+    v.defaultMuted = true;
+    v.setAttribute("muted", "");
+    v.setAttribute("playsinline", "");
+    const play = () => {
+      if (alive) v.play().catch(() => undefined);
+    };
+    // Si el WebView no lo deja arrancar solo, arranca con el primer gesto en la ventana.
+    window.addEventListener("pointerdown", play, { once: true });
+    v.addEventListener("canplay", play);
+    videoUrl()
+      .then((url) => {
+        if (!alive) return;
+        v.src = url;
+        v.load();
+      })
+      .catch(() => alive && setMissing(true));
+    return () => {
+      alive = false;
+      window.removeEventListener("pointerdown", play);
+      v.removeEventListener("canplay", play);
+      v.pause();
+    };
   }, []);
 
   return (
@@ -51,10 +95,18 @@ export const HuTaoStage = forwardRef<HTMLDivElement, Props>(function HuTaoStage(
             <span>{t("merchant.videoMissing")}</span>
           </div>
         ) : (
-          <video ref={video} className="ht-video" autoPlay={!calm()} muted loop playsInline disablePictureInPicture poster={HUTAO_VIDEO.poster}>
-            <source src={HUTAO_VIDEO.mp4} type="video/mp4" />
-            <source ref={last} src={HUTAO_VIDEO.webm} type="video/webm" />
-          </video>
+          // Hu Tao se mueve también con «reducir movimiento»: es un bucle suave, sin
+          // desplazamientos, y quieta parecía un fallo.
+          <video
+            ref={video}
+            className="ht-video"
+            muted
+            loop
+            playsInline
+            disablePictureInPicture
+            poster={HUTAO_VIDEO.poster}
+            onError={() => setMissing(true)}
+          />
         )}
         <span className="ht-glass" aria-hidden />
         {children}
