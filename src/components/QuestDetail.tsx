@@ -59,6 +59,8 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
         <p className="muted">
           <Trans i18nKey="detail.emptyHint" components={{ kbd: <kbd /> }} />
         </p>
+        {/* Los avisos (también los recordatorios de encargos) se ven aunque el tablón esté vacío. */}
+        <Toast />
       </div>
     );
   }

@@ -2,6 +2,7 @@ import type { Translation } from "./es";
 import { pomodoroJa } from "../../features/pomodoro/i18n";
 import { musicJa } from "../../features/music/i18n";
 import { itemsJa } from "../../features/items/i18n";
+import { temporalJa } from "../../features/temporal/i18n";
 
 // Mismo esquema que es.ts: TypeScript avisa si falta o sobra alguna clave.
 // En japonés no hay plural; las formas _one existen solo para cumplir el tipo.
@@ -132,6 +133,7 @@ export const ja: Translation = {
   pomodoro: pomodoroJa,
   music: musicJa,
   items: itemsJa,
+  temporal: temporalJa,
   seed: {
     dragon: {
       title: "書類ドラゴンの討伐",

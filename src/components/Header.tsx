@@ -7,6 +7,7 @@ import { useMuted } from "../lib/useMuted";
 import { LANGS, num, setLang, type Lang } from "../i18n";
 import { MusicControl } from "../features/music";
 import { ItemsButton } from "../features/items";
+import { SectionSwitch } from "../features/temporal";
 
 export function Emblem({ size = 64 }: { size?: number }) {
   return (
@@ -35,6 +36,7 @@ export function Header() {
           <h1>Quest Board</h1>
           <p className="tag">Requests &amp; Bounties</p>
         </div>
+        <SectionSwitch />
       </div>
 
       <div className="hdr-right">

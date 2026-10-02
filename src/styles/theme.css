@@ -40,6 +40,26 @@
   /* Estrellas de rareza */
   --star: #ffe9a8;
 
+  /* Encargos temporales (src/features/temporal): calaveras, pergamino, tablón de roble y tinta */
+  --skull: #c4161f;
+  --skull-hi: #ff7a6b;
+  --skull-lo: #5c0309;
+  --skull-deep: #2c0204;
+  --skull-gold-hi: #fff4c7;
+  --skull-gold-deep: #4a3510;
+  --parchment-hi: #f7eed6;
+  --parchment: #e8d5ac;
+  --parchment-lo: #c79f63;
+  --parchment-burn: #5a3112;
+  --oak-hi: #c98a50;
+  --oak: #a7682f;
+  --oak-lo: #6b3c19;
+  --oak-burn: #1d0f06;
+  --copper: #a3402a;
+  --ink: #3b2a1a;
+  --ink-faint: #a89577;
+  --ink-red: #a3262a;
+
   --f-display: "Cormorant Garamond", "Times New Roman", serif;
   --f-tag: "Cinzel", "Cormorant Garamond", serif;
   /* Shippori Mincho solo trae el subconjunto latino; el japonés cae en el mincho del sistema. */

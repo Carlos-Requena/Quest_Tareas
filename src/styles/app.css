@@ -1,6 +1,8 @@
 .app {
   height: 100%;
   display: grid;
+  /* minmax(0, 1fr): si la cabecera no cabe, no ensancha la ventana entera. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 88px 1fr 46px;
 }
 
@@ -29,6 +31,7 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20px;
   padding: 0 28px 0 18px;
   border-bottom: 1px solid var(--line);
 }
@@ -40,6 +43,7 @@ kbd {
 }
 .hdr-brand h1 {
   margin: 0;
+  white-space: nowrap;
   font-family: var(--f-display);
   font-weight: 600;
   font-size: 38px;
@@ -56,7 +60,26 @@ kbd {
 .hdr-right {
   display: flex;
   align-items: center;
-  gap: 40px;
+  gap: 24px;
+}
+/* Ventana estrecha (el mínimo es 1024 px): menos aire para que quepa todo. */
+@media (max-width: 1180px) {
+  .hdr {
+    gap: 10px;
+    padding: 0 14px 0 12px;
+  }
+  .hdr-brand {
+    gap: 10px;
+  }
+  .hdr-brand h1 {
+    font-size: 32px;
+  }
+  .hdr-right {
+    gap: 12px;
+  }
+  .xpbar-track {
+    width: 84px;
+  }
 }
 .hdr-block {
   display: grid;
@@ -151,6 +174,7 @@ kbd {
 }
 .lang-btn {
   position: relative;
+  white-space: nowrap;
   height: 24px;
   min-width: 38px;
   padding: 0 10px;

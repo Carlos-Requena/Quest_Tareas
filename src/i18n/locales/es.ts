@@ -2,6 +2,7 @@
 import { pomodoroEs } from "../../features/pomodoro/i18n";
 import { musicEs } from "../../features/music/i18n";
 import { itemsEs } from "../../features/items/i18n";
+import { temporalEs } from "../../features/temporal/i18n";
 
 export const es = {
   app: {
@@ -131,6 +132,7 @@ export const es = {
   pomodoro: pomodoroEs,
   music: musicEs,
   items: itemsEs,
+  temporal: temporalEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {
