@@ -1,0 +1,121 @@
+/* ───────────── Atributos ───────────── */
+
+.attrs {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.attrs .sec-h .tag {
+  color: var(--gold);
+}
+.attrs-empty,
+.attrs-few,
+.attrs-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.attrs-empty {
+  font-size: 13px;
+  padding: 18px 0;
+}
+.attrs-note {
+  margin-top: auto;
+  font-size: 11px;
+}
+
+.radar {
+  margin: 0;
+  flex: none;
+}
+.radar svg {
+  display: block;
+  width: 100%;
+  max-height: 236px;
+  overflow: visible;
+}
+.radar-ring {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.radar-ring.is-edge {
+  stroke: var(--line-strong);
+}
+.radar-axis {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.radar-shape {
+  fill: color-mix(in srgb, var(--gold) 22%, transparent);
+  stroke: var(--gold-hi);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--gold) 45%, transparent));
+}
+.radar-dot {
+  fill: var(--gold-hi);
+}
+.radar-lbl {
+  fill: var(--text-2);
+  font-size: 11px;
+  font-family: var(--f-body);
+}
+.radar-lv {
+  fill: var(--gold-hi);
+  font-weight: 700;
+}
+.radar-scale {
+  fill: var(--muted);
+  font-size: 9px;
+}
+
+.attrs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.attr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name lv"
+    "bar bar"
+    "meta meta";
+  gap: 3px 10px;
+}
+.attr-name {
+  grid-area: name;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attr-lv {
+  grid-area: lv;
+  color: var(--gold-hi);
+  font-size: 13px;
+}
+.attr-bar {
+  grid-area: bar;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.attr-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-lo), var(--gold-hi));
+}
+.attr-meta {
+  grid-area: meta;
+  font-size: 11px;
+}

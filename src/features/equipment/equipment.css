@@ -1,0 +1,467 @@
+/* ───────────── Personaje: muñeco, ranuras, armario y decoración ───────────── */
+
+.character-btn {
+  align-self: center;
+  margin-left: 2px;
+}
+.character-btn:hover {
+  color: var(--gold-hi);
+  border-color: var(--gold);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+
+.chr {
+  width: min(1120px, 95vw);
+  height: min(720px, 90vh);
+}
+.chr-h .tag {
+  color: var(--gold);
+}
+.chr-id {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.chr-id b {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text);
+  margin-right: 6px;
+}
+.chr-id .rank {
+  color: var(--gold-hi);
+}
+.chr-prestige {
+  margin-left: 10px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+.chr-prestige b {
+  color: var(--star);
+}
+.chr-x {
+  margin-left: 18px;
+}
+
+.chr-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
+}
+.chr-left {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 22px 14px 26px;
+  border-right: 1px solid var(--line);
+}
+.chr-right {
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 26px 14px 22px;
+}
+
+.chr-rig {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 158px minmax(0, 1fr) 158px;
+  align-items: center;
+  gap: 6px;
+}
+.chr-col {
+  display: grid;
+  gap: 10px;
+}
+.chr-doll {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse 60% 58% at 50% 52%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 72%);
+}
+/* Círculo en el suelo, bajo los pies. */
+.chr-doll::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  width: 72%;
+  height: 11%;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 12%, transparent), inset 0 0 12px color-mix(in srgb, var(--gold) 10%, transparent);
+}
+
+/* Ranura: marco con la pieza (o el glifo del hueco) y su nombre. */
+.cslot {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.2s, border-color 0.2s, transform 0.2s var(--ease-out);
+}
+.cslot:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.04);
+}
+.cslot.is-right {
+  grid-template-columns: minmax(0, 1fr) 56px;
+  text-align: right;
+}
+.cslot.is-right .cslot-frame {
+  order: 2;
+}
+.cslot.is-full {
+  border-left: 2px solid var(--rc);
+}
+.cslot.is-right.is-full {
+  border-left-width: 1px;
+  border-right: 2px solid var(--rc);
+}
+.cslot.is-on {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
+}
+.cslot-frame {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  aspect-ratio: 1;
+  border: 1px dashed var(--line-strong);
+}
+.cslot.is-full .cslot-frame {
+  border: 0;
+}
+.cslot-glyph {
+  width: 52%;
+  height: 52%;
+  color: var(--faint);
+}
+.cslot:hover .cslot-glyph,
+.cslot.is-on .cslot-glyph {
+  color: var(--gold-lo);
+}
+.cslot-txt {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.cslot-lbl {
+  font-family: var(--f-tag);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cslot-name {
+  font-size: 12.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cslot:not(.is-full) .cslot-name {
+  color: var(--faint);
+}
+.cslot-stars {
+  color: var(--rc);
+  font-size: 8.5px;
+  letter-spacing: 1px;
+}
+
+.chr-decor-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 8px;
+  font-weight: normal;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.chr-decor-h .gem {
+  width: 5px;
+  height: 5px;
+  color: var(--muted);
+}
+.chr-decor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ───────────── Muñeco ───────────── */
+
+.doll {
+  width: 100%;
+  height: 100%;
+  max-height: 460px;
+  overflow: visible;
+}
+.doll-body {
+  transform-box: view-box;
+  transform-origin: 120px 286px;
+  animation: doll-breathe 3.4s ease-in-out infinite;
+}
+@keyframes doll-breathe {
+  50% {
+    transform: translateY(-2px) scale(1.006);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .doll-body,
+  .dp-t5 {
+    animation: none;
+  }
+}
+.doll-hair {
+  fill: var(--doll-hair);
+}
+.doll-skin {
+  fill: var(--doll-skin);
+}
+.doll-skin-lo {
+  fill: var(--doll-skin-lo);
+}
+.doll-tunic {
+  fill: var(--doll-cloth);
+  stroke: var(--doll-cloth-lo);
+  stroke-width: 1.5;
+}
+.doll-belt {
+  fill: var(--doll-cloth-lo);
+}
+.doll-buckle {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.5;
+}
+.doll-arm {
+  fill: none;
+  stroke: var(--doll-cloth);
+  stroke-width: 17;
+  stroke-linecap: round;
+}
+.doll-legs {
+  fill: none;
+  stroke: var(--doll-cloth-lo);
+  stroke-width: 20;
+  stroke-linecap: round;
+}
+.doll-shoe {
+  fill: var(--doll-cloth-lo);
+}
+.doll-eye {
+  fill: var(--doll-hair);
+}
+.doll-blush {
+  fill: var(--merchant-hi);
+  opacity: 0.22;
+}
+.doll-mouth {
+  fill: none;
+  stroke: var(--doll-skin-lo);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.doll-chain {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.3;
+}
+
+/* Piezas: color de su rareza y brillo metálico; de épico para arriba, filo dorado. */
+.dp-base {
+  fill: var(--rc);
+  stroke: color-mix(in srgb, var(--rc) 40%, var(--bg));
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.dp-sheen {
+  stroke: none;
+  pointer-events: none;
+}
+.dp-detail {
+  fill: none;
+  stroke: color-mix(in srgb, var(--rc) 35%, var(--bg));
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+.dp-t3 .dp-base,
+.dp-t4 .dp-base,
+.dp-t5 .dp-base {
+  stroke: var(--gold-hi);
+}
+.dp-t4,
+.dp-t5 {
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--rc) 70%, transparent));
+}
+.dp-t5 {
+  animation: dp-legend 2.4s ease-in-out infinite;
+}
+@keyframes dp-legend {
+  50% {
+    filter: drop-shadow(0 0 10px var(--rc)) brightness(1.12);
+  }
+}
+.dp.is-hl {
+  filter: drop-shadow(0 0 6px var(--gold-hi));
+}
+.dp-ghost path {
+  fill: color-mix(in srgb, var(--gold) 12%, transparent);
+  stroke: var(--gold-hi);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+
+/* ───────────── Armario ───────────── */
+
+.wardrobe {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wardrobe .sec-h .tag {
+  color: var(--gold);
+}
+.wardrobe-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 30px 10px;
+  text-align: center;
+  font-size: 13px;
+}
+.wardrobe-empty p {
+  margin: 0;
+}
+.wardrobe-empty .btn {
+  margin-top: 10px;
+}
+.wardrobe-glyph {
+  width: 64px;
+  height: 64px;
+  color: var(--faint);
+}
+.wardrobe-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow-y: auto;
+}
+.wrow {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--rc);
+}
+.wrow.is-worn {
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+  border-color: var(--gold-lo);
+  border-left-color: var(--rc);
+}
+.wrow-art {
+  width: 56px;
+}
+.wrow-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.wrow-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.wrow-desc {
+  font-size: 11.5px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.wrow-worn {
+  padding: 0 6px;
+  border: 1px solid var(--gold-lo);
+  color: var(--gold);
+  font-size: 9.5px;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+}
+.wrow-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--gold);
+  color: var(--gold-hi);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.wrow-btn:hover {
+  background: color-mix(in srgb, var(--gold) 14%, transparent);
+}
+.wrow-btn.is-off {
+  border-color: var(--line-strong);
+  color: var(--text-2);
+}
+.wardrobe-back {
+  margin-top: auto;
+}
+
+/* ───────────── Decoración del menú ───────────── */
+
+/* Fondo comprado: detrás de todo, oscurecido para que el tablón se siga leyendo. */
+.backdrop-art {
+  position: absolute;
+  inset: -24px;
+  background-image:
+    radial-gradient(ellipse 120% 95% at 50% 45%, transparent 35%, rgba(5, 4, 3, 0.85)),
+    linear-gradient(180deg, rgba(10, 9, 8, 0.58), rgba(10, 9, 8, 0.8)),
+    var(--bd-img);
+  background-size: cover;
+  background-position: center;
+  animation: bd-in 0.9s ease-out both;
+}
+.backdrop-art.is-icon {
+  filter: blur(16px);
+}
+@keyframes bd-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Emblema comprado, dentro del rombo de la cabecera. */
+.demb {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+}
+.demb svg {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--rc) 40%, transparent));
+}
+.demb-glow {
+  fill: color-mix(in srgb, var(--rc) 25%, transparent);
+}

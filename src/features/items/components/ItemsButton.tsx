@@ -24,7 +24,8 @@ export function ItemsButton() {
   );
 }
 
-function BagIcon() {
+/** Bolsa de los objetos (cabecera y pie). */
+export function BagIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden className="bag-icon">
       <path d="M4.5 4.5V3.6a2.5 2.5 0 0 1 5 0v.9" fill="none" stroke="currentColor" strokeWidth="1.2" />

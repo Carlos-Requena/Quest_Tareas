@@ -5,6 +5,9 @@ import { itemsEs } from "../../features/items/i18n";
 import { temporalEs } from "../../features/temporal/i18n";
 import { complexEs } from "../../features/complex/i18n";
 import { horizonEs } from "../../features/horizon/i18n";
+import { merchantEs } from "../../features/merchant/i18n";
+import { equipmentEs } from "../../features/equipment/i18n";
+import { attributesEs } from "../../features/attributes/i18n";
 
 export const es = {
   app: {
@@ -136,6 +139,9 @@ export const es = {
   temporal: temporalEs,
   complex: complexEs,
   horizon: horizonEs,
+  merchant: merchantEs,
+  equipment: equipmentEs,
+  attributes: attributesEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {

@@ -8,6 +8,9 @@ import { applyItemEvent, newItemsAcc, receiveItems, registerItem, type ItemsAcc 
 import { upcastReward } from "../features/items/legacy";
 import { applyTemporalEvent, linkedQuestDone, newTemporalAcc, questOwners, type TemporalAcc } from "../features/temporal/model";
 import { cleanRequires, prerequisitesMet, recurs } from "../features/complex/model";
+import { applyMerchantEvent, newMerchantAcc, type MerchantAcc } from "../features/merchant/model";
+import { applyEquipmentEvent, newEquipmentAcc, pruneEquipment, type EquipmentAcc } from "../features/equipment/model";
+import { gainAttribute, listAttributes, newAttributesAcc, type AttributesAcc } from "../features/attributes/model";
 
 /**
  * Versión de la lógica de la proyección. Un snapshot guardado con otra versión se
@@ -16,7 +19,7 @@ import { cleanRequires, prerequisitesMet, recurs } from "../features/complex/mod
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 1;
+export const PROJECTION_VERSION = 2;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -26,6 +29,9 @@ export interface ProjectionAcc {
   quests: Map<string, QuestState>;
   items: ItemsAcc;
   temporals: TemporalAcc;
+  merchant: MerchantAcc;
+  equipment: EquipmentAcc;
+  attributes: AttributesAcc;
   xp: number;
   gold: number;
   completedCount: number;
@@ -35,6 +41,9 @@ export const newProjectionAcc = (): ProjectionAcc => ({
   quests: new Map(),
   items: newItemsAcc(),
   temporals: newTemporalAcc(),
+  merchant: newMerchantAcc(),
+  equipment: newEquipmentAcc(),
+  attributes: newAttributesAcc(),
   xp: 0,
   gold: 0,
   completedCount: 0,
@@ -132,6 +141,8 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
         acc.xp += reward.xp;
         acc.gold += reward.gold;
         receiveItems(items, reward.itemId, e.drops ?? [], e.ts);
+        // La XP también sube el atributo del área de la quest (features/attributes).
+        gainAttribute(acc.attributes, q.area, reward.xp, e.ts);
         acc.completedCount++;
         q.completions++;
         q.lastCompletedAt = e.ts;
@@ -186,6 +197,21 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
       }
       break;
     }
+
+    case "gear_created":
+    case "gear_updated":
+    case "gear_deleted":
+    case "gear_purchased":
+      // Comprar al mercader gasta oro, solo si llega (features/merchant).
+      acc.gold -= applyMerchantEvent(acc.merchant, e, e.ts, acc.gold);
+      // Una pieza retirada o que cambia de ranura deja de estar puesta.
+      if (e.type === "gear_updated" || e.type === "gear_deleted") pruneEquipment(acc.equipment, acc.merchant);
+      break;
+
+    case "gear_equipped":
+    case "gear_unequipped":
+      applyEquipmentEvent(acc.equipment, acc.merchant, e);
+      break;
   }
 }
 
@@ -194,7 +220,7 @@ export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
  * y el encargo de cada quest). Se puede llamar después de cada evento.
  */
 export function finishProjection(acc: ProjectionAcc): GameState {
-  const { quests, items, temporals, xp, gold, completedCount } = acc;
+  const { quests, items, temporals, merchant, equipment, attributes, xp, gold, completedCount } = acc;
   // Cada quest sabe a qué encargo pendiente pertenece (para su fecha y su enlace).
   // Se recalcula entero: tras desenlazar o cumplir un encargo, la quest ya no lo tiene.
   const owners = questOwners(temporals.board.values());
@@ -209,6 +235,7 @@ export function finishProjection(acc: ProjectionAcc): GameState {
     quests,
     items: items.catalog,
     temporals: temporals.board,
+    gear: merchant.catalog,
     player: {
       xp,
       gold,
@@ -219,6 +246,9 @@ export function finishProjection(acc: ProjectionAcc): GameState {
       discovered: items.discovered,
       pity: items.pity,
       completedCount,
+      owned: merchant.owned,
+      equipped: equipment.equipped,
+      attributes: listAttributes(attributes),
     },
   };
 }

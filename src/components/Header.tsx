@@ -7,6 +7,8 @@ import { useMuted } from "../lib/useMuted";
 import { LANGS, num, setLang, type Lang } from "../i18n";
 import { MusicControl } from "../features/music";
 import { ItemsButton } from "../features/items";
+import { MerchantButton } from "../features/merchant";
+import { CharacterButton, DecorEmblem } from "../features/equipment";
 import { SectionSwitch } from "../features/temporal";
 
 export function Emblem({ size = 64 }: { size?: number }) {
@@ -31,7 +33,7 @@ export function Header() {
   return (
     <header className="hdr">
       <div className="hdr-brand">
-        <Emblem />
+        <DecorEmblem fallback={<Emblem />} />
         <div>
           <h1>Quest Board</h1>
           <p className="tag">Requests &amp; Bounties</p>
@@ -47,6 +49,7 @@ export function Header() {
             <b className="num rank">{player.rank}</b>
             <span>{t("header.level")}</span>
             <b className="num">{player.level}</b>
+            <CharacterButton />
           </div>
           <div className="xpbar" title={t("header.xpTotal", { xp: num(player.xp) })}>
             <span className="xpbar-lbl">XP</span>
@@ -67,6 +70,7 @@ export function Header() {
             <b className="num">{num(player.gold)}</b>
             <span className="muted">G</span>
             <ItemsButton />
+            <MerchantButton />
           </div>
           <div className="slots" title={t("header.slotsTitle")}>
             <span className="xpbar-lbl">{t("header.slots")}</span>

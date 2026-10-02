@@ -6,6 +6,7 @@ import type { EventBody, GameEvent } from "../domain/events";
 import type { QuestDef } from "../domain/types";
 import { RARITIES, type ItemDef } from "../features/items/model";
 import { TEMPORAL_KINDS, type TemporalDef } from "../features/temporal/model";
+import { GEAR_SLOTS, type GearDef } from "../features/merchant/model";
 import { seededRandom } from "../lib/id";
 
 export const T0 = Date.UTC(2026, 0, 1);
@@ -28,6 +29,10 @@ export function questDef(id: string, extra: Partial<QuestDef> = {}): QuestDef {
 
 export function itemDef(id: string, extra: Partial<ItemDef> = {}): ItemDef {
   return { id, name: `Item ${id}`, rarity: "common", kind: "", description: "", droppable: true, createdAt: T0, ...extra };
+}
+
+export function gearDef(id: string, extra: Partial<GearDef> = {}): GearDef {
+  return { id, name: `Pieza ${id}`, slot: "head", rarity: "common", description: "", createdAt: T0, ...extra };
 }
 
 export function temporalDef(id: string, extra: Partial<TemporalDef> = {}): TemporalDef {
@@ -70,9 +75,25 @@ export function randomStream(seed: string, n: number): GameEvent[] {
   const Q = ["q0", "q1", "q2", "q3", "q4", "q5"];
   const I = ["i0", "i1", "i2", "i3"];
   const TT = ["t0", "t1", "t2"];
+  const G = ["g0", "g1", "g2"];
   const cond = (q: string) => (rnd() < 0.85 ? `${q}-c` : `${q}-p`);
 
+  // Mercader y equipo (features/merchant y features/equipment): precios pequeños para
+  // que unas compras lleguen y otras no, según el oro que haya en ese momento.
+  const gearBody = (): EventBody => {
+    const g = pick(G);
+    const r = rnd();
+    if (r < 0.25) return { type: "gear_created", gear: gearDef(g, { slot: pick(GEAR_SLOTS), rarity: pick(RARITIES) }) };
+    if (r < 0.35)
+      return { type: "gear_updated", gearId: g, patch: rnd() < 0.5 ? { name: "Renombrada", rarity: pick(RARITIES) } : { slot: pick(GEAR_SLOTS) } };
+    if (r < 0.4) return { type: "gear_deleted", gearId: g };
+    if (r < 0.7) return { type: "gear_purchased", gearId: g, price: Math.floor(rnd() * 120) };
+    if (r < 0.9) return { type: "gear_equipped", gearId: g };
+    return { type: "gear_unequipped", slot: pick(GEAR_SLOTS) };
+  };
+
   const body = (): EventBody => {
+    if (rnd() < 0.12) return gearBody();
     const q = pick(Q);
     const r = rnd();
     if (r < 0.1)
@@ -80,6 +101,8 @@ export function randomStream(seed: string, n: number): GameEvent[] {
         type: "quest_created",
         quest: questDef(q, {
           category: pick(["elite", "repeat", "request"] as const),
+          // Áreas escritas de varias formas: los atributos las juntan (features/attributes).
+          area: pick(["Salud", " salud ", "Estudio", ""]),
           conditions: [
             { id: `${q}-c`, kind: "count", label: "x", target: 1 + Math.floor(rnd() * 3) },
             // Pomodoro sin `kind` en algunos: formato antiguo de los contadores.

@@ -6,7 +6,7 @@ Esta guía es para cualquier agente (o persona) que vaya a hacer tareas en este 
 
 ## 1. Qué es Quests, en 30 segundos
 
-App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. Interfaz en español y japonés, con música de fondo.
+App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú; junto al muñeco, los **atributos**: un nivel por cada área de las quests. Interfaz en español y japonés, con música de fondo.
 
 - **Stack:** Tauri 2 (Rust) + React 19 + TypeScript 6 + Vite 8 + Zustand 5 + Motion + GSAP + i18next, con SQLite vía `tauri-plugin-sql`.
 - **Modelo de datos:** *event sourcing* local-first. Se guardan **eventos inmutables** en SQLite y el estado se **calcula** reproduciéndolos (`project()`).
@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo J
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon` y `snapshot`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `equipment` y `attributes`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -69,11 +69,15 @@ src/
     complex/           Quests complejas: repetición en cualquier categoría y requisitos (sin eventos propios)
     horizon/           Plazos: clasificación por lo que falta y fecha límite de las quests (sin eventos)
     snapshot/          Snapshot de la proyección: dispatch incremental y arranque sin reproducirlo todo (sin eventos)
+    merchant/          Mercader (Hu Tao): catálogo de equipo y decoración, precios, escaparate semanal y compras (eventos gear_*)
+    equipment/         Personaje: muñeco con su equipo, armario y decoración del menú (gear_equipped / gear_unequipped)
+    attributes/        Atributos: un nivel por área de las quests, calculado de quest_completed (sin eventos)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
   test/              Utilidades de los tests (historiales aleatorios con semilla)
   lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), useMuted, id/PRNG, time (useNow, formatRemaining)
   styles/            theme.css (tokens), app.css (componentes)
 public/music/        Pistas de música (Vite las copia a dist/music/)
+public/merchant/     Vídeo de Hu Tao en bucle (MP4 + WebM) y su póster
 src-tauri/           Rust: lib.rs (plugin SQL), tauri.conf.json, capabilities/default.json
 docs/                Esta guía, informe técnico, cómo funciona, img/ con los diagramas
 ```
@@ -114,9 +118,9 @@ components ──▶ store ──▶ domain ◀── storage
 
 | Va en eventos (se sincroniza) | No va en eventos (`localStorage`, por equipo) |
 |---|---|
-| Quests, aceptar, progreso, completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales y la referencia de sus adjuntos | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador |
+| Quests, aceptar, progreso, completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales y la referencia de sus adjuntos, el catálogo del mercader (con su icono), las compras (con su precio) y lo que lleva puesto el personaje | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador |
 
-**Archivos adjuntos (norma):** en el evento solo va la referencia (nombre, tipo, tamaño, una miniatura pequeña y el `blobId`). El contenido va al almacén de binarios (`src/storage/blobStore.ts`), con su SHA-256 como clave. Nunca metas un archivo grande en un evento: se leería en cada arranque y no cabe en el `localStorage` del navegador.
+**Archivos adjuntos (norma):** en el evento solo va la referencia (nombre, tipo, tamaño, una miniatura pequeña y el `blobId`). El contenido va al almacén de binarios (`src/storage/blobStore.ts`), con su SHA-256 como clave. Nunca metas un archivo grande en un evento: se leería en cada arranque y no cabe en el `localStorage` del navegador. La imagen grande del **fondo del menú** (mercader) sigue la misma norma. El almacén lo comparten varias funcionalidades: **antes de borrar un binario, comprueba que no lo use ninguna** (`liveBlobIds` de los encargos y `gearBlobIds` del mercader).
 
 ### 5.4 Clases o funciones
 
@@ -144,7 +148,7 @@ src/features/<nombre>/
 
 - **La integración fuera de la carpeta debe ser mínima:** tipos (`domain/types.ts`), la unión de eventos (`domain/events.ts`), la proyección (`domain/projection.ts`), los diccionarios (`i18n/locales/{es,ja}.ts`, montando `xxxEs` / `xxxJa`) y el componente que la aloja. Enuméralo en la tabla «Puntos de integración» del README.
 - **El dominio nunca importa el `index.ts` de una funcionalidad**: ese archivo reexporta `actions.ts`, que importa el store, y se crearía un ciclo.
-- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`).
+- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**. `src/features/complex/` y `src/features/horizon/` son ejemplos de funcionalidades **sin eventos propios** que solo añaden campos opcionales a `QuestDef` y reglas puras. `src/features/snapshot/` es el de una funcionalidad **de infraestructura**: no cambia el juego, sino cómo se calcula y se guarda el estado, y trae sus tests (`*.test.ts`). `src/features/merchant/` es el de una funcionalidad con **economía** (precios calculados, un gasto que la proyección vigila) y **reglas que dependen de la semana** (el escaparate, calculado con semilla); `src/features/equipment/` lee el catálogo de otra funcionalidad, y `src/features/attributes/` es el de una que **no tiene eventos** y se calcula de los eventos de otra (`quest_completed`).
 
 - **Una funcionalidad puede importar el `model.ts` de otra** (`horizon` usa `daysUntil` de `temporal`), pero si su lógica necesita la proyección (`effectiveStatus`), va en otro archivo (como `temporal/links.ts`): `model.ts` lo importa el dominio y se crearía un ciclo.
 
@@ -172,7 +176,8 @@ src/features/<nombre>/
 
 ## 8. Assets y Tauri
 
-- **Archivos estáticos** (música, imágenes): en `public/`, nunca en `dist/`. `dist/` se borra entera en cada build y está en `.gitignore`.
+- **Archivos estáticos** (música, imágenes, vídeo): en `public/`, nunca en `dist/`. `dist/` se borra entera en cada build y está en `.gitignore`.
+- **Vídeo:** en dos formatos, MP4 (H.264) para WebKit y WebView2 y WebM (VP9) para el Chromium de las pruebas, sin audio, recortado a un bucle exacto y con un póster. Ejemplo: `public/merchant/`.
 - **Archivos del usuario** (adjuntos de los encargos): en el almacén de binarios, nunca en eventos ni en `public/`.
 - **Música:** se copia a `public/music/` y se registra en `src/features/music/tracks.ts` y en `i18n.ts`.
 - **Permisos de Tauri:** se conceden de forma explícita y mínima en `src-tauri/capabilities/default.json`. Cada plugin nuevo necesita su permiso y su registro en `src-tauri/src/lib.rs`.
@@ -194,7 +199,8 @@ src/features/<nombre>/
 - **Tests y zona horaria:** `vitest.config.ts` fija `TZ=Europe/Madrid`. Si un test de fechas pasa en tu equipo y falla en otro, es que crea fechas sin pasar por la zona horaria; usa `new Date(año, mes, día)` (hora local) o `deadlineIn`.
 - **Tests del store:** usan `// @vitest-environment happy-dom` (un navegador simulado con `localStorage`) y `vi.mock("../lib/sfx", …)` con `src/test/sfxMock.ts`, porque en Node no hay `AudioContext`. Para simular que se cierra y se vuelve a abrir la app, `vi.resetModules()` y vuelve a importar `store/game.ts` (ver `boot()` en `game.test.ts`).
 
-- **Recarga en caliente de Vite:** un módulo editado se sirve como `archivo.ts?t=…`. Importar `/src/store/game.ts` a mano puede dar **otra instancia** del store. Recarga la página antes de inspeccionar estado.
+- **Recarga en caliente de Vite:** un módulo editado se sirve como `archivo.ts?t=…`. Importar `/src/store/game.ts` a mano puede dar **otra instancia** del store (sin `init()`, con `ready` siempre en `false`), incluso tras recargar si sus dependencias cambiaron. Importa la URL exacta que cargó la app: `performance.getEntriesByType("resource").map((e) => e.name).find((n) => n.includes("/src/store/game.ts"))`.
+- **Vídeo en Chromium de Playwright:** no reproduce H.264 (no trae códecs propietarios). Por eso los vídeos llevan también un WebM; si solo hay MP4, en las pruebas se verá el respaldo.
 - **Recargas que fallan a medias** al crear varios archivos seguidos: pueden dejar módulos viejos vivos. Recarga entera (⌘R) antes de concluir nada.
 - **Pestaña en segundo plano** (`document.hidden`): `requestAnimationFrame` se frena y las animaciones de GSAP no avanzan. No es un fallo de la app. Para capturar fotogramas, pausa `gsap.globalTimeline` y avánzalo a mano (ver «Trampas del entorno» en [COMO-FUNCIONA.md](COMO-FUNCIONA.md)).
 - **`gsap.set` y variables CSS con `var(...)`:** no las aplica. Usa `el.style.setProperty("--x", "var(--y)")`.
@@ -231,7 +237,7 @@ Lo mismo vale para los otros diagramas (arquitectura, ciclo de vida, hoja de rut
 ## 11. Deuda conocida: no la empeores
 
 Prioridad alta, pendiente (fase 1.5 de la hoja de ruta):
-- **Tests: el dominio y el store están cubiertos** (231 tests, prueba de mutación 19/20). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones. Tampoco hay CI que los ejecute.
+- **Tests: el dominio y el store están cubiertos** (278 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones. Tampoco hay CI que los ejecute.
 - **Eventos sin campo `v`.** El *upcasting* ya existe en `legacy.ts`, pero falta versión explícita.
 - **Orden por reloj local** (`ts`): falta un reloj lógico híbrido.
 - **Sin error boundary:** un fallo de React deja la ventana en negro.
@@ -246,6 +252,8 @@ Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, 
 - Escribe en español, claro y directo. Explica las decisiones de diseño que tomes por tu cuenta y ofrece cambiarlas.
 - Si una petición choca con estas normas (por ejemplo, guardar algo en `dist/` o guardar estado en vez de eventos), **explica el motivo y propone la alternativa correcta** antes de actuar.
 - Las preferencias del propietario que surjan en el trabajo (como «una carpeta por implementación») se añaden a esta guía.
+- **Comprar tiene que costar.** Lo que se compra con oro (mercader) es una meta, no un gasto diario: precios altos por rareza, rango mínimo y escaparate semanal. No abarates precios ni quites requisitos sin preguntar.
+- **La mercancía se añade a mano y sin precio.** El propietario solo pone nombre, tipo, rareza, imagen y descripción; el precio y el rango los calcula el juego.
 
 ---
 
