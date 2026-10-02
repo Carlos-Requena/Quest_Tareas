@@ -1,3 +1,4 @@
+import type Database from "@tauri-apps/plugin-sql";
 import type { GameEvent } from "../domain/events";
 import { compareEvents } from "../domain/events";
 import { uid } from "../lib/id";
@@ -17,15 +18,22 @@ export interface EventStore {
   markSynced(ids: string[]): Promise<void>;
 }
 
-const isTauri = () => "__TAURI_INTERNALS__" in window;
+export const isTauri = () => "__TAURI_INTERNALS__" in window;
+
+let sqlite: Promise<Database> | undefined;
+
+/** Conexión única a quests.db: la comparten los eventos y los adjuntos (blobStore.ts). */
+export function sqliteDb(): Promise<Database> {
+  sqlite ??= import("@tauri-apps/plugin-sql").then(({ default: Db }) => Db.load("sqlite:quests.db"));
+  return sqlite;
+}
 
 export async function openEventStore(): Promise<EventStore> {
   return isTauri() ? openSqliteStore() : openLocalStore();
 }
 
 async function openSqliteStore(): Promise<EventStore> {
-  const { default: Database } = await import("@tauri-apps/plugin-sql");
-  const db = await Database.load("sqlite:quests.db");
+  const db = await sqliteDb();
   await db.execute(`CREATE TABLE IF NOT EXISTS events (
     id TEXT PRIMARY KEY,
     device_id TEXT NOT NULL,

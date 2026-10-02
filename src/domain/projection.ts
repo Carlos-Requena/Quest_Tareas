@@ -6,11 +6,13 @@ import { applyPomodoroEvent, newPomodoro, planOf, viewPomodoro } from "../featur
 import { upcastQuestDef } from "../features/pomodoro/legacy";
 import { applyItemEvent, newItemsAcc, receiveItems, registerItem } from "../features/items/model";
 import { upcastReward } from "../features/items/legacy";
+import { applyTemporalEvent, newTemporalAcc } from "../features/temporal/model";
 
 /** Reproduce los eventos (ya ordenados) y devuelve el estado actual del juego. */
 export function project(events: GameEvent[]): GameState {
   const quests = new Map<string, QuestState>();
   const items = newItemsAcc();
+  const temporals = newTemporalAcc();
   let xp = 0;
   let gold = 0;
   let completedCount = 0;
@@ -119,6 +121,21 @@ export function project(events: GameEvent[]): GameState {
       case "item_deleted":
         applyItemEvent(items, e);
         break;
+
+      case "temporal_created":
+      case "temporal_updated":
+      case "temporal_attached":
+      case "temporal_detached":
+      case "temporal_completed":
+      case "temporal_deleted": {
+        // Cumplir un encargo temporal también da XP y oro (copiados en el evento).
+        const earned = applyTemporalEvent(temporals, e, e.ts);
+        if (earned) {
+          xp += earned.xp;
+          gold += earned.gold;
+        }
+        break;
+      }
     }
   }
 
@@ -126,6 +143,7 @@ export function project(events: GameEvent[]): GameState {
   return {
     quests,
     items: items.catalog,
+    temporals: temporals.board,
     player: {
       xp,
       gold,
