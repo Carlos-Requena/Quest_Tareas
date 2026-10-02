@@ -1,0 +1,250 @@
+// Modelo puro de los encargos temporales: sin React, sin store, sin Tauri, sin DOM.
+// El dominio (src/domain) importa SOLO model.ts y events.ts, nunca index.ts.
+//
+// Un «encargo temporal» es algo que ocurre en una fecha: una cita con el médico,
+// una entrega, un examen, un cumpleaños… Se clava en su propio tablón como un
+// cartel de pergamino, con calaveras rojas según su dificultad.
+
+import type { TemporalEventBody } from "./events";
+
+// ───────────── Tipos de cartel ─────────────
+
+/** Cada tipo tiene su cabecera decorativa (en inglés, como el resto de etiquetas) y su color. */
+export const TEMPORAL_KINDS = ["summons", "delivery", "hunt", "scout", "gathering"] as const;
+export type TemporalKind = (typeof TEMPORAL_KINDS)[number];
+
+/** El nombre traducido de cada tipo está en el diccionario (`temporal.kinds.*`). */
+export const KIND_META: Record<TemporalKind, { tag: string; red: boolean }> = {
+  summons: { tag: "Summons", red: true },
+  delivery: { tag: "Delivery", red: false },
+  hunt: { tag: "Kill Quest", red: true },
+  scout: { tag: "Scout Quest", red: true },
+  gathering: { tag: "Gathering", red: false },
+};
+
+// ───────────── Dificultad y recompensa ─────────────
+
+export const MIN_SKULLS = 1;
+export const MAX_SKULLS = 5;
+
+export const clampSkulls = (n: number) => Math.max(MIN_SKULLS, Math.min(MAX_SKULLS, Math.round(Number(n) || MIN_SKULLS)));
+
+export interface TemporalReward {
+  xp: number;
+  gold: number;
+}
+
+/** Recompensa sugerida por número de calaveras (1 … 5). Se puede cambiar en el formulario. */
+export const REWARD_BY_SKULLS: TemporalReward[] = [
+  { xp: 60, gold: 30 },
+  { xp: 120, gold: 60 },
+  { xp: 200, gold: 100 },
+  { xp: 320, gold: 160 },
+  { xp: 500, gold: 250 },
+];
+
+export const suggestedReward = (skulls: number): TemporalReward => ({ ...REWARD_BY_SKULLS[clampSkulls(skulls) - 1] });
+
+// ───────────── Adjuntos ─────────────
+
+/**
+ * Referencia a un archivo adjunto. El contenido NO viaja en el evento: vive en el
+ * almacén de binarios (src/storage/blobStore.ts) con su SHA-256 como clave.
+ * En el evento solo van los metadatos y, para las imágenes, una miniatura pequeña.
+ */
+export interface AttachmentRef {
+  id: string;
+  /** SHA-256 del contenido: clave en el almacén de binarios, igual en todos los dispositivos. */
+  blobId: string;
+  name: string;
+  /** image/* o application/pdf. */
+  mime: string;
+  /** Bytes del archivo guardado. */
+  size: number;
+  /** Miniatura de las imágenes (data URL de ~320 px). Los PDF no la tienen. */
+  thumb?: string;
+  addedAt: number;
+}
+
+export const isPdf = (a: Pick<AttachmentRef, "mime">) => a.mime === "application/pdf";
+export const isImage = (a: Pick<AttachmentRef, "mime">) => a.mime.startsWith("image/");
+
+// ───────────── Encargo ─────────────
+
+/** Definición de un encargo temporal (lo que se clava en el tablón). */
+export interface TemporalDef {
+  id: string;
+  title: string;
+  kind: TemporalKind;
+  /** Calaveras rojas: de 1 a 5. */
+  difficulty: number;
+  /** Cuándo ocurre (ms). Si es de todo el día, la medianoche local de ese día. */
+  dueAt: number;
+  allDay: boolean;
+  place: string;
+  notes: string;
+  reward: TemporalReward;
+  attachments: AttachmentRef[];
+  createdAt: number;
+}
+
+/** Campos editables con `temporal_updated`. Los adjuntos van con sus propios eventos (deltas). */
+export type TemporalPatch = Partial<Omit<TemporalDef, "id" | "createdAt" | "attachments">>;
+
+export const TEMPORAL_LIMITS = { title: 80, place: 60, notes: 600, attachments: 8, fileMb: 20 } as const;
+
+export type TemporalStatus = "pending" | "done";
+
+export interface TemporalState extends TemporalDef {
+  status: TemporalStatus;
+  /** Cuándo se cumplió (ts del evento). */
+  completedAt?: number;
+  /** Recompensa ganada: copia del evento, no cambia si se edita después. */
+  earned?: TemporalReward;
+}
+
+// ───────────── Tiempo ─────────────
+// El dominio no llama a Date.now(): `now` entra como parámetro. `new Date(ms)` solo
+// se usa para saber dónde empieza el día en la zona horaria local.
+
+const DAY = 86_400_000;
+
+/** Medianoche local del día de `ms`. */
+export function startOfDay(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Días naturales entre hoy y el día del encargo: 0 hoy, 1 mañana, −1 ayer. */
+export const daysUntil = (dueAt: number, now: number) => Math.round((startOfDay(dueAt) - startOfDay(now)) / DAY);
+
+/**
+ * Urgencia de un encargo en `now`:
+ * - overdue: ya pasó (los de todo el día, al acabar su día).
+ * - today: es hoy y aún no ha pasado.
+ * - soon: en los próximos 3 días.
+ * - later: más adelante.
+ * - done: cumplido.
+ */
+export type Urgency = "overdue" | "today" | "soon" | "later" | "done";
+
+export const SOON_DAYS = 3;
+
+export function urgencyOf(t: Pick<TemporalState, "status" | "dueAt" | "allDay">, now: number): Urgency {
+  if (t.status === "done") return "done";
+  const days = daysUntil(t.dueAt, now);
+  const past = t.allDay ? days < 0 : now >= t.dueAt;
+  if (past) return "overdue";
+  if (days === 0) return "today";
+  if (days <= SOON_DAYS) return "soon";
+  return "later";
+}
+
+/** Orden del tablón: pendientes por fecha (los vencidos primero) y, si se muestran, los cumplidos del más reciente al más antiguo. */
+export function sortTemporals(list: Iterable<TemporalState>): TemporalState[] {
+  return [...list].sort((a, b) => {
+    if (a.status !== b.status) return a.status === "pending" ? -1 : 1;
+    if (a.status === "done") return (b.completedAt ?? 0) - (a.completedAt ?? 0);
+    return a.dueAt - b.dueAt || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1);
+  });
+}
+
+/** Encargos que piden atención (hoy o vencidos): el aviso de la cabecera. */
+export function needsAttention(list: Iterable<TemporalState>, now: number): number {
+  let n = 0;
+  for (const t of list) {
+    const u = urgencyOf(t, now);
+    if (u === "today" || u === "overdue") n++;
+  }
+  return n;
+}
+
+/** Encargos con hora que empiezan dentro de `windowMs`: los que merecen un aviso. */
+export function remindersDue(list: Iterable<TemporalState>, now: number, windowMs: number): TemporalState[] {
+  return [...list].filter((t) => t.status === "pending" && !t.allDay && t.dueAt > now && t.dueAt - now <= windowMs);
+}
+
+// ───────────── Proyección ─────────────
+
+/** Acumulador que usa project() mientras reproduce los eventos. */
+export interface TemporalAcc {
+  board: Map<string, TemporalState>;
+  /** Ids retirados: un `temporal_created` repetido no los resucita. */
+  deleted: Set<string>;
+}
+
+export const newTemporalAcc = (): TemporalAcc => ({ board: new Map(), deleted: new Set() });
+
+/** Datos tolerantes: lo que venga mal formado se corrige al leer, sin reescribir el evento. */
+function normalize(def: TemporalDef): TemporalDef {
+  const kind = TEMPORAL_KINDS.includes(def.kind) ? def.kind : "summons";
+  return {
+    ...def,
+    kind,
+    difficulty: clampSkulls(def.difficulty),
+    allDay: !!def.allDay,
+    place: def.place ?? "",
+    notes: def.notes ?? "",
+    reward: { xp: Math.max(0, def.reward?.xp ?? 0), gold: Math.max(0, def.reward?.gold ?? 0) },
+    attachments: Array.isArray(def.attachments) ? def.attachments : [],
+  };
+}
+
+/**
+ * Aplica un evento de encargo temporal. Cada caso tiene su guarda, como project():
+ * los eventos imposibles (cumplir dos veces, editar uno retirado…) se ignoran.
+ * Devuelve la recompensa si el evento la concede (solo `temporal_completed`).
+ */
+export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: number): TemporalReward | undefined {
+  switch (e.type) {
+    case "temporal_created": {
+      const id = e.temporal.id;
+      if (acc.board.has(id) || acc.deleted.has(id)) return;
+      acc.board.set(id, { ...normalize(e.temporal), status: "pending" });
+      return;
+    }
+    case "temporal_updated": {
+      const t = acc.board.get(e.temporalId);
+      // Lo cumplido ya no se edita: su recompensa y su fecha son historia.
+      if (t?.status !== "pending") return;
+      // Solo los campos editables: la identidad, los adjuntos y el estado no se tocan con un parche.
+      const patch: Partial<TemporalState> = { ...e.patch };
+      for (const k of ["id", "createdAt", "attachments", "status", "completedAt", "earned"] as const) delete patch[k];
+      acc.board.set(t.id, { ...t, ...normalize({ ...t, ...patch }), status: t.status });
+      return;
+    }
+    case "temporal_attached": {
+      const t = acc.board.get(e.temporalId);
+      if (!t || t.attachments.some((a) => a.id === e.attachment.id)) return;
+      acc.board.set(t.id, { ...t, attachments: [...t.attachments, e.attachment] });
+      return;
+    }
+    case "temporal_detached": {
+      const t = acc.board.get(e.temporalId);
+      if (!t) return;
+      acc.board.set(t.id, { ...t, attachments: t.attachments.filter((a) => a.id !== e.attachmentId) });
+      return;
+    }
+    case "temporal_completed": {
+      const t = acc.board.get(e.temporalId);
+      // Si dos dispositivos lo cumplen sin conexión, solo cuenta el primero.
+      if (t?.status !== "pending") return;
+      const earned = { xp: Math.max(0, e.reward.xp), gold: Math.max(0, e.reward.gold) };
+      acc.board.set(t.id, { ...t, status: "done", completedAt: ts, earned });
+      return earned;
+    }
+    case "temporal_deleted":
+      if (acc.board.delete(e.temporalId)) acc.deleted.add(e.temporalId);
+      return;
+  }
+}
+
+/** Ids de los binarios que siguen en uso: los demás se pueden borrar del almacén. */
+export function liveBlobIds(board: Iterable<TemporalState>): Set<string> {
+  const ids = new Set<string>();
+  for (const t of board) for (const a of t.attachments) ids.add(a.blobId);
+  return ids;
+}
+
+export const clampText = (s: string, max: number) => s.trim().slice(0, max);

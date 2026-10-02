@@ -10,6 +10,9 @@ import type { Drop } from "../features/items/model";
 
 export type Tab = "all" | Category;
 
+/** Sección de la ventana: el tablón de quests o el de encargos temporales. */
+export type Section = "board" | "temporal";
+
 /** Pestaña abierta en la ventana de objetos (inventario, almanaque o probabilidades). */
 export type CollectionTab = "inventory" | "almanac" | "rates";
 
@@ -30,6 +33,7 @@ interface GameStore {
   state: GameState;
 
   // UI
+  section: Section;
   tab: Tab;
   selectedId?: string;
   creating: boolean;
@@ -40,6 +44,7 @@ interface GameStore {
 
   init(): Promise<void>;
   dispatch(body: EventBody): Promise<void>;
+  setSection(section: Section): void;
   setTab(tab: Tab): void;
   select(id?: string): void;
   setCreating(v: boolean): void;
@@ -73,6 +78,7 @@ export const useGame = create<GameStore>((set, get) => {
     ready: false,
     events: [],
     state: project([]),
+    section: "board",
     tab: "all",
     creating: false,
 
@@ -90,6 +96,7 @@ export const useGame = create<GameStore>((set, get) => {
       await store.append(e);
     },
 
+    setSection: (section) => set({ section }),
     setTab: (tab) => set({ tab }),
     select: (selectedId) => set({ selectedId }),
     setCreating: (creating) => set({ creating }),

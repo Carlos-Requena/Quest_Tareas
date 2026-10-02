@@ -1,0 +1,1786 @@
+/* ═════════════ Encargos temporales (src/features/temporal) ═════════════ */
+
+/* Los colores de la calavera se pueden animar (rojo → oro al cumplir). */
+@property --sk-hi {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ff7a6b;
+}
+@property --sk-mid {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #c4161f;
+}
+@property --sk-lo {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #5c0309;
+}
+@property --sk-deep {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #2c0204;
+}
+
+.skull {
+  --sk-hi: var(--skull-hi);
+  --sk-mid: var(--skull);
+  --sk-lo: var(--skull-lo);
+  --sk-deep: var(--skull-deep);
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 2px 1.5px rgba(40, 0, 0, 0.55));
+  transition: --sk-hi 0.45s, --sk-mid 0.45s, --sk-lo 0.45s, --sk-deep 0.45s, filter 0.45s;
+}
+.skull.skull-gold {
+  --sk-hi: var(--skull-gold-hi);
+  --sk-mid: var(--r-legendary);
+  --sk-lo: var(--gold-lo);
+  --sk-deep: var(--skull-gold-deep);
+  filter: drop-shadow(0 2px 1.5px rgba(60, 40, 0, 0.5)) drop-shadow(0 0 6px rgba(242, 181, 60, 0.6));
+}
+.splat {
+  --sk-mid: var(--skull);
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Textura de papel: grano fino que oscurece un poco el pergamino. */
+.tp-paper::before,
+.pv-paper::before,
+.tpo-paper::before,
+.tco-paper::before,
+.tb-empty::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.32;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .32  0 0 0 0 .18  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='3' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .36  0 0 0 0 .16  0 0 0 2.2 -1.15'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
+}
+
+/* ───────────── Selector de sección (cabecera) ───────────── */
+
+/* Dos pestañas apiladas junto al nombre de la app: caben en la cabecera sin empujar nada. */
+.secsw {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 6px;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+}
+.secsw-btn {
+  position: relative;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+.secsw-btn:hover {
+  color: var(--text);
+}
+.secsw-btn > * {
+  position: relative;
+  z-index: 1;
+}
+.secsw-btn.on {
+  color: #2a2110;
+  font-weight: 700;
+}
+.secsw-hl {
+  position: absolute !important;
+  inset: 0;
+  z-index: 0 !important;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+}
+.secsw-ico {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+}
+.secsw-ico .gem {
+  width: 6px;
+  height: 6px;
+  color: var(--gold);
+}
+.secsw-btn.on .secsw-ico .gem {
+  color: #2a2110;
+}
+.secsw-ico .skull {
+  width: 16px;
+  height: 16px;
+}
+/* Ventanas estrechas: solo los iconos (el nombre sigue en el título del botón). */
+@media (max-width: 1180px) {
+  .secsw-lbl {
+    display: none;
+  }
+  .secsw-btn {
+    padding: 0 7px;
+  }
+}
+.secsw-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  background: var(--skull);
+  box-shadow: 0 0 0 1px var(--skull-lo), 0 0 10px var(--skull);
+  animation: tb-throb 1.6s ease-in-out infinite;
+}
+@keyframes tb-throb {
+  50% {
+    box-shadow: 0 0 0 1px var(--skull-lo), 0 0 18px 3px var(--skull);
+  }
+}
+
+/* ───────────── Tablón de roble ───────────── */
+
+.main-temporal {
+  display: block;
+  padding: 14px 20px 10px;
+}
+.tb {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+/* Vetas horizontales del roble sobre un degradado cálido, con el borde quemado.
+   Los mosaicos miden 2.400 px de ancho para que no se vean juntas en una ventana normal. */
+.tb-wood {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='2400' height='480'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.0035 .16' numOctaves='4' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .22  0 0 0 0 .1  0 0 0 0 .03  2.6 0 0 0 -1.05'/></filter><rect width='100%' height='100%' filter='url(%23w)'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='2400' height='360'><filter id='v'><feTurbulence type='turbulence' baseFrequency='.002 .05' numOctaves='2' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .95  0 0 0 0 .7  0 0 0 0 .42  0 0 0 1.4 -.55'/></filter><rect width='100%' height='100%' filter='url(%23v)'/></svg>"),
+    linear-gradient(180deg, var(--oak-hi), var(--oak) 45%, var(--oak-lo));
+  box-shadow:
+    inset 0 0 0 7px var(--oak-burn),
+    inset 0 0 18px 12px rgba(29, 15, 6, 0.95),
+    inset 0 0 70px 30px rgba(29, 15, 6, 0.55);
+}
+/* Luz de vela que respira, desde arriba a la izquierda. */
+.tb-light {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 60% at 30% 20%, rgba(255, 214, 150, 0.16), transparent 70%);
+  mix-blend-mode: screen;
+  animation: tb-candle 5.5s ease-in-out infinite;
+}
+@keyframes tb-candle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  37% {
+    opacity: 0.72;
+  }
+  52% {
+    opacity: 0.95;
+  }
+  71% {
+    opacity: 0.8;
+  }
+}
+.tb-motes {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+.tb-motes span {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 236, 200, 0.85), rgba(255, 214, 150, 0) 70%);
+  opacity: 0;
+  animation: tb-mote linear infinite;
+}
+@keyframes tb-mote {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(var(--drift), -160px);
+    opacity: 0;
+  }
+}
+
+.tb-corner {
+  position: absolute;
+  z-index: 4;
+  width: 86px;
+  height: 86px;
+  pointer-events: none;
+  color: var(--copper);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6));
+}
+.tb-corner svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.tb-corner.tl {
+  left: -6px;
+  bottom: auto;
+  top: -6px;
+  transform: scaleY(-1);
+}
+.tb-corner.tr {
+  right: -6px;
+  top: -6px;
+  transform: scale(-1, -1);
+}
+.tb-corner.bl {
+  left: -6px;
+  bottom: -6px;
+}
+.tb-corner.br {
+  right: -6px;
+  bottom: -6px;
+  transform: scaleX(-1);
+}
+
+.tb-head {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 70px 2px;
+}
+/* Letras quemadas en la madera, como «THE BROKEN SPEAR INN». */
+.tb-title {
+  margin: 0;
+  font-family: var(--f-tag);
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #5e2e10;
+  text-shadow:
+    0 1px 0 rgba(255, 214, 160, 0.35),
+    0 -1px 0 rgba(30, 12, 2, 0.6),
+    0 0 12px rgba(80, 30, 5, 0.35);
+}
+.tb-count {
+  justify-self: start;
+  font-family: var(--f-tag);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(40, 18, 6, 0.75);
+  text-shadow: 0 1px 0 rgba(255, 214, 160, 0.3);
+}
+.tb-tools {
+  justify-self: end;
+}
+.tb-tool {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 13px;
+  font-size: 11px;
+  color: var(--parchment-hi);
+  background: rgba(29, 15, 6, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(29, 15, 6, 0.6);
+  transition: background 0.2s;
+}
+.tb-tool:hover,
+.tb-tool.on {
+  background: rgba(29, 15, 6, 0.7);
+}
+
+.tb-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 6;
+  max-width: 70%;
+  padding: 5px 16px;
+  translate: -50% 0;
+  border-radius: 14px;
+  font-size: 13px;
+  color: var(--gold-hi);
+  background: rgba(20, 10, 4, 0.82);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(214, 178, 94, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.tb-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 46px 30px;
+}
+.tb-scroll::-webkit-scrollbar-thumb {
+  background: rgba(29, 15, 6, 0.6);
+}
+.tb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  grid-auto-flow: dense;
+  column-gap: 30px;
+  row-gap: 0;
+  align-items: start;
+}
+
+/* ───────────── Cartel ───────────── */
+
+.tp {
+  position: relative;
+  display: block;
+  height: 100%;
+  padding: 10px 2px 26px;
+  text-align: left;
+  outline: none;
+  color: var(--ink);
+}
+.tp-hang {
+  position: relative;
+  height: 100%;
+  transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+  transition: transform 0.35s var(--ease-out), filter 0.35s;
+  filter: drop-shadow(0 7px 7px rgba(25, 10, 2, 0.55)) drop-shadow(0 1px 1px rgba(25, 10, 2, 0.5));
+  will-change: transform;
+}
+.tp:hover .tp-hang,
+.tp.is-selected .tp-hang {
+  transform: translate(var(--dx), calc(var(--dy) - 6px)) rotate(calc(var(--rot) * 0.3)) scale(1.03);
+  filter: drop-shadow(0 16px 14px rgba(25, 10, 2, 0.6)) drop-shadow(0 1px 1px rgba(25, 10, 2, 0.5));
+  z-index: 2;
+}
+.tp.is-selected {
+  z-index: 3;
+}
+.tp.is-selected .tp-hang::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 1.5px solid var(--gold-hi);
+  border-radius: 3px;
+  box-shadow: 0 0 16px rgba(242, 214, 143, 0.65), inset 0 0 12px rgba(242, 214, 143, 0.35);
+  pointer-events: none;
+  animation: tp-sel 1.8s ease-in-out infinite;
+}
+@keyframes tp-sel {
+  50% {
+    box-shadow: 0 0 24px rgba(242, 214, 143, 0.9), inset 0 0 16px rgba(242, 214, 143, 0.5);
+  }
+}
+
+.tp-paper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 50% 40% at 78% 82%, rgba(140, 90, 40, 0.18), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 18% 22%, rgba(140, 90, 40, 0.12), transparent 70%),
+    radial-gradient(ellipse at 50% 45%, var(--parchment-hi) 0%, var(--parchment) 55%, var(--parchment-lo) 92%, var(--parchment-burn) 120%);
+}
+.tp-frame {
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 10px 8px;
+  border: 1px solid rgba(59, 42, 26, 0.45);
+  box-shadow:
+    inset 0 0 0 3px rgba(247, 238, 214, 0.25),
+    inset 0 0 0 4px rgba(59, 42, 26, 0.28);
+  text-align: center;
+}
+.tp-frame::before,
+.tp-frame::after {
+  content: "❦";
+  position: absolute;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(59, 42, 26, 0.55);
+}
+.tp-frame::before {
+  top: 3px;
+  left: 5px;
+}
+.tp-frame::after {
+  bottom: 3px;
+  right: 5px;
+  transform: rotate(180deg);
+}
+.tp-guild {
+  font-family: var(--f-tag);
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(59, 42, 26, 0.7);
+}
+.tp-kind {
+  margin: 3px 0 6px;
+  font-family: var(--f-tag);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.tp.is-red .tp-kind {
+  color: var(--ink-red);
+}
+.tp-headrow {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tp-headrow .tp-kind {
+  margin: 0 0 6px;
+  font-size: 19px;
+}
+.tp-body {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.tp-landscape .tp-body {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 12px;
+}
+.tp-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 2px 4px;
+}
+.tp-landscape .tp-text {
+  border: 1px solid rgba(59, 42, 26, 0.3);
+  padding: 6px 8px;
+}
+.tp-portrait .tp-text {
+  order: 2;
+}
+.tp-title {
+  font-family: var(--f-body);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-variant: small-caps;
+}
+.tp-when {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(59, 42, 26, 0.8);
+}
+.tp-reward {
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+.tp-reward small {
+  font-family: var(--f-tag);
+  font-size: 12px;
+}
+/* El dibujo adjunto se ve como un boceto a lápiz sobre el pergamino. */
+.tp-sketch {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(59, 42, 26, 0.35);
+  background: rgba(247, 238, 214, 0.35);
+}
+.tp-portrait .tp-sketch {
+  order: 1;
+  width: 86%;
+  height: 74px;
+}
+.tp-landscape .tp-sketch {
+  width: 44%;
+}
+.tp-sketch img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) sepia(0.55) contrast(1.25) brightness(1.08);
+  mix-blend-mode: multiply;
+  opacity: 0.9;
+}
+/* Cinta de abajo: el lugar, o «Enquire within» como en los carteles de la referencia. */
+.tp-ribbon {
+  position: relative;
+  max-width: 82%;
+  margin-top: 6px;
+  padding: 2px 14px;
+  font-family: var(--f-tag);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(59, 42, 26, 0.85);
+  border: 1px solid rgba(59, 42, 26, 0.45);
+  background: rgba(247, 238, 214, 0.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tp-ribbon::before,
+.tp-ribbon::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  width: 8px;
+  height: 8px;
+  border-bottom: 1px solid rgba(59, 42, 26, 0.45);
+}
+.tp-ribbon::before {
+  left: 3px;
+}
+.tp-ribbon::after {
+  right: 3px;
+}
+
+/* Chincheta de latón. */
+.tp-tack {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  margin-left: -6.5px;
+  border-radius: 50%;
+  z-index: 3;
+  background: radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 45%, var(--gold-lo) 80%);
+  box-shadow: 0 3px 3px rgba(25, 10, 2, 0.6), inset 0 -1px 1px rgba(0, 0, 0, 0.35);
+}
+
+/* Cuenta atrás, colgada de la esquina superior derecha. */
+.tp-chip {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 4;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--parchment-hi);
+  background: var(--oak-lo);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+  transform: rotate(4deg);
+}
+.tp-chip.is-soon {
+  background: var(--copper);
+}
+.tp-chip.is-today {
+  background: var(--skull);
+  animation: tp-today 1.2s ease-in-out infinite;
+}
+.tp-chip.is-overdue {
+  background: var(--skull-deep);
+  color: #ffb3a8;
+}
+.tp-chip.is-done {
+  background: var(--gold-lo);
+  color: var(--gold-hi);
+}
+@keyframes tp-today {
+  50% {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45), 0 0 14px 2px var(--skull);
+  }
+}
+/* Hoy: aura roja que late detrás del cartel. */
+.tp.is-today .tp-hang::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 6px;
+  background: radial-gradient(ellipse at center, rgba(196, 22, 31, 0.45), transparent 70%);
+  filter: blur(8px);
+  animation: tp-aura 1.6s ease-in-out infinite;
+  z-index: -1;
+}
+@keyframes tp-aura {
+  50% {
+    opacity: 0.35;
+  }
+}
+/* Vencido: el papel se oscurece y se ladea un poco más. */
+.tp.is-overdue .tp-paper {
+  filter: sepia(0.35) brightness(0.86);
+}
+.tp.is-overdue .tp-hang {
+  transform: translate(var(--dx), var(--dy)) rotate(calc(var(--rot) * 2.2));
+}
+
+.tp-clip {
+  position: absolute;
+  top: -10px;
+  left: 12px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  color: #c8ccd2;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+}
+.tp-clip .clip-ico {
+  width: 12px;
+  height: 26px;
+}
+.tp-clip b {
+  font-size: 12px;
+  color: var(--parchment-hi);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+.clip-ico {
+  width: 11px;
+  height: 16px;
+  flex: none;
+}
+
+.tp-skulls {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.tp-skulls .skull {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+}
+.tp-landscape .tp-skulls .skull {
+  width: 36px;
+  height: 36px;
+}
+.tp:hover .tp-skulls .skull {
+  animation: tp-jiggle 0.5s ease-in-out;
+}
+@keyframes tp-jiggle {
+  30% {
+    translate: 0 -2px;
+  }
+  60% {
+    translate: 0 1px;
+  }
+}
+.tp-dust {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Sello «CLEAR» de los cumplidos. */
+.tp-clear {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 2;
+  padding: 2px 10px 0;
+  translate: -50% -50%;
+  rotate: -14deg;
+  font-family: var(--f-tag);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-red);
+  border: 3px double var(--ink-red);
+  mix-blend-mode: multiply;
+  opacity: 0;
+  pointer-events: none;
+}
+.tp.is-done .tp-clear,
+.pv-sheet.is-done .tp-clear {
+  opacity: 0.85;
+}
+.tp.is-done .tp-paper {
+  filter: sepia(0.25) brightness(0.92);
+}
+
+.tb-empty {
+  position: relative;
+  width: 330px;
+  margin: 40px auto 0;
+  padding: 26px 26px 22px;
+  text-align: center;
+  color: var(--ink);
+  background: radial-gradient(ellipse at 50% 45%, var(--parchment-hi), var(--parchment) 60%, var(--parchment-lo));
+  filter: drop-shadow(0 8px 8px rgba(25, 10, 2, 0.55));
+}
+.tb-empty p {
+  position: relative;
+  margin: 0;
+  font-weight: 700;
+  font-size: 15px;
+}
+.tb-empty .tb-empty-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(59, 42, 26, 0.8);
+}
+.tb-empty kbd {
+  border-color: var(--ink);
+  color: var(--ink);
+  margin: 0 3px;
+}
+
+/* ───────────── Formulario ───────────── */
+
+.tf {
+  position: relative;
+}
+.tf .modal-body {
+  gap: 14px;
+}
+.tf-kinds {
+  flex-wrap: wrap;
+}
+.tf-kinds .seg-btn {
+  min-width: 110px;
+}
+.tf-level {
+  color: var(--skull-hi);
+  font-weight: 700;
+}
+.tf-skulls {
+  display: flex;
+  gap: 6px;
+}
+.tf-skull {
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border-radius: 50%;
+  transition: transform 0.18s var(--ease-out);
+}
+.tf-skull .skull {
+  width: 100%;
+  height: 100%;
+  filter: grayscale(1) brightness(0.45) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+  opacity: 0.6;
+  transition: filter 0.2s, opacity 0.2s;
+}
+.tf-skull.on .skull {
+  filter: drop-shadow(0 2px 2px rgba(40, 0, 0, 0.6)) drop-shadow(0 0 6px rgba(196, 22, 31, 0.5));
+  opacity: 1;
+}
+.tf-skull:hover {
+  transform: scale(1.15) rotate(-6deg);
+}
+.tf-skull:active {
+  transform: scale(0.92);
+}
+.tf-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tf-time input[type="time"] {
+  flex: 1;
+  min-width: 0;
+}
+.tf-time input:disabled {
+  opacity: 0.35;
+}
+.tf-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tf-check input {
+  width: auto;
+  accent-color: var(--skull);
+}
+.field input[type="date"],
+.field input[type="time"] {
+  color-scheme: dark;
+}
+.tf-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--line-strong);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.2s, background 0.2s;
+}
+.tf.is-dragging .tf-drop {
+  border-color: var(--skull-hi);
+  background: rgba(196, 22, 31, 0.08);
+}
+.tf-file {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 150px) auto 22px;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 4px 0 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+}
+.tf-file img,
+.tf-pdf {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+}
+.tf-pdf,
+.pv-pdf {
+  display: grid;
+  place-items: center;
+  font-family: var(--f-tag);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--parchment-hi);
+  background: linear-gradient(160deg, var(--ink-red), var(--skull-lo));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  clip-path: polygon(0 0, 72% 0, 100% 26%, 100% 100%, 0 100%);
+}
+.tf-file-name {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tf-file small {
+  font-size: 10px;
+}
+.tf-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+}
+.tf-pick:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.tf-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11px;
+}
+.tf-reward-hint {
+  align-self: end;
+  padding-bottom: 10px;
+}
+.tf-err {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: #ff9a8e;
+}
+.tf-dropveil,
+.pv-dropveil {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--parchment-hi);
+  background: rgba(92, 3, 9, 0.55);
+  border: 2px dashed var(--skull-hi);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.tf-dropveil .clip-ico,
+.pv-dropveil .clip-ico {
+  width: 18px;
+  height: 28px;
+}
+.tf.is-dragging .tf-dropveil,
+.pv.is-dragging .pv-dropveil {
+  opacity: 1;
+}
+
+/* ───────────── Cartel en grande ───────────── */
+
+.pv {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+}
+.pv-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(20, 10, 4, 0.72), rgba(4, 3, 2, 0.92));
+  backdrop-filter: blur(4px);
+}
+.pv-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  max-height: 96vh;
+}
+.pv-sheet {
+  position: relative;
+  width: min(760px, 88vw);
+  height: min(560px, 74vh);
+  color: var(--ink);
+  filter: drop-shadow(0 26px 30px rgba(0, 0, 0, 0.7));
+  transform-origin: 50% 50%;
+}
+.pv-paper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 40% 30% at 84% 86%, rgba(140, 90, 40, 0.2), transparent 70%),
+    radial-gradient(ellipse at 50% 45%, var(--parchment-hi) 0%, var(--parchment) 55%, var(--parchment-lo) 88%, var(--parchment-burn) 110%);
+  box-shadow: inset 0 0 50px 12px rgba(90, 49, 18, 0.55);
+}
+.pv-frame {
+  position: absolute;
+  inset: 22px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 26px 18px;
+  border: 1px solid rgba(59, 42, 26, 0.45);
+  box-shadow: inset 0 0 0 4px rgba(247, 238, 214, 0.2), inset 0 0 0 5px rgba(59, 42, 26, 0.25);
+  overflow-y: auto;
+}
+.pv-head,
+.tpo-head,
+.tco-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.pv-orn,
+.tpo-orn,
+.tco-orn {
+  width: 90px;
+  height: 7px;
+  background:
+    radial-gradient(circle, currentColor 1.5px, transparent 2px) 0 50% / 12px 7px repeat-x;
+  color: rgba(59, 42, 26, 0.55);
+}
+.pv-head .pv-orn:last-child,
+.tpo-head .tpo-orn:last-child,
+.tco-head .tco-orn:last-child {
+  transform-origin: left;
+}
+.pv-head .pv-orn:first-child,
+.tpo-head .tpo-orn:first-child,
+.tco-head .tco-orn:first-child {
+  transform-origin: right;
+}
+.pv-kind {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+}
+.pv-sheet.is-red .pv-kind {
+  color: var(--ink-red);
+}
+.pv-tag {
+  align-self: center;
+  margin-top: 2px;
+  font-family: var(--f-tag);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(59, 42, 26, 0.6);
+}
+.pv-title {
+  margin: 8px 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(59, 42, 26, 0.3);
+  text-align: center;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0.03em;
+  font-variant: small-caps;
+}
+.pv-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+.pv-grid > div,
+.pv-notes {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+.pv-lbl {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(59, 42, 26, 0.65);
+}
+.pv-val {
+  font-size: 15px;
+  font-weight: 700;
+}
+.pv-chip {
+  position: static;
+  justify-self: start;
+  transform: none;
+  margin-top: 2px;
+}
+.pv-notes {
+  margin-bottom: 12px;
+}
+.pv-notes p {
+  margin: 0;
+  white-space: pre-line;
+  line-height: 1.75;
+  user-select: text;
+}
+.pv-files {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.pv-empty {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(59, 42, 26, 0.6);
+  font-style: italic;
+}
+.pv-file-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.pv-file {
+  position: relative;
+}
+.pv-file-open {
+  width: 116px;
+  display: grid;
+  gap: 3px;
+  padding: 5px 5px 4px;
+  text-align: left;
+  color: var(--ink);
+  background: rgba(247, 238, 214, 0.55);
+  border: 1px solid rgba(59, 42, 26, 0.35);
+  box-shadow: 0 2px 4px rgba(59, 42, 26, 0.25);
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s;
+}
+.pv-file-open:hover {
+  transform: translateY(-3px) rotate(-1.5deg);
+  box-shadow: 0 7px 10px rgba(59, 42, 26, 0.35);
+}
+.pv-file-open img,
+.pv-file-open .pv-pdf {
+  width: 104px;
+  height: 70px;
+  object-fit: cover;
+}
+.pv-file-open .pv-pdf {
+  font-size: 16px;
+}
+.pv-file-name {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-file-open small {
+  font-size: 10px;
+  color: rgba(59, 42, 26, 0.6);
+}
+.pv-file-x {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 10px;
+  color: var(--parchment-hi);
+  background: var(--skull-lo);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.pv-file:hover .pv-file-x {
+  opacity: 1;
+}
+.pv-reward {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid rgba(59, 42, 26, 0.3);
+}
+.pv-reward .pv-lbl {
+  margin-right: 6px;
+}
+.pv-reward b {
+  font-size: 22px;
+  margin-right: 10px;
+}
+.pv-reward .gold-icon rect {
+  stroke: var(--gold-lo);
+}
+.pv-clear {
+  top: 40%;
+  font-size: 54px;
+  border-width: 6px;
+}
+.pv-skulls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.pv-skulls .skull {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+}
+.pv-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pv-actions .btn-ghost {
+  color: var(--text);
+}
+.pv-actions .btn-ghost .clip-ico {
+  width: 12px;
+  height: 18px;
+}
+
+/* ───────────── Visor de adjuntos ───────────── */
+
+.av {
+  position: fixed;
+  inset: 0;
+  z-index: 58;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: rgba(4, 3, 2, 0.94);
+  backdrop-filter: blur(6px);
+}
+.av-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.av-bar .gem {
+  width: 6px;
+  height: 6px;
+  color: var(--skull);
+}
+.av-name {
+  flex: 1;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.av-bar .btn {
+  height: 34px;
+  text-decoration: none;
+}
+.av-body {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  overflow: auto;
+}
+.av-msg {
+  color: var(--text-2);
+}
+.av-pdf {
+  width: min(1000px, 100%);
+  height: 100%;
+  border: 0;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+.av-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: zoom-in;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+.av-img.is-zoom {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+}
+
+/* ───────────── Animación «cartel clavado» y «encargo cumplido» ───────────── */
+
+.tpo,
+.tco {
+  position: fixed;
+  inset: 0;
+  z-index: 62;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.tpo-bg,
+.tco-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(25, 14, 6, 0.94), rgba(2, 1, 0, 0.99) 75%);
+}
+.tpo-stage,
+.tco-stage {
+  position: relative;
+  width: min(1040px, 90vw);
+  height: min(600px, 78vh);
+}
+.tpo-zoom {
+  position: absolute;
+  inset: 0;
+}
+.tpo-sheet,
+.tco-sheet {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.8));
+}
+/* Pergamino con los bordes quemados del vídeo. */
+.tpo-paper,
+.tco-paper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 60% 30% at 50% 100%, rgba(140, 90, 40, 0.25), transparent 70%),
+    radial-gradient(ellipse at 50% 42%, var(--parchment-hi) 0%, var(--parchment) 48%, var(--parchment-lo) 80%, var(--parchment-burn) 104%);
+  box-shadow:
+    inset 0 0 26px 8px rgba(90, 49, 18, 0.9),
+    inset 0 0 80px 30px rgba(140, 80, 30, 0.45);
+}
+.tpo-frame {
+  position: absolute;
+  inset: 34px;
+  border: 1px solid rgba(59, 42, 26, 0.35);
+  box-shadow: inset 0 0 0 5px rgba(247, 238, 214, 0.15), inset 0 0 0 6px rgba(59, 42, 26, 0.2);
+  pointer-events: none;
+}
+.tpo-head,
+.tco-head {
+  position: absolute;
+  top: 54px;
+  left: 0;
+  right: 0;
+}
+.tpo-kind,
+.tco-kind {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+  transition: color 0.5s;
+}
+.tpo.is-lit .tpo-kind {
+  color: var(--ink);
+}
+.tpo.is-red.is-lit .tpo-kind,
+.tco-kind {
+  color: var(--ink-red);
+}
+.tpo-textbox,
+.tco-textbox {
+  position: absolute;
+  left: 50px;
+  right: 50px;
+  top: 34%;
+  transform: translateY(-30%);
+}
+.tco-textbox {
+  top: 30%;
+}
+.tpo-text,
+.tpo-ghost,
+.tpo-glint,
+.tco-text,
+.tco-ghost,
+.tco-glint {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.tpo-ghost,
+.tpo-glint,
+.tco-ghost,
+.tco-glint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tpo-ghost,
+.tco-ghost {
+  opacity: 0;
+}
+/* Capas propias en la GPU: escalar y desenfocar el texto gigante no repinta el resto. */
+.tpo-text,
+.tpo-ghost,
+.tco-text,
+.tco-ghost,
+.tpo-zoom {
+  will-change: transform, opacity, filter;
+}
+.tpo-line,
+.tco-line {
+  margin: 0;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+  text-wrap: balance;
+}
+.tpo-l1 {
+  font-size: 30px;
+}
+.tpo-l2 {
+  font-size: 54px;
+}
+.tpo-l2.is-mid,
+.tco-l1.is-mid {
+  font-size: 42px;
+}
+.tpo-l2.is-long,
+.tco-l1.is-long {
+  font-size: 32px;
+}
+/* Estela de zoom: copias planas (sin filtros, que a ese tamaño saldrían caros de pintar). */
+.tpo-ghost .tpo-line {
+  color: #f3efe6;
+  -webkit-text-stroke: 1px rgba(61, 53, 44, 0.6);
+}
+.tco-ghost .tco-line {
+  color: var(--gold-hi);
+  -webkit-text-stroke: 1px rgba(90, 60, 10, 0.6);
+}
+/* Letras plateadas en relieve, como las del primer vídeo: degradado metálico, contorno oscuro y halo. */
+.tpo-text .tpo-line {
+  color: var(--parchment-hi);
+  background: linear-gradient(180deg, #ffffff 0%, #f1ede5 38%, #a8a195 52%, #e9e5dd 70%, #ffffff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1.1px #3d352c;
+  filter: drop-shadow(0 2px 0 rgba(61, 53, 44, 0.85)) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.85));
+}
+.tpo-glint .tpo-line,
+.tco-glint .tco-line {
+  color: transparent;
+  background: linear-gradient(100deg, transparent 0 42%, rgba(255, 255, 255, 0.95) 50%, transparent 58% 100%) 160% 0 / 250% 100% no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.tpo-meta {
+  position: absolute;
+  left: 70px;
+  right: 50%;
+  bottom: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  align-items: baseline;
+  color: var(--ink);
+}
+.tpo-place {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(59, 42, 26, 0.75);
+}
+.tpo-reward {
+  font-size: 30px;
+  letter-spacing: 0.1em;
+}
+.tpo-reward small {
+  font-family: var(--f-tag);
+  font-size: 15px;
+}
+.tpo-flash,
+.tco-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 42%, #fff 0%, rgba(255, 252, 235, 0.95) 45%, rgba(255, 240, 200, 0.6) 80%);
+}
+.tpo-shock {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: 420px;
+  height: 200px;
+  margin: -100px 0 0 -210px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 250, 235, 0.9);
+  opacity: 0;
+  pointer-events: none;
+}
+.tpo-skulls,
+.tco-skulls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tpo-spot {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.tpo-spot .skull,
+.tpo-spot .splat {
+  position: absolute;
+  width: 74px;
+  height: 74px;
+  left: -37px;
+  top: -37px;
+}
+.tpo-spot .splat {
+  width: 120px;
+  height: 120px;
+  left: -60px;
+  top: -60px;
+  opacity: 0;
+  mix-blend-mode: multiply;
+}
+.tpo-fx,
+.tco-fx {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  z-index: 5;
+}
+.tpo-white {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+.tpo-hint,
+.tco-hint {
+  position: absolute;
+  bottom: 18px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0;
+}
+
+/* Encargo cumplido: letras doradas, rayos y la silueta del aventurero. */
+.tco-text .tco-line {
+  color: var(--gold-hi);
+  background: linear-gradient(180deg, var(--skull-gold-hi) 10%, var(--gold-hi) 40%, var(--r-legendary) 62%, var(--gold-lo) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 0.8px rgba(90, 60, 10, 0.8);
+  filter: drop-shadow(0 2px 0 rgba(90, 60, 10, 0.6)) drop-shadow(0 0 12px rgba(255, 236, 170, 0.9));
+}
+.tco-l1 {
+  font-size: 48px;
+}
+.tco-l2 {
+  font-size: 40px;
+}
+.tco-rays {
+  position: absolute;
+  left: 50%;
+  top: 36%;
+  width: 1400px;
+  height: 1400px;
+  margin: -700px 0 0 -700px;
+  opacity: 0;
+  pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 246, 210, 0.55) 0deg 5deg, transparent 5deg 18deg);
+  mask-image: radial-gradient(circle, #000 0%, transparent 42%);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 42%);
+  animation: tco-spin 26s linear infinite;
+}
+@keyframes tco-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.tco-hero {
+  position: absolute;
+  right: 7%;
+  top: 22%;
+  width: 230px;
+  height: 236px;
+  color: rgba(90, 55, 25, 0.5);
+  opacity: 0;
+  pointer-events: none;
+}
+/* Silueta de calavera al fondo, como la del monstruo vencido en el vídeo. */
+.tco-shade {
+  --sk-hi: var(--parchment-burn);
+  --sk-mid: var(--parchment-burn);
+  --sk-lo: var(--parchment-burn);
+  --sk-deep: var(--parchment-lo);
+  position: absolute;
+  left: 50%;
+  bottom: -96px;
+  width: 300px;
+  height: 300px;
+  margin-left: -150px;
+  opacity: 0;
+  filter: blur(0.6px);
+  pointer-events: none;
+}
+.tco-shade ellipse,
+.tco-shade circle {
+  display: none;
+}
+.tco-streak {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  height: 10px;
+  opacity: 0;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 30%, #fff 50%, rgba(255, 255, 255, 0.95) 70%, transparent);
+  filter: blur(3px);
+  pointer-events: none;
+}
+.tco-streak.s1 {
+  top: 31%;
+}
+.tco-streak.s2 {
+  top: 44%;
+  height: 22px;
+  filter: blur(8px);
+}
+.tco-streak.s3 {
+  top: 51%;
+  height: 6px;
+}
+.tco-reward {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 120px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  color: var(--ink);
+  opacity: 0;
+}
+.tco-ico {
+  width: 46px;
+  height: 46px;
+}
+.tco-x {
+  font-size: 26px;
+  font-weight: 700;
+  color: rgba(59, 42, 26, 0.7);
+}
+.tco-n {
+  font-size: 34px;
+}
+.tco-digits {
+  display: inline-flex;
+  min-width: 2ch;
+  padding: 0 6px;
+  font-size: 46px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+.tco-digit {
+  display: inline-block;
+  width: 0.62em;
+  text-align: center;
+}
+.tco-reward .gold-icon {
+  width: 22px;
+  height: 22px;
+}
+.tco-reward .gold-icon rect {
+  stroke: var(--gold-lo);
+}
+.tco-unit {
+  font-family: var(--f-tag);
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(59, 42, 26, 0.8);
+}
+.tco-xp {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 78px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  opacity: 0;
+}
+.tco-xp-lbl {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(59, 42, 26, 0.7);
+}
+.tco-xp-val {
+  font-size: 28px;
+}
+.tco-levelup {
+  margin-left: 14px;
+  font-family: var(--f-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-red);
+  text-shadow: 0 0 14px rgba(255, 236, 170, 0.9);
+  opacity: 0;
+}
+.tco-skulls .skull {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  left: -32px;
+  top: -32px;
+  opacity: 0;
+}
+
+/* ───────────── Japonés ───────────── */
+
+:lang(ja) .tb-title {
+  font-family: var(--f-body);
+  letter-spacing: 0.3em;
+  font-weight: 800;
+}
+:lang(ja) .tp-title,
+:lang(ja) .pv-title {
+  font-variant: normal;
+  letter-spacing: 0.06em;
+}
+:lang(ja) .tpo-line,
+:lang(ja) .tco-line {
+  letter-spacing: 0.08em;
+}
+:lang(ja) .tpo-kind,
+:lang(ja) .tco-kind,
+:lang(ja) .pv-kind {
+  letter-spacing: 0.3em;
+}
+
+/* ───────────── Reducir movimiento ───────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-motes,
+  .tb-light {
+    display: none;
+  }
+  .tco-rays {
+    animation: none;
+  }
+  .tp-chip.is-today,
+  .tp.is-today .tp-hang::before,
+  .tp.is-selected .tp-hang::after,
+  .secsw-badge {
+    animation: none;
+  }
+}

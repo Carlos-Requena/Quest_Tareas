@@ -1,5 +1,6 @@
 import type { Pomodoro, PomodoroConfig } from "../features/pomodoro/model";
 import type { ItemDef, Pity } from "../features/items/model";
+import type { TemporalState } from "../features/temporal/model";
 
 export type Category = "elite" | "repeat" | "request";
 
@@ -87,6 +88,8 @@ export interface GameState {
   quests: Map<string, QuestState>;
   /** Almanaque: todos los objetos que existen, conseguidos o no. */
   items: Map<string, ItemDef>;
+  /** Encargos temporales (citas, entregas, eventos con fecha), en su propio tablón. */
+  temporals: Map<string, TemporalState>;
   player: PlayerState;
 }
 

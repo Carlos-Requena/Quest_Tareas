@@ -299,6 +299,27 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 - Se inserta con **`INSERT OR IGNORE`**: si llega un evento cuyo `id` ya existe, no pasa nada. Fusionar dos veces lo mismo es inofensivo (*idempotente*).
 - `synced` distingue los eventos ya subidos a Drive (fase 2).
 
+### Archivos adjuntos: el almacén de binarios
+
+**Archivo:** `src/storage/blobStore.ts`
+
+Los PDF e imágenes que se adjuntan a los encargos temporales **no van en los eventos**: un archivo de varios MB se leería en cada arranque y no cabría en el `localStorage` del navegador. El evento lleva una referencia (`AttachmentRef`: nombre, tipo, tamaño, una miniatura de 320 px y el `blobId`), y el contenido va a un almacén aparte:
+
+```ts
+interface BlobStore {
+  put(data: Blob): Promise<string>;      // guarda y devuelve su SHA-256
+  get(id): Promise<Blob | undefined>;    // undefined si este equipo no lo tiene
+  remove(id): Promise<void>;
+}
+```
+
+- **Direccionado por contenido**: la clave es el SHA-256 del archivo. El mismo archivo tiene el mismo id en todos los dispositivos, y guardarlo dos veces no ocupa el doble.
+- **Tauri**: tabla `blobs` en el mismo `quests.db` (`id`, `mime`, `size`, `data` en base64, `created`, `synced`). Usa la misma conexión que los eventos (`sqliteDb()` en `eventStore.ts`), así que no hacen falta plugins ni permisos nuevos. El puente JS↔Rust viaja en JSON, por eso el binario va en base64.
+- **Navegador**: IndexedDB (`quests.blobs`), que admite archivos grandes.
+- **Limpieza**: al quitar un adjunto o retirar un encargo, las acciones borran los binarios que ya no usa nadie.
+
+Detalles y límites en el [README de los encargos temporales](../src/features/temporal/README.md).
+
 ### Datos de ejemplo
 
 Si la base está vacía al arrancar, `seedEvents()` (`src/domain/seed.ts`) crea cinco quests de ejemplo. Son eventos `quest_created` normales, así que el usuario puede retirarlas como cualquier otra.
@@ -361,7 +382,8 @@ La segunda llamada recibe la misma promesa que la primera.
 - **Selección.** Si la quest seleccionada desaparece (completada o retirada), se selecciona automáticamente la primera visible.
 - **Teclado.** Un único `keydown` en `window` traduce teclas a acciones. Se ignora mientras escribes en un campo o hay un modal o el overlay abierto (estos tienen sus propios atajos). Las flechas mueven ±1 en horizontal y ±2 en vertical, porque la cuadrícula tiene 2 columnas.
 - **Reloj.** `useNow()` actualiza `now` cada 20 segundos para que «Vuelve en 3 h» avance y las repetibles reaparezcan sin recargar.
-- **Avisos.** `say(texto)` muestra el mensaje dorado junto a los botones y lo borra a los 4,5 s, salvo que haya llegado otro aviso entretanto.
+- **Avisos.** `say(texto)` muestra el mensaje dorado junto a los botones y lo borra a los 4,5 s, salvo que haya llegado otro aviso entretanto. Se ve también con el tablón vacío y, en el tablón de encargos, abajo, sobre la madera.
+- **Dos tablones.** `section` (en el store) elige entre el Quest Board y los encargos temporales. Se cambia con el selector de la cabecera o la tecla `T`. `App` maneja las teclas comunes (`T`, `I`, `L`, `M`) y, en el tablón de encargos, deja el resto a `TemporalBoard`, que mueve la selección por la posición de los carteles en pantalla (su rejilla es irregular).
 - **Borrado en dos pasos.** «Retirar del tablón» pide un segundo clic («¿Seguro? Retirar») durante 3 s. No se usa `window.confirm` porque no está garantizado que funcione en el WebView de Tauri en todas las plataformas.
 
 ---
@@ -461,6 +483,22 @@ Tres detalles técnicos:
 
 ---
 
+### 9.7 Los encargos temporales
+
+**Archivos:** `src/features/temporal/components/PostedOverlay.tsx` y `ClearedOverlay.tsx`
+
+Dos líneas de tiempo largas que imitan los vídeos de referencia: el texto que irrumpe gigante con una **estela de zoom** (tres copias del texto, más grandes y transparentes, que se cierran sobre él mientras el original pierde el desenfoque), el golpe con sacudida, un **destello que recorre las letras** (un degradado recortado al texto con `background-clip: text` cuyo `background-position` anima GSAP) y, al final, la «cámara» que se lanza contra el pergamino y se funde en blanco. Al cumplir, los dígitos giran como una tragaperras: un tween vacío de 1,19 s escribe dígitos al azar en su `onUpdate` y cada dígito se detiene en su momento.
+
+Tres detalles técnicos:
+
+- **El cartel no está en el tablón hasta que llega.** Mientras dura «cartel clavado» se pinta oculto (`visibility: hidden`); el fogonazo blanco llama a `land(id)` y el cartel cae con su chincheta mientras la luz se aclara.
+- **El salto al final no dispara lo pendiente.** `tl.seek("finale", true)` y `tl.progress(1, true)` suprimen los callbacks (sonidos y partículas); el estado final que ponían esos callbacks (dígitos, calaveras de oro) lo fija `settle()`.
+- **Bordes rasgados estables.** `look.ts` genera con el PRNG con semilla (el id del encargo) el `clip-path` del papel, la inclinación y dónde caen las calaveras: el mismo cartel se ve igual siempre.
+
+El diseño completo, fase a fase y comparado con los vídeos, está en el [README de los encargos temporales](../src/features/temporal/README.md).
+
+---
+
 ## 10. El sonido: sintetizado, sin archivos
 
 **Archivo:** `src/lib/sfx.ts`
@@ -477,6 +515,10 @@ No hay archivos de audio: cada sonido se fabrica con la **Web Audio API** a part
 | Cristal roto | Ruido brillante (6.000 Hz) + cuatro tintineos agudos escalonados |
 | Quest Clear | Arpegio de do mayor (do, mi, sol, do) |
 | Level Up | Arpegio más largo de 6 notas |
+| Encargo clavado | Silbido que sube (ruido filtrado en barrido), golpe grave con palmada de papel y acorde de orquesta en do mayor, destello agudo y una calavera que «sella» por cada una |
+| Encargo cumplido | Estallido brillante con crepitar, tic-tic de tragaperras, campanilla en do7 y la melodía re-fa-mi-fa-sol-mi-fa |
+
+Para los encargos temporales se añadieron cuatro piezas más: `hiss` (ruido con filtro que barre y envolvente propia), `stab` (acorde de sierras con un filtro que se cierra, el «golpe de orquesta»), `celesta` y `chime` (campana con parciales inarmónicos). Las recetas se sacaron midiendo el audio de los vídeos de referencia con un espectrograma; el detalle está en el README de la funcionalidad.
 
 El silencio se guarda en `localStorage` (`quests.muted`).
 
@@ -586,10 +628,15 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | Build de 27 MB | Subconjuntos japoneses de la fuente | Solo subconjunto latino |
 | El color del cofre no subía de rareza | `gsap.set(el, { "--rc": "var(--r-epic)" })` no aplica un valor `var(...)` a una variable CSS | `el.style.setProperty("--rc", …)` |
 | Imágenes del almanaque en negro | El estilo de «no conseguido» era una silueta (`brightness(0)`) | Color apagado (`saturate` + `opacity`) |
+| Con el selector de tablón, toda la ventana se ensanchaba y se cortaba por la derecha | La cabecera no cabía y la columna implícita de la rejilla de `.app` crecía hasta su contenido | `grid-template-columns: minmax(0, 1fr)` y una cabecera más compacta por debajo de 1.180 px (ya se desbordaba a 1.024 px antes) |
+| Los recordatorios no se veían con el tablón de quests vacío | El aviso (`Toast`) solo se pintaba con una quest seleccionada | Pintarlo también en el estado vacío |
+| La campana del recordatorio al abrir la app daba avisos de autoplay | El WebView bloquea el audio antes de la primera interacción | Sin interacción previa (`navigator.userActivation`), solo el aviso |
 
 ### Trampas del entorno de pruebas (no son fallos de la app)
 
 - **Dos copias del mismo módulo.** Tras una recarga en caliente, Vite sirve el módulo editado como `game.ts?t=123…`. Importar `/src/store/game.ts` a mano daba **otra instancia** del store, con otros datos. Solución: recargar la página o importar la URL con `?t=`.
+- **Oír sin altavoces.** Para revisar los sonidos de una animación, una prueba sustituye `window.AudioContext` por un `OfflineAudioContext` cuyo `currentTime` es el reloj de GSAP (pausado y avanzado a mano). Al final, `startRendering()` da el audio exacto de la animación, que se guarda como WAV, se mide con un espectrograma y se une a los fotogramas con `ffmpeg`. El reproductor de música debe estar desactivado (`quests.music`), porque `OfflineAudioContext` no tiene `createMediaElementSource`.
+- **Software sin GPU.** En Chromium sin interfaz, los textos gigantes con filtros tardan tanto en pintarse que GSAP frena su reloj (*lag smoothing*) y las capturas por tiempo real salen desfasadas. Con el reloj avanzado a mano no pasa.
 - **Animaciones que no avanzan.** Si la pestaña está oculta (`document.hidden`), el navegador frena `requestAnimationFrame`, que es el reloj de GSAP. En la ventana real de la app esto no ocurre. Para revisar una animación fotograma a fotograma, se importa la misma instancia de GSAP que usa la app (la URL `/node_modules/.vite/deps/gsap.js?v=…` aparece en el código que sirve Vite, por ejemplo en `fetch('/src/lib/fx.ts')`). Después se pausa `gsap.globalTimeline` y se avanza con `.time(t + 1/60)` en bucle: los callbacks se disparan en orden. La captura de pantalla puede repetir un fotograma viejo hasta que algo fuerza el repintado, como cambiar el tamaño del viewport.
 
 ---
@@ -655,6 +702,13 @@ sqlite3 ~/Library/Application\ Support/com.quests.app/quests.db \
   "SELECT json_extract(body, '$.type') AS tipo, count(*) FROM events GROUP BY tipo;"
 ```
 
+Ver los archivos adjuntos guardados (encargos temporales):
+
+```bash
+sqlite3 ~/Library/Application\ Support/com.quests.app/quests.db \
+  "SELECT substr(id, 1, 12), mime, size FROM blobs;"
+```
+
 Empezar de cero (borra todo tu progreso):
 
 ```bash
@@ -684,3 +738,6 @@ rm ~/Library/Application\ Support/com.quests.app/quests.db*
 | **Optimista** | Actualizar la interfaz antes de confirmar la escritura en disco. |
 | **i18n** | Internacionalización: preparar la app para varios idiomas (18 letras entre la «i» y la «n»). |
 | **HLC** | Reloj lógico híbrido: ordena eventos entre dispositivos aunque sus relojes no coincidan (pendiente). |
+| **Blob / binario** | El contenido de un archivo (PDF, imagen). Los adjuntos viven en el almacén de binarios, no en los eventos. |
+| **Direccionado por contenido** | La clave de un dato es la huella de su contenido (SHA-256): el mismo archivo tiene la misma clave en todas partes. |
+| **Encargo temporal** | Algo con fecha (una cita, una entrega) clavado en su propio tablón, con calaveras según su dificultad. |

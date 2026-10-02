@@ -1,6 +1,7 @@
 import type { QuestDef, RewardDef } from "./types";
 import type { PomodoroEventBody } from "../features/pomodoro/events";
 import type { ItemEventBody } from "../features/items/events";
+import type { TemporalEventBody } from "../features/temporal/events";
 import type { Drop } from "../features/items/model";
 
 /**
@@ -28,7 +29,8 @@ export type EventBody =
       drops?: Drop[];
     }
   | PomodoroEventBody
-  | ItemEventBody;
+  | ItemEventBody
+  | TemporalEventBody;
 
 export interface EventMeta {
   id: string;
