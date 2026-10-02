@@ -170,14 +170,15 @@
     0 24px 60px rgba(0, 0, 0, 0.65),
     0 0 0 1px rgba(0, 0, 0, 0.6);
 }
-/* Vetas horizontales del roble sobre un degradado cálido, con el borde quemado. */
+/* Vetas horizontales del roble sobre un degradado cálido, con el borde quemado.
+   Los mosaicos miden 2.400 px de ancho para que no se vean juntas en una ventana normal. */
 .tb-wood {
   position: absolute;
   inset: 0;
   z-index: -3;
   background:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='420'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.0035 .16' numOctaves='4' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .22  0 0 0 0 .1  0 0 0 0 .03  2.6 0 0 0 -1.05'/></filter><rect width='100%' height='100%' filter='url(%23w)'/></svg>"),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='300'><filter id='v'><feTurbulence type='turbulence' baseFrequency='.002 .05' numOctaves='2' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .95  0 0 0 0 .7  0 0 0 0 .42  0 0 0 1.4 -.55'/></filter><rect width='100%' height='100%' filter='url(%23v)'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='2400' height='480'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.0035 .16' numOctaves='4' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .22  0 0 0 0 .1  0 0 0 0 .03  2.6 0 0 0 -1.05'/></filter><rect width='100%' height='100%' filter='url(%23w)'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='2400' height='360'><filter id='v'><feTurbulence type='turbulence' baseFrequency='.002 .05' numOctaves='2' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .95  0 0 0 0 .7  0 0 0 0 .42  0 0 0 1.4 -.55'/></filter><rect width='100%' height='100%' filter='url(%23v)'/></svg>"),
     linear-gradient(180deg, var(--oak-hi), var(--oak) 45%, var(--oak-lo));
   box-shadow:
     inset 0 0 0 7px var(--oak-burn),
