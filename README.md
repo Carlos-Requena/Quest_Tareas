@@ -39,6 +39,7 @@ src/
     seed.ts         Quests de ejemplo del primer arranque
   storage/
     eventStore.ts   SQLite (Tauri) o localStorage (navegador), append-only
+    blobStore.ts    Archivos adjuntos por su SHA-256: tabla blobs (Tauri) o IndexedDB (navegador)
   store/
     game.ts         Estado global (zustand): eventos + proyección + estado de UI
     actions.ts      Aceptar / progreso / reportar / abandonar
@@ -49,6 +50,7 @@ src/
     pomodoro/       Pomodoro como tipo de condición: N rondas, la última sin descanso
     music/          Música de fondo (las pistas van en public/music/, nunca en dist/)
     items/          Objetos con rareza: almanaque, inventario y drops al estilo Genshin
+    temporal/       Encargos temporales: tablón aparte con calaveras, adjuntos PDF/imagen y sus animaciones
 src-tauri/         Backend Rust (plugin SQL)
 ```
 
@@ -65,11 +67,17 @@ Así, fusionar datos de varios dispositivos consiste solo en unir eventos por `i
 | Progreso | Barra con muelle y sonido de *tick* |
 | Reportar | La tarjeta se rompe en pedazos → «QUEST CLEAR» → contadores de XP/oro → barra de nivel |
 | Subir de nivel | «LEVEL UP!» con destello y sonido de arpegio |
+| Clavar un encargo temporal | El texto irrumpe gigante con estela de zoom y golpea el pergamino, un destello lo recorre, la cabecera se enciende en rojo, las calaveras se estampan una a una con su mancha de tinta y la «cámara» se lanza contra el pergamino hasta fundirse en blanco; el cartel cae en el tablón con su chincheta |
+| Cumplir un encargo temporal | Texto dorado gigante, fogonazo con destellos horizontales y rayos, silueta del aventurero, calaveras que se vuelven de oro y un contador de oro que gira como una tragaperras hasta la campanilla |
 | Botín | Un cofre que se abre con un clic: se carga de luz (su color sube de rareza), estalla con monedas y rayos y la interfaz vibra; cada objeto aterriza con un golpe proporcional a su rareza y los mejores traen fanfarria y rótulo |
 
 ## Objetos
 
 Seis rarezas con su color: común (gris), poco común (verde), raro (azul), épico (morado), mítico (rojo) y legendario (dorado). Los objetos se crean en el almanaque (tecla `I`) con nombre, imagen, rareza, tipo y descripción. Cada quest da su objeto garantizado (opcional) y un botín aleatorio: 1 tirada estándar, o 2 mejoradas en las de élite, con pity como en Genshin. Detalles: [src/features/items/README.md](src/features/items/README.md).
+
+## Encargos temporales
+
+Un tablón aparte (selector de la cabecera o tecla `T`) para lo que ocurre en una fecha: una cita con el médico, una entrega, un examen… Cada encargo es un cartel de pergamino clavado en un tablón de roble, con de 1 a 5 **calaveras rojas** según su dificultad, su fecha y hora (o todo el día), lugar, notas y recompensa en XP y oro. Se le pueden **adjuntar PDF e imágenes** (hasta 20 MB cada uno y 8 por encargo), que se ven en un visor dentro de la app. Los de hoy o vencidos se avisan al abrir la app, y los que tienen hora, 15 minutos antes. Detalles: [src/features/temporal/README.md](src/features/temporal/README.md).
 
 ## Idiomas
 
@@ -77,7 +85,9 @@ Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en la c
 
 ## Atajos
 
-`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `N` nueva quest · `I` objetos · `L` idioma · `M` música
+`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `N` nueva quest · `T` tablón de encargos temporales · `I` objetos · `L` idioma · `M` música
+
+En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` cumplir · `E` editar · `Esc` cerrar.
 
 ## Hoja de ruta
 
@@ -86,6 +96,7 @@ Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en la c
 - [x] Pomodoro como tipo de condición, con rondas (`src/features/pomodoro/`)
 - [x] Música de fondo (`src/features/music/`)
 - [x] Objetos con rareza, inventario, almanaque y drops (`src/features/items/`)
+- [x] Encargos temporales con calaveras, adjuntos PDF/imagen y recordatorios (`src/features/temporal/`)
 - [ ] **Fase 2:** sincronización con Google Drive
   - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`
   - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`

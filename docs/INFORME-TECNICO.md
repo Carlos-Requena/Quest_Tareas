@@ -1,8 +1,8 @@
 # Quests — Informe técnico de arquitectura
 
-> **Copia del informe técnico a fecha de 2026-10-01.** El original vive como documento colaborativo en Claude: [Quests — Informe técnico de arquitectura](https://claude.ai/code/artifact/1cb3618f-d1e6-483e-a198-a1998279827b). Los diagramas de esta copia son capturas de ese documento (`docs/img/`).
+> **Copia del informe técnico a fecha de 2026-10-02.** El original vive como documento colaborativo en Claude: [Quests — Informe técnico de arquitectura](https://claude.ai/code/artifact/1cb3618f-d1e6-483e-a198-a1998279827b). Los diagramas de esta copia son capturas de ese documento (`docs/img/`).
 >
-> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`) y los objetos con rareza y drops (`src/features/items/`). El diagrama de clases (imagen, redibujado el 2026-10-02) ya incluye el pomodoro, la música y los objetos (`ItemDef`, `Rarity`, `Drop`, `Pity`, `DropTable`). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
+> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`) los objetos con rareza y drops (`src/features/items/`) y los encargos temporales con archivos adjuntos (`src/features/temporal/`). El diagrama de clases (imagen, redibujado el 2026-10-02) ya incluye el pomodoro, la música, los objetos (`ItemDef`, `Rarity`, `Drop`, `Pity`, `DropTable`) y los encargos temporales (`TemporalDef`, `TemporalState`, `TemporalKind`, `AttachmentRef`, `BlobStore`). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
 
 ---
 
@@ -82,9 +82,11 @@ Una condición es de dos tipos: **contador** (`target` = cantidad, avanza con +1
 
 **Objetos.** `ItemDef` vive en el almanaque (`GameState.items`) y tiene nombre, rareza, tipo, descripción, imagen reducida y si sale en drops. `PlayerState` suma `inventory`, `discovered` y `pity`, todo calculado a partir de los eventos. `RewardDef.itemId` sustituye al antiguo texto `item`, que se convierte al leerlo (`features/items/legacy.ts`). Cada `Drop` de `quest_completed` copia su rareza, y `DropTable` define las probabilidades por rareza y las tiradas.
 
+**Encargos temporales.** `TemporalDef` es algo con fecha (una cita, una entrega) que vive en su propio tablón, fuera de las quests: tipo de cartel (`TemporalKind`), dificultad de 1 a 5 calaveras, fecha (`dueAt`, o todo el día), lugar, notas, recompensa y adjuntos. `TemporalState` añade si está pendiente o cumplido, cuándo y lo ganado; están en `GameState.temporals`. Cumplir uno suma su XP y su oro al jugador. La urgencia (hoy, pronto, vencido) se calcula con la hora actual, sin eventos. Cada `AttachmentRef` lleva solo los metadatos y una miniatura: el archivo está en el almacén de binarios (`BlobStore`), con su SHA-256 como clave.
+
 ## Modelo de eventos y persistencia
 
-Cada acción del usuario se registra como un evento inmutable. El estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. Hay seis tipos de evento de quest, que son estos. El pomodoro añade otros cinco (`pomodoro_started`, `_paused`, `_resumed`, `_stopped` y `_break_skipped`), documentados en [src/features/pomodoro/README.md](../src/features/pomodoro/README.md). Los objetos añaden tres (`item_created`, `item_updated` e `item_deleted`), documentados en [src/features/items/README.md](../src/features/items/README.md):
+Cada acción del usuario se registra como un evento inmutable. El estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. Hay seis tipos de evento de quest, que son estos. El pomodoro añade otros cinco (`pomodoro_started`, `_paused`, `_resumed`, `_stopped` y `_break_skipped`), documentados en [src/features/pomodoro/README.md](../src/features/pomodoro/README.md). Los objetos añaden tres (`item_created`, `item_updated` e `item_deleted`), documentados en [src/features/items/README.md](../src/features/items/README.md). Los encargos temporales añaden seis (`temporal_created`, `_updated`, `_attached`, `_detached`, `_completed` y `_deleted`), documentados en [src/features/temporal/README.md](../src/features/temporal/README.md):
 
 | Evento | Datos | Efecto en la proyección | Regla de conflicto |
 | --- | --- | --- | --- |
@@ -112,6 +114,19 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);  -- device_id, y 
 ```
 
 La inserción usa `INSERT OR IGNORE`, de modo que fusionar eventos remotos repetidos es seguro (idempotente). En el navegador, el mismo contrato se cumple sobre `localStorage`, solo para desarrollo.
+
+Los archivos adjuntos de los encargos temporales no van en `events`, sino en una tabla aparte del mismo `quests.db` (ADR-11). En el navegador, en IndexedDB:
+
+```sql
+CREATE TABLE blobs (
+  id      TEXT PRIMARY KEY,         -- SHA-256 del contenido
+  mime    TEXT NOT NULL,
+  size    INTEGER NOT NULL,
+  data    TEXT NOT NULL,            -- base64 (el puente JS↔Rust viaja en JSON)
+  created INTEGER NOT NULL,
+  synced  INTEGER NOT NULL DEFAULT 0
+);
+```
 
 ## Ciclo de vida de una quest
 
@@ -169,7 +184,7 @@ Convenciones a mantener:
 - La lógica que decide (¿se puede aceptar?, ¿está completa?) vive en `domain/` o `store/actions.ts`, nunca en un componente.
 - Las animaciones leen el cambio de estado; no lo provocan.
 
-**Una carpeta por funcionalidad.** Cada funcionalidad nueva vive en `src/features/<nombre>/` con su modelo, eventos, acciones, componentes, textos y un `README.md` de diseño. Ya existen `pomodoro` (dominio, con eventos) y `music` (servicio local, sin eventos). El dominio importa solo el `model.ts` de cada funcionalidad, nunca su `index.ts`, para no crear ciclos con el store.
+**Una carpeta por funcionalidad.** Cada funcionalidad nueva vive en `src/features/<nombre>/` con su modelo, eventos, acciones, componentes, textos y un `README.md` de diseño. Ya existen `pomodoro` (dominio, con eventos), `music` (servicio local, sin eventos), `items` (entidades propias, azar e imágenes) y `temporal` (sección propia, estado de UI propio y archivos adjuntos). El dominio importa solo el `model.ts` de cada funcionalidad, nunca su `index.ts`, para no crear ciclos con el store.
 
 ## Escalabilidad
 
@@ -186,7 +201,8 @@ La arquitectura escala bien en dispositivos y plataformas; el primer límite rea
 | Móvil | No soportado | Si se decide sacar app móvil | Tauri 2 compila a iOS y Android; el dominio y el store se reutilizan tal cual |
 | Backend propio | No hay | Si se quieren cuentas, social o web | Sustituir el sync de Drive por un servidor detrás de la misma interfaz `EventStore` |
 | Equipo | Una persona, sin tests ni CI | Al entrar un segundo desarrollador | Tests del dominio con Vitest, lint, CI obligatorio antes de fusionar |
-| Funcionalidad | Store único mezcla dominio y UI | Al pasar de ~10 pantallas | Separar `uiStore` del `gameStore`; un módulo por feature (quests, inventario, estadísticas) |
+| Funcionalidad | Store único mezcla dominio y UI | Al pasar de ~10 pantallas | Separar `uiStore` del `gameStore`; un módulo por feature (quests, inventario, estadísticas). Los encargos temporales ya tienen su propio store de UI (`features/temporal/ui.ts`) |
+| Archivos adjuntos | Tabla `blobs` en SQLite, por SHA-256; se borran los que nadie usa; sin sincronizar | Al sincronizar (fase 2) o con muchos PDF grandes | Subir cada archivo una sola vez por su hash (`unsynced` / `markSynced` en `BlobStore`); avisar del espacio ocupado |
 
 ## Deuda técnica y riesgos
 
@@ -199,7 +215,7 @@ Cinco puntos son de prioridad alta y conviene cerrarlos antes de empezar la sinc
 | Alta | Orden por reloj local | Eventos mal ordenados entre dispositivos | Reloj lógico híbrido (HLC) |
 | Alta | Sin error boundary en React | Un fallo deja la ventana en negro (ocurrió durante las pruebas) | Error boundary con pantalla de recuperación |
 | Alta | Tokens OAuth de la fase 2 sin destino seguro definido | Credenciales de Google expuestas en disco | Guardarlos en el llavero del sistema (crate `keyring`) |
-| Media | Content Security Policy desactivada (`csp: null`) | Superficie de ataque si se carga contenido externo | CSP estricta en `tauri.conf.json` |
+| Media | Content Security Policy desactivada (`csp: null`) | Superficie de ataque si se carga contenido externo | CSP estricta en `tauri.conf.json`, con `blob:` en `img-src` y `frame-src` para el visor de adjuntos |
 | Media | Windows sin probar | Diferencias de WebView2 frente a WKWebView en fuentes y animaciones | Build y prueba en CI |
 | Media | App sin firma ni notarización, icono por defecto | Avisos de Gatekeeper y SmartScreen al instalar | Certificados de Apple y Windows; icono propio |
 | Media | No respeta `prefers-reduced-motion` (parcial: las partículas y sacudidas de `src/lib/fx.ts`, que usa el cofre del botín, sí lo respetan) | Accesibilidad: animaciones intensas sin opción de reducirlas | Versión reducida de cada animación; extender `calm()` al resto |
@@ -223,6 +239,8 @@ Cada decisión queda registrada con la alternativa que se descartó, para no rea
 | ADR-08 | Fuentes locales con Fontsource | Google Fonts por red | La app funciona sin conexión | Solo el subconjunto latino: 372 KB de fuentes y 852 KB de frontend total (con los subconjuntos japoneses eran 26 MB) |
 | ADR-09 | Drops aleatorios resueltos en la acción y guardados dentro de `quest_completed` | Tirar en la proyección con semilla; evento `item_dropped` aparte | La proyección sigue siendo determinista y el botín hereda la guarda contra completados duplicados | El pity se recalcula reproduciendo los drops; cambiar las tablas no altera lo ya ganado |
 | ADR-10 | Imagen de los objetos reducida a 160 px y guardada como data URL en el evento | Ficheros en la carpeta de la app (plugin `fs`); imagen original | Se sincroniza con los demás eventos, sin plugin ni permisos nuevos | 3–30 KB por imagen dentro de SQLite; si se cambia mucho, valorar snapshots |
+| ADR-11 | Adjuntos (PDF e imágenes de hasta 20 MB) en un almacén de binarios aparte, por su SHA-256: tabla `blobs` en SQLite e IndexedDB en el navegador; en el evento, solo la referencia y una miniatura de 320 px | El archivo dentro del evento como ADR-10; plugin `fs`; IndexedDB también en la app nativa | Un PDF de varios MB se leería en cada arranque y no cabe en `localStorage`; la misma conexión SQLite evita plugins y permisos nuevos; el hash evita duplicados entre dispositivos | La fase 2 tendrá que sincronizar binarios además de eventos; un dispositivo puede ver la referencia antes que el archivo («no está en este equipo») |
+| ADR-12 | Encargos temporales como entidad y tablón propios (`TemporalDef`, sección aparte) | Una cuarta categoría de quest | Tienen fecha y se cumplen una vez: no se aceptan, no ocupan huecos ni tienen objetivos ni esperas | Comparten con las quests la recompensa (XP y oro suman al jugador), no `completedCount` ni los drops |
 
 ## Hoja de ruta
 

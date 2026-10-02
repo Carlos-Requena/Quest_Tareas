@@ -6,7 +6,7 @@ Esta guía es para cualquier agente (o persona) que vaya a hacer tareas en este 
 
 ## 1. Qué es Quests, en 30 segundos
 
-App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Interfaz en español y japonés, con música de fondo.
+App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad y PDF o imágenes adjuntos). Interfaz en español y japonés, con música de fondo.
 
 - **Stack:** Tauri 2 (Rust) + React 19 + TypeScript 6 + Vite 8 + Zustand 5 + Motion + GSAP + i18next, con SQLite vía `tauri-plugin-sql`.
 - **Modelo de datos:** *event sourcing* local-first. Se guardan **eventos inmutables** en SQLite y el estado se **calcula** reproduciéndolos (`project()`).
@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo J
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music` e `items`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items` y `temporal`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -55,14 +55,16 @@ src/
     seed.ts            Quests de ejemplo del primer arranque (en el idioma activo)
   storage/
     eventStore.ts      Interfaz EventStore + SQLite (Tauri) + localStorage (navegador)
+    blobStore.ts       Almacén de binarios de los adjuntos: tabla blobs (Tauri) / IndexedDB (navegador)
   store/
-    game.ts            Store Zustand: eventos, estado proyectado, estado de UI, dispatch()
+    game.ts            Store Zustand: eventos, estado proyectado, estado de UI (sección, pestaña…), dispatch()
     actions.ts         Casos de uso: aceptar, progresar, reportar, abandonar
   components/        Interfaz (Header, Tabs, QuestCard, QuestDetail, CreateQuestModal, ClearOverlay, Footer)
   features/          UNA CARPETA POR FUNCIONALIDAD, cada una con su README.md
     pomodoro/          Pomodoro como tipo de condición (rondas; la última sin descanso)
     music/             Música de fondo (servicio local, sin eventos)
     items/             Objetos con rareza: almanaque, inventario, drops con pity (eventos item_*)
+    temporal/          Encargos temporales: tablón aparte, calaveras, adjuntos (eventos temporal_*)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
   lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), useMuted, id/PRNG, time (useNow, formatRemaining)
   styles/            theme.css (tokens), app.css (componentes)
@@ -104,7 +106,9 @@ components ──▶ store ──▶ domain ◀── storage
 
 | Va en eventos (se sincroniza) | No va en eventos (`localStorage`, por equipo) |
 |---|---|
-| Quests, aceptar, progreso, completar (con sus drops), pomodoros, objetos del almanaque (con su imagen) | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador |
+| Quests, aceptar, progreso, completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales y la referencia de sus adjuntos | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador |
+
+**Archivos adjuntos (norma):** en el evento solo va la referencia (nombre, tipo, tamaño, una miniatura pequeña y el `blobId`). El contenido va al almacén de binarios (`src/storage/blobStore.ts`), con su SHA-256 como clave. Nunca metas un archivo grande en un evento: se leería en cada arranque y no cabe en el `localStorage` del navegador.
 
 ### 5.4 Clases o funciones
 
@@ -132,7 +136,7 @@ src/features/<nombre>/
 
 - **La integración fuera de la carpeta debe ser mínima:** tipos (`domain/types.ts`), la unión de eventos (`domain/events.ts`), la proyección (`domain/projection.ts`), los diccionarios (`i18n/locales/{es,ja}.ts`, montando `xxxEs` / `xxxJa`) y el componente que la aloja. Enuméralo en la tabla «Puntos de integración» del README.
 - **El dominio nunca importa el `index.ts` de una funcionalidad**: ese archivo reexporta `actions.ts`, que importa el store, y se crearía un ciclo.
-- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes.
+- Toma como plantilla `src/features/pomodoro/` (funcionalidad de dominio, con eventos) o `src/features/music/` (servicio local, sin eventos). `src/features/items/` es el ejemplo de funcionalidad con entidades propias, azar e imágenes. `src/features/temporal/` es el de una funcionalidad con **sección propia**, **estado de UI propio** (`ui.ts`, un store de Zustand de la funcionalidad) y **archivos adjuntos**.
 
 ---
 
@@ -149,7 +153,7 @@ src/features/<nombre>/
 
   Si GSAP controla la visibilidad de un elemento, React no debe controlarla también.
 - **Nada de saltos de layout** en controles: lo que se despliega va en capas absolutas (ver el volumen de `MusicControl`).
-- **Colores:** usa siempre los tokens de `theme.css` (`--gold`, `--elite`, `--repeat`, `--request`, `--stamp`, las rarezas `--r-common` … `--r-legendary`…), sin colores sueltos.
+- **Colores:** usa siempre los tokens de `theme.css` (`--gold`, `--elite`, `--repeat`, `--request`, `--stamp`, las rarezas `--r-common` … `--r-legendary`, los de los encargos `--skull`, `--parchment`, `--oak`, `--ink`…), sin colores sueltos.
 - **Fuentes:** importa solo subconjuntos latinos (`@fontsource/<fuente>/latin-<peso>.css`). Los subconjuntos japoneses sumaban **26 MB**; el japonés usa el mincho del sistema.
 - **Sonido:** los efectos van en `lib/sfx.ts` y respetan `isMuted()`. El botón ♪ de la cabecera es el **silencio general** (efectos y música).
 - **Celebraciones:** partículas y sacudidas, siempre con `lib/fx.ts`, que ya respeta «reducir movimiento». Las sacudidas mueven el contenido (`.cl-stage`), nunca una capa `position: fixed`.
@@ -159,6 +163,7 @@ src/features/<nombre>/
 ## 8. Assets y Tauri
 
 - **Archivos estáticos** (música, imágenes): en `public/`, nunca en `dist/`. `dist/` se borra entera en cada build y está en `.gitignore`.
+- **Archivos del usuario** (adjuntos de los encargos): en el almacén de binarios, nunca en eventos ni en `public/`.
 - **Música:** se copia a `public/music/` y se registra en `src/features/music/tracks.ts` y en `i18n.ts`.
 - **Permisos de Tauri:** se conceden de forma explícita y mínima en `src-tauri/capabilities/default.json`. Cada plugin nuevo necesita su permiso y su registro en `src-tauri/src/lib.rs`.
 - **Secretos:** nunca en el repositorio ni en SQLite. Los tokens OAuth de la fase 2 irán al llavero del sistema.
@@ -181,6 +186,9 @@ src/features/<nombre>/
 - **Pestaña en segundo plano** (`document.hidden`): `requestAnimationFrame` se frena y las animaciones de GSAP no avanzan. No es un fallo de la app. Para capturar fotogramas, pausa `gsap.globalTimeline` y avánzalo a mano (ver «Trampas del entorno» en [COMO-FUNCIONA.md](COMO-FUNCIONA.md)).
 - **`gsap.set` y variables CSS con `var(...)`:** no las aplica. Usa `el.style.setProperty("--x", "var(--y)")`.
 - **Ventana emulada en el panel del navegador:** los clics por coordenadas pueden caer fuera. Comprueba con un registro de eventos antes de dar un botón por roto.
+- **Chromium sin GPU** (pruebas automáticas): los textos gigantes con filtros se pintan tan despacio que GSAP frena su reloj; para capturar fases, pausa `gsap.globalTimeline` y avánzalo a mano.
+- **Sonidos sin altavoces:** se pueden grabar con un `OfflineAudioContext` que use el reloj de GSAP y medirlos con un espectrograma (receta en [COMO-FUNCIONA.md](COMO-FUNCIONA.md), sección 13). Desactiva antes la música (`quests.music`).
+- **Autoplay:** sin una interacción previa, el WebView no deja sonar el audio (y avisa en la consola). Un sonido al arrancar debe comprobar `navigator.userActivation.hasBeenActive`.
 
 ---
 
@@ -214,7 +222,7 @@ Prioridad alta, pendiente (fase 1.5 de la hoja de ruta):
 - **Eventos sin campo `v`.** El *upcasting* ya existe en `legacy.ts`, pero falta versión explícita.
 - **Orden por reloj local** (`ts`): falta un reloj lógico híbrido.
 - **Sin error boundary:** un fallo de React deja la ventana en negro.
-- **CSP desactivada** (`csp: null`) y **Windows sin probar**.
+- **CSP desactivada** (`csp: null`) y **Windows sin probar**. Al activar la CSP, el visor de adjuntos necesita `blob:` en `img-src` y `frame-src` (y `data:` en `img-src` para las miniaturas).
 
 Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, no añadas más casos.
 
