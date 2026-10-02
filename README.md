@@ -50,7 +50,9 @@ src/
     pomodoro/       Pomodoro como tipo de condición: N rondas, la última sin descanso
     music/          Música de fondo (las pistas van en public/music/, nunca en dist/)
     items/          Objetos con rareza: almanaque, inventario y drops al estilo Genshin
-    temporal/       Encargos temporales: tablón aparte con calaveras, adjuntos PDF/imagen y sus animaciones
+    temporal/       Encargos temporales: tablón aparte con calaveras, adjuntos PDF/imagen, quests enlazadas y sus animaciones
+    complex/        Quests complejas: repetición tras completarlas (cualquier categoría) y requisitos
+    horizon/        Plazos: clasificar quests y encargos por lo que falta (1 día, 7 días, 2 semanas, 1 mes, +1 mes)
 src-tauri/         Backend Rust (plugin SQL)
 ```
 
@@ -79,15 +81,22 @@ Seis rarezas con su color: común (gris), poco común (verde), raro (azul), épi
 
 Un tablón aparte (selector de la cabecera o tecla `T`) para lo que ocurre en una fecha: una cita con el médico, una entrega, un examen… Cada encargo es un cartel de pergamino clavado en un tablón de roble, con de 1 a 5 **calaveras rojas** según su dificultad, su fecha y hora (o todo el día), lugar, notas y recompensa en XP y oro. Se le pueden **adjuntar PDF e imágenes** (hasta 20 MB cada uno y 8 por encargo), que se ven en un visor dentro de la app. Los de hoy o vencidos se avisan al abrir la app, y los que tienen hora, 15 minutos antes. Detalles: [src/features/temporal/README.md](src/features/temporal/README.md).
 
+## Quests complejas y plazos
+
+- **Repetición:** cualquier quest puede volver al tablón tras completarla («cada 3 días», «cada 2 semanas»…), no solo las repetibles.
+- **Requisitos:** una quest puede pedir otras; hasta completarlas sale con candado y no se puede aceptar. Al completar la última, avisa de lo que desbloquea. Detalles: [src/features/complex/README.md](src/features/complex/README.md).
+- **Plazos:** los dos tablones tienen un filtro con contador (tecla `H`): **1 día** (hoy, mañana o vencido), **7 días**, **2 semanas**, **1 mes** y **+1 mes** (y **sin fecha** en el de quests). Las quests pueden tener fecha límite; las de un encargo toman la suya. Detalles: [src/features/horizon/README.md](src/features/horizon/README.md).
+- **Encargos con quests:** al clavar un encargo se le pueden añadir quests (se crean solas en el Quest Board, si se quiere en cadena) o enlazar quests que ya existen. El encargo no se puede cumplir hasta terminarlas todas.
+
 ## Idiomas
 
 Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en la cabecera o tecla `L`.
 
 ## Atajos
 
-`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `N` nueva quest · `T` tablón de encargos temporales · `I` objetos · `L` idioma · `M` música
+`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` nueva quest · `T` tablón de encargos temporales · `I` objetos · `L` idioma · `M` música
 
-En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` cumplir · `E` editar · `Esc` cerrar.
+En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `H` plazo · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` cumplir · `E` editar · `Esc` cerrar.
 
 ## Hoja de ruta
 
@@ -97,6 +106,7 @@ En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · 
 - [x] Música de fondo (`src/features/music/`)
 - [x] Objetos con rareza, inventario, almanaque y drops (`src/features/items/`)
 - [x] Encargos temporales con calaveras, adjuntos PDF/imagen y recordatorios (`src/features/temporal/`)
+- [x] Quests complejas: repetición y requisitos (`src/features/complex/`); plazos (`src/features/horizon/`); encargos enlazados con quests
 - [ ] **Fase 2:** sincronización con Google Drive
   - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`
   - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`

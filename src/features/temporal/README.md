@@ -2,7 +2,9 @@
 
 Los **encargos temporales** son cosas que ocurren en una fecha: una cita con el médico, una entrega, un examen, un cumpleaños… Viven en **su propio tablón**, aparte del Quest Board: un tablón de roble con carteles de pergamino clavados, cada uno con **calaveras rojas según su dificultad** (de 1 a 5), como en la imagen de referencia («The Broken Spear Inn»). Se les pueden **adjuntar PDF e imágenes**. Al clavar uno y al cumplirlo hay dos animaciones que imitan los dos vídeos de referencia (KonoSuba, episodio 2), con sonidos sintetizados que imitan los del vídeo.
 
-Se cambia de tablón con el selector de la cabecera o con la tecla `T`.
+Un encargo puede llevar **quests enlazadas**: las que se añaden en su formulario se crean solas en el Quest Board, y el encargo **no se puede cumplir hasta terminarlas todas** (ver «Quests enlazadas»).
+
+Se cambia de tablón con el selector de la cabecera o con la tecla `T`. Los dos tablones se filtran por plazo con la tecla `H` ([../horizon/README.md](../horizon/README.md)).
 
 Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
 
@@ -22,6 +24,9 @@ Sigue la convención del proyecto: **una carpeta por implementación** (`src/fea
 | R8 | Las calaveras se plasman en el encargo | Caen una a una y se estampan con su mancha de tinta, salpicadura, sacudida y sonido |
 | R9 | Que se sienta dinámico, con animaciones no pedidas | Ver «Animaciones añadidas» |
 | R10 | Imitar los sonidos del vídeo | `lib/sfx.ts`: recetas medidas sobre el audio de los vídeos (tabla «Sonidos») |
+| R11 | Conectar, si se quiere, un encargo con quests | `TemporalDef.questIds` y eventos `temporal_linked` / `temporal_unlinked`; en el formulario, quests nuevas o del tablón |
+| R12 | Si no se terminan todas, no se puede cumplir el encargo | Guarda en la proyección (`temporal_completed` se ignora) y en la acción; botón «Faltan N quests» |
+| R13 | Las quests puestas en el encargo se crean solas en el Quest Board | `createTemporal` / `updateTemporal` emiten `quest_created` por cada quest nueva antes de enlazarla |
 
 ---
 
@@ -96,6 +101,44 @@ Lo elegido:
 - Lo cumplido no se edita (su recompensa y su fecha son historia), pero sí admite adjuntos: el justificante suele llegar después.
 - `temporal_completed` copia la recompensa (norma 5.1): editar el encargo después no cambia lo ganado.
 
+### Quests enlazadas
+
+Un encargo puede llevar quests del Quest Board («Examen final» → «Repasar los temas», «Hacer simulacros ×3»). **Hasta terminarlas todas, el encargo no se puede cumplir.**
+
+**En el formulario** (sección «Quests del encargo», hasta 12):
+
+- **+ Nueva quest:** un título y cuántas veces hay que hacerla. Al guardar, cada una se crea en el Quest Board como un **encargo** (categoría Encargo) con un objetivo «título ×N», la recompensa propuesta de esa categoría y el encargo como «Encargado por».
+- **+ Enlazar una quest del tablón:** cualquier quest sin terminar que no pertenezca ya a otro encargo pendiente.
+- **En cadena:** cada quest nueva requiere la anterior de la lista (requisitos de [../complex/README.md](../complex/README.md)): primero «Repasar», después «Simulacros».
+- **Quitar** una quest del encargo solo la desenlaza: **sigue en el Quest Board**.
+
+**Dónde se ve:**
+
+| Sitio | Qué muestra |
+|---|---|
+| Cartel del tablón | Sello de tinta «⚔ 1/3» (terminadas / total); dorado si están todas |
+| Cartel abierto | Lista con ✓ terminada, ◆ en curso, 🔒 bloqueada, ○ por aceptar, ◷ en espera; cada una lleva a su quest. «Cumplir» pasa a «Faltan N quests» y queda desactivado |
+| Quest del Quest Board | Su plazo con una calavera (la fecha del encargo) y, en el detalle, un pequeño cartel del encargo con lo que falta, que lleva a él |
+| Avisos | Al terminar la última: ««X» completada · ya puedes cumplir «Encargo»» |
+
+**Datos:**
+
+- `TemporalDef.questIds: string[]` (en orden). Los encargos anteriores no lo traen: `normalize()` lo lee como `[]`.
+- Los enlaces cambian con **deltas**, como los adjuntos: `temporal_linked` y `temporal_unlinked`. El parche de `temporal_updated` nunca toca las quests.
+- `TemporalState.linkedAt` guarda cuándo se enlazó cada una (ts del evento).
+- **Una quest pertenece a un solo encargo pendiente.** Enlazarla a otro se ignora. Cuando su encargo se cumple o se retira, queda libre.
+- Cada `QuestState` sabe a qué encargo pendiente pertenece (`temporalId`), calculado al final de `project()` (`questOwners`).
+
+**¿Cuándo está terminada una quest enlazada?** (`linkedQuestDone`)
+
+- Si se completó del todo (`done`), sí.
+- Si es de las que vuelven (repetibles o con repetición), solo si se completó **después de enlazarla** (`lastCompletedAt ≥ linkedAt`). Una vuelta de la semana pasada no cuenta para el examen de esta.
+- Si se retiró del Quest Board, deja de contar (ni bloquea ni suma).
+
+**Guarda en la proyección:** `temporal_completed` se ignora si alguna quest enlazada no está terminada en ese punto de la reproducción. `applyTemporalEvent` recibe una función `linkDone(questId, since)` de `project()`, que es quien conoce las quests. La acción `completeTemporal` lo comprueba antes y avisa («Antes termina sus 3 quests (falta «X»)»).
+
+Como el orden de los eventos depende del reloj de cada equipo (deuda conocida: falta un reloj lógico híbrido), si un equipo con el reloj atrasado cumple el encargo justo después de que otro termine la última quest, al fusionar el encargo podría volver a pendiente. No se pierde nada: basta con cumplirlo otra vez.
+
 ### Estado de interfaz propio
 
 Qué cartel está elegido, qué ventana o animación está abierta… vive en `ui.ts`, un store de Zustand de la funcionalidad. No genera eventos ni se guarda. En `store/game.ts` solo se añade `section`, porque la cabecera, el pie y `App` lo necesitan. Así el store común no engorda (el informe técnico recomienda separar el estado de UI por funcionalidad).
@@ -115,7 +158,8 @@ No hay notificaciones del sistema: en Tauri necesitarían `tauri-plugin-notifica
 |---|---|---|
 | `T` | Volver al Quest Board | — |
 | `↑↓←→` | Moverse entre carteles (por su posición en pantalla) | — |
-| `Enter` / `A` | Abrir el cartel elegido | Cumplir el encargo (si el foco está en un botón, pulsa ese botón) |
+| `Enter` / `A` | Abrir el cartel elegido | Cumplir el encargo (si el foco está en un botón, pulsa ese botón). Con quests sin terminar, avisa de cuáles faltan |
+| `H` | Siguiente plazo del filtro (`Shift+H`, el anterior) | — |
 | `N` | Clavar un encargo nuevo | — |
 | `E` | — | Editar |
 | `Esc` | — | Cerrar (el cartel vuelve a su sitio) |
@@ -129,6 +173,9 @@ Durante las animaciones, `Enter`, `Esc`, espacio o un clic saltan al final.
 - Un encargo vencido **se puede cumplir** igual, con su recompensa completa.
 - Los cumplidos **no se ven** en el tablón salvo con «Ver cumplidos»; al cumplir uno, recibe su sello y se descuelga.
 - Clic en un cartel lo elige; un segundo clic (o doble clic) lo abre.
+- Las quests nuevas de un encargo son de la categoría **Encargo**, con un objetivo «título ×N» y la recompensa propuesta de esa categoría (150 XP y 80 de oro). Para algo más elaborado, se crea la quest en el Quest Board y se enlaza.
+- **Retirar un encargo no borra sus quests:** se quedan en el Quest Board, sin encargo ni fecha. El botón de confirmar lo dice («¿Seguro? Sus quests se quedan»).
+- **Quitar una quest del encargo** (al editarlo) tampoco la borra.
 
 ---
 
@@ -216,12 +263,18 @@ classDiagram
         allDay: boolean
         reward: TemporalReward
         attachments: AttachmentRef[]
+        questIds: string[]
         createdAt: number
     }
     class TemporalState {
         status: pending | done
         completedAt?: number
         earned?: TemporalReward
+        linkedAt: Record~questId, ts~
+    }
+    class QuestState {
+        lastCompletedAt?: number
+        temporalId?: string
     }
     class TemporalKind {
         <<enumeration>>
@@ -255,6 +308,8 @@ classDiagram
     TemporalDef *-- AttachmentRef : 0..8
     AttachmentRef ..> BlobStore : blobId
     GameState *-- TemporalState
+    TemporalDef o-- QuestState : questIds 0..12 (hay que terminarlas)
+    QuestState ..> TemporalState : temporalId (calculado)
 ```
 
 ---
@@ -263,18 +318,25 @@ classDiagram
 
 | Evento | Datos | Efecto en la proyección | Guarda |
 |---|---|---|---|
-| `temporal_created` | `temporal: TemporalDef` | Lo clava como `pending` | Se ignora si el id existe o fue retirado |
-| `temporal_updated` | `temporalId`, `patch` (campos que cambian) | Mezcla los campos editables | Solo si está pendiente; nunca toca id, adjuntos ni estado |
+| `temporal_created` | `temporal: TemporalDef` | Lo clava como `pending`; `linkedAt` de sus quests = ts | Se ignora si el id existe o fue retirado; quita de `questIds` las que ya tiene otro encargo pendiente |
+| `temporal_updated` | `temporalId`, `patch` (campos que cambian) | Mezcla los campos editables | Solo si está pendiente; nunca toca id, adjuntos, quests ni estado |
 | `temporal_attached` | `temporalId`, `attachment: AttachmentRef` | Añade el adjunto | Si existe y el adjunto no está ya |
 | `temporal_detached` | `temporalId`, `attachmentId` | Quita el adjunto | Si existe |
-| `temporal_completed` | `temporalId`, `reward` (copia) | `done`, `completedAt` = ts del evento, `earned`; suma XP y oro al jugador | Solo si está pendiente: si dos dispositivos lo cumplen sin conexión, solo cuenta el primero |
+| `temporal_linked` | `temporalId`, `questId` | Añade la quest al final de `questIds`; `linkedAt[questId]` = ts | Solo si está pendiente, la quest no está ya, no pasa de 12 y ningún otro encargo pendiente la tiene |
+| `temporal_unlinked` | `temporalId`, `questId` | La quita de `questIds` y de `linkedAt` | Solo si está pendiente y la tiene |
+| `temporal_completed` | `temporalId`, `reward` (copia) | `done`, `completedAt` = ts del evento, `earned`; suma XP y oro al jugador | Solo si está pendiente (si dos dispositivos lo cumplen sin conexión, solo cuenta el primero) y si todas sus quests enlazadas están terminadas |
 | `temporal_deleted` | `temporalId` | Lo quita; el id queda retirado | Si existe |
 
-Al leer, `normalize()` corrige lo mal formado sin reescribir el evento: dificultad fuera de 1–5, tipo desconocido, recompensa negativa o adjuntos ausentes.
+Al leer, `normalize()` corrige lo mal formado sin reescribir el evento: dificultad fuera de 1–5, tipo desconocido, recompensa negativa, adjuntos o quests ausentes (y quests repetidas o de más).
+
+Crear un encargo con quests nuevas emite, en este orden, un `quest_created` por cada quest y después `temporal_created` con todos los `questIds`. Al editarlo: `temporal_unlinked` por cada quest quitada, `quest_created` por cada nueva y `temporal_linked` por cada nueva o elegida del tablón.
 
 ### Compatibilidad con datos antiguos
 
-No cambia la forma de ningún evento existente, así que no hace falta *upcaster*. Los datos anteriores no tienen eventos `temporal_*`: `GameState.temporals` sale vacío y todo lo demás se proyecta igual (comprobado con datos reales de la versión anterior, ver «Verificación»).
+- **Primera versión del tablón:** los datos anteriores no tienen eventos `temporal_*`: `GameState.temporals` sale vacío y todo lo demás se proyecta igual.
+- **Quests enlazadas:** los `temporal_created` anteriores no traen `questIds`. `normalize()` lo lee como `[]` (sin *upcaster* aparte: es un campo nuevo con valor por defecto) y esos encargos se cumplen como siempre.
+
+Las dos cosas se comprobaron con datos reales de la versión anterior (ver «Verificación»).
 
 ---
 
@@ -282,10 +344,11 @@ No cambia la forma de ningún evento existente, así que no hace falta *upcaster
 
 | Archivo | Contenido |
 |---|---|
-| `model.ts` | Tipos, urgencia, orden, recompensas, recordatorios y el acumulador de la proyección (`applyTemporalEvent`). Puro |
+| `model.ts` | Tipos, urgencia, orden, recompensas, recordatorios, quests enlazadas (`linkedQuestDone`, `pendingLinks`, `questOwners`, `linkCandidates`) y el acumulador de la proyección (`applyTemporalEvent`). Puro |
+| `links.ts` | Estado de cada quest enlazada para la interfaz (terminada, en curso, bloqueada…). Usa la proyección, por eso no va en `model.ts` |
 | `events.ts` | `TemporalEventBody` |
 | `look.ts` | Aspecto estable de cada cartel: forma, inclinación, bordes rasgados y dónde caen las calaveras. Puro |
-| `actions.ts` | Crear, editar, adjuntar, quitar, cumplir y retirar; borrado de binarios huérfanos |
+| `actions.ts` | Crear (con sus quests), editar (enlazar, desenlazar y crear quests), adjuntar, quitar, cumplir (si sus quests están terminadas) y retirar; borrado de binarios huérfanos; `goToQuest` / `goToTemporal` para saltar de un tablón a otro |
 | `files.ts` | Comprobación y preparación de archivos (reducción y miniatura con canvas). DOM |
 | `format.ts` | Fechas y cuentas atrás en el idioma activo |
 | `ui.ts` | Estado de interfaz propio (Zustand) |
@@ -296,6 +359,9 @@ No cambia la forma de ningún evento existente, así que no hace falta *upcaster
 | `components/Skull.tsx` | La calavera roja (y de oro) y la mancha de tinta |
 | `components/SectionSwitch.tsx` | Selector de tablón de la cabecera, con el número de encargos para hoy |
 | `components/TemporalForm.tsx` | Formulario de crear y editar, con el selector de calaveras y los adjuntos |
+| `components/TemporalQuestsField.tsx` | «Quests del encargo» en el formulario: nuevas, del tablón y en cadena |
+| `components/PosterQuests.tsx` | Las quests en el cartel abierto |
+| `components/QuestEventLink.tsx` | El encargo de una quest, en el detalle del Quest Board |
 | `components/PosterView.tsx` | El cartel en grande, con sus adjuntos y acciones |
 | `components/AttachmentViewer.tsx` | Visor de imágenes y PDF |
 | `components/PostedOverlay.tsx` | Animación de «cartel clavado» |
@@ -309,14 +375,17 @@ No cambia la forma de ningún evento existente, así que no hace falta *upcaster
 |---|---|
 | `domain/types.ts` | `GameState.temporals` |
 | `domain/events.ts` | `TemporalEventBody` en la unión |
-| `domain/projection.ts` | `applyTemporalEvent`; la recompensa de `temporal_completed` suma XP y oro |
+| `domain/projection.ts` | `applyTemporalEvent` con `linkDone` (guarda de quests enlazadas); la recompensa de `temporal_completed` suma XP y oro; `temporalId` de cada quest al final |
+| `domain/types.ts` (quests) | `QuestState.lastCompletedAt` y `temporalId`; `DEFAULT_REWARD` para las quests nuevas |
 | `storage/eventStore.ts` | Conexión SQLite compartida (`sqliteDb()`) y `isTauri` exportado |
 | `storage/blobStore.ts` | **Nuevo**: almacén de binarios (SQLite `blobs` / IndexedDB) |
 | `store/game.ts` | `section` y `setSection` |
 | `App.tsx` | Tablón según la sección, tecla `T` (y teclas comunes a los dos tablones) y `<TemporalOverlays />` |
 | `components/Header.tsx` | `<SectionSwitch />` |
 | `components/Footer.tsx` | Pie del tablón de encargos y tecla `T` |
-| `components/QuestDetail.tsx` | El aviso (`Toast`) también con el tablón vacío: si no, los recordatorios no se veían |
+| `components/QuestDetail.tsx` | El aviso (`Toast`) también con el tablón vacío: si no, los recordatorios no se veían; sección «Encargo» con `<QuestEventLink>` |
+| `components/QuestCard.tsx` | Calavera en el plazo de las quests de un encargo (`Skull` exportado) |
+| `store/actions.ts` | Al reportar la última quest de un encargo, avisa de que ya se puede cumplir |
 | `i18n/locales/{es,ja}.ts` | Montan `temporal` |
 | `lib/sfx.ts` | `hiss`, `stab`, `celesta`, `chime`, ataque en `tone` y los sonidos de la tabla |
 | `styles/theme.css` | Tokens `--skull*`, `--parchment*`, `--oak*`, `--copper`, `--ink*` |
@@ -335,5 +404,12 @@ Hecho el 2026-10-02 con `pnpm dev` en Chromium (Playwright), ventanas de 1.280 �
 - **Almacén**: los binarios se guardan en IndexedDB y se borran al quitar el adjunto o retirar el encargo; los eventos solo llevan la referencia y la miniatura (unos 15 KB con una imagen).
 - **Animaciones**: capturadas fase a fase pausando el reloj global de GSAP y avanzándolo a mano.
 - **Sonido**: el audio de las dos animaciones se grabó redirigiendo Web Audio a un `OfflineAudioContext` con el mismo reloj, y se comparó su espectrograma con el de los vídeos (golpe, destello, tic-tic, melodía y campanilla en su sitio).
+
+### Quests enlazadas
+
+Hecho el 2026-10-02 con `pnpm dev` en Chromium (Playwright).
+
+- **Dominio** (marcas de tiempo fijas, tres zonas horarias): cumplir con quests pendientes se ignora (sin XP); con una de dos, también; con las dos, se cumple y suma la XP de las quests y la del encargo; una quest retirada deja de bloquear; una repetible completada antes de enlazarla no cuenta y después sí; una quest no se enlaza a dos encargos pendientes; enlazar sin duplicar; desenlazar; el parche no toca las quests; un encargo antiguo sin `questIds` se cumple; mismo estado con los eventos reordenados; `temporalId` desaparece al cumplir el encargo.
+- **Interfaz:** formulario con dos quests nuevas (una ×3), una enlazada del tablón y «en cadena» (se crean con sus requisitos encadenados y el aviso «2 quests nuevas en el Quest Board»); sello «0/3» en el cartel; cartel abierto con la lista y «Faltan 3 quests»; `Enter` avisa de la que falta; de la lista al Quest Board (con el filtro de plazo reiniciado); detalle de la quest con el cartel del encargo; al terminar la primera, aviso de desbloqueo; al terminar la última, «ya puedes cumplir…»; «Cumplir encargo» activo y animación final; editar (desenlazar una, crear otra: eventos `temporal_unlinked`, `quest_created`, `temporal_linked`); japonés.
 
 **No verificado**: la app nativa (`pnpm tauri dev`) con la tabla `blobs` de SQLite y el puente de archivos grandes en base64; Windows; el visor de PDF dentro del WebView de Tauri (en Chromium sin interfaz el visor sale en blanco, así que tampoco se vio en el navegador); la descarga de adjuntos en Tauri; escuchar los sonidos de verdad (solo se analizaron); y el rendimiento de los textos gigantes con filtros en el WKWebView de macOS.

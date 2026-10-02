@@ -2,7 +2,7 @@
 
 > **Copia del informe técnico a fecha de 2026-10-02.** El original vive como documento colaborativo en Claude: [Quests — Informe técnico de arquitectura](https://claude.ai/code/artifact/1cb3618f-d1e6-483e-a198-a1998279827b). Los diagramas de esta copia son capturas de ese documento (`docs/img/`).
 >
-> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`) los objetos con rareza y drops (`src/features/items/`) y los encargos temporales con archivos adjuntos (`src/features/temporal/`). El diagrama de clases (imagen, redibujado el 2026-10-02) ya incluye el pomodoro, la música, los objetos (`ItemDef`, `Rarity`, `Drop`, `Pity`, `DropTable`) y los encargos temporales (`TemporalDef`, `TemporalState`, `TemporalKind`, `AttachmentRef`, `BlobStore`). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
+> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`), los objetos con rareza y drops (`src/features/items/`), los encargos temporales con archivos adjuntos y quests enlazadas (`src/features/temporal/`), las quests complejas con repetición y requisitos (`src/features/complex/`) y los plazos (`src/features/horizon/`). El diagrama de clases (imagen, redibujado el 2026-10-02) ya incluye el pomodoro, la música, los objetos (`ItemDef`, `Rarity`, `Drop`, `Pity`, `DropTable`), los encargos temporales (`TemporalDef`, `TemporalState`, `TemporalKind`, `AttachmentRef`, `BlobStore`), sus quests enlazadas (`questIds`, `linkedAt`, `QuestState.temporalId`), los requisitos y la fecha límite de las quests (`requires`, `dueAt`, `lastCompletedAt`) y los plazos (`Horizon`). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
 
 ---
 
@@ -35,6 +35,9 @@ Todas las funciones de la fase 1 están hechas; la verificación ha sido manual 
 | Persistencia SQLite en la app nativa | Hecho | Base `quests.db` inspeccionada con `sqlite3` |
 | Atajos de teclado | Hecho | Flechas, Enter y X probados; la tecla `+` no se pudo probar |
 | Sonidos sintetizados con botón de silencio | Hecho | Sin verificación auditiva |
+| Quests complejas: repetición en cualquier categoría (también «cada 3 días») y requisitos con candado | Hecho | Comprobaciones del dominio con marcas de tiempo fijas en tres zonas horarias y prueba en navegador (Playwright) |
+| Plazos: filtro de 1 día, 7 días, 2 semanas, 1 mes y más de un mes en los dos tablones; fecha límite de las quests | Hecho | Bordes de cada plazo, cambio de hora y prueba en navegador, también en japonés y a 1.024 px |
+| Encargos con quests enlazadas: se crean en el Quest Board y hay que terminarlas para cumplir el encargo | Hecho | Guardas de la proyección, datos antiguos proyectados idénticos y flujo completo en navegador |
 | Build y prueba en Windows | Pendiente | — |
 | Tests automáticos | Pendiente | — |
 | Sincronización con Google Drive (fase 2) | Pendiente | Interfaz preparada en `EventStore` |
@@ -84,18 +87,20 @@ Una condición es de dos tipos: **contador** (`target` = cantidad, avanza con +1
 
 **Encargos temporales.** `TemporalDef` es algo con fecha (una cita, una entrega) que vive en su propio tablón, fuera de las quests: tipo de cartel (`TemporalKind`), dificultad de 1 a 5 calaveras, fecha (`dueAt`, o todo el día), lugar, notas, recompensa y adjuntos. `TemporalState` añade si está pendiente o cumplido, cuándo y lo ganado; están en `GameState.temporals`. Cumplir uno suma su XP y su oro al jugador. La urgencia (hoy, pronto, vencido) se calcula con la hora actual, sin eventos. Cada `AttachmentRef` lleva solo los metadatos y una miniatura: el archivo está en el almacén de binarios (`BlobStore`), con su SHA-256 como clave.
 
+**Quests complejas, plazos y encargos con quests.** `QuestDef` gana dos campos opcionales: `requires` (quests que hay que completar antes de poder aceptarla) y `dueAt` (fecha límite de todo el día); `cooldownMinutes` ya vale para cualquier categoría, no solo para las repetibles. `QuestState` añade `lastCompletedAt` y `temporalId`, el encargo pendiente al que pertenece, calculado a partir de los enlaces. `TemporalDef.questIds` enlaza las quests que hay que terminar antes de cumplir el encargo, y `TemporalState.linkedAt` guarda cuándo se enlazó cada una. El plazo (`Horizon`: 1 día, 7 días, 2 semanas, 1 mes o más) se calcula con la hora actual, sin eventos. El detalle está en [src/features/complex/README.md](../src/features/complex/README.md) y [src/features/horizon/README.md](../src/features/horizon/README.md).
+
 ## Modelo de eventos y persistencia
 
-Cada acción del usuario se registra como un evento inmutable. El estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. Hay seis tipos de evento de quest, que son estos. El pomodoro añade otros cinco (`pomodoro_started`, `_paused`, `_resumed`, `_stopped` y `_break_skipped`), documentados en [src/features/pomodoro/README.md](../src/features/pomodoro/README.md). Los objetos añaden tres (`item_created`, `item_updated` e `item_deleted`), documentados en [src/features/items/README.md](../src/features/items/README.md). Los encargos temporales añaden seis (`temporal_created`, `_updated`, `_attached`, `_detached`, `_completed` y `_deleted`), documentados en [src/features/temporal/README.md](../src/features/temporal/README.md):
+Cada acción del usuario se registra como un evento inmutable. El estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. Hay seis tipos de evento de quest, que son estos. El pomodoro añade otros cinco (`pomodoro_started`, `_paused`, `_resumed`, `_stopped` y `_break_skipped`), documentados en [src/features/pomodoro/README.md](../src/features/pomodoro/README.md). Los objetos añaden tres (`item_created`, `item_updated` e `item_deleted`), documentados en [src/features/items/README.md](../src/features/items/README.md). Los encargos temporales añaden ocho (`temporal_created`, `_updated`, `_attached`, `_detached`, `_linked`, `_unlinked`, `_completed` y `_deleted`), documentados en [src/features/temporal/README.md](../src/features/temporal/README.md); `temporal_completed` se ignora mientras quede alguna quest enlazada sin terminar. Las quests complejas y los plazos no añaden eventos: solo campos opcionales de `QuestDef`.
 
 | Evento | Datos | Efecto en la proyección | Regla de conflicto |
 | --- | --- | --- | --- |
 | `quest_created` | `quest: QuestDef` completa | Añade la quest como `available` | Se ignora si el id ya existe |
 | `quest_deleted` | `questId` | Elimina la quest | Los eventos posteriores sobre ella se ignoran |
-| `quest_accepted` | `questId` | `available` o espera vencida → `active`; reinicia el progreso | Solo aplica desde un estado válido |
+| `quest_accepted` | `questId` | `available` o espera vencida → `active`; reinicia el progreso | Solo aplica desde un estado válido y con sus requisitos completados |
 | `quest_abandoned` | `questId` | `active` → `available` (o `cooldown` si aún no venció) | Solo aplica si está activa |
 | `progress_added` | `questId`, `conditionId`, `amount` (±1) | Suma al contador, limitado a [0, objetivo] | Delta, no valor absoluto: dos dispositivos suman en vez de pisarse |
-| `quest_completed` | `questId`, `reward` (copia, con `itemId` garantizado), `drops` (botín ya tirado) | Suma XP, oro, objeto garantizado y drops; avanza el pity; repetible → `cooldown`, resto → `done` | Si dos dispositivos la completan sin conexión, solo cuenta la primera, botín incluido |
+| `quest_completed` | `questId`, `reward` (copia, con `itemId` garantizado), `drops` (botín ya tirado) | Suma XP, oro, objeto garantizado y drops; avanza el pity; si se repite (repetible o con repetición) → `cooldown`, resto → `done` | Si dos dispositivos la completan sin conexión, solo cuenta la primera, botín incluido |
 
 La recompensa se copia dentro de `quest_completed`. Así, editar una quest en el futuro no cambia la XP ya ganada. Lo mismo con el botín: se tira al reportar y el resultado se guarda en el evento, así que la proyección no depende del azar.
 
@@ -134,7 +139,9 @@ Una quest tiene cuatro estados y cada transición corresponde a un evento. Para 
 
 ![Ciclo de vida de una quest: 4 estados](img/ciclo-de-vida-quest.png)
 
-La espera no genera ningún evento: `effectiveStatus()` compara la hora actual con `availableAt`, así que una repetible vuelve sola al tablón aunque la app esté cerrada.
+La espera no genera ningún evento: `effectiveStatus()` compara la hora actual con `availableAt`, así que una quest que se repite vuelve sola al tablón aunque la app esté cerrada.
+
+Una quest con requisitos sigue en `available`, pero no se puede aceptar hasta completarlos: el bloqueo se calcula con `prerequisitesMet()`, no es un estado nuevo.
 
 ## Flujos principales
 
@@ -184,7 +191,7 @@ Convenciones a mantener:
 - La lógica que decide (¿se puede aceptar?, ¿está completa?) vive en `domain/` o `store/actions.ts`, nunca en un componente.
 - Las animaciones leen el cambio de estado; no lo provocan.
 
-**Una carpeta por funcionalidad.** Cada funcionalidad nueva vive en `src/features/<nombre>/` con su modelo, eventos, acciones, componentes, textos y un `README.md` de diseño. Ya existen `pomodoro` (dominio, con eventos), `music` (servicio local, sin eventos), `items` (entidades propias, azar e imágenes) y `temporal` (sección propia, estado de UI propio y archivos adjuntos). El dominio importa solo el `model.ts` de cada funcionalidad, nunca su `index.ts`, para no crear ciclos con el store.
+**Una carpeta por funcionalidad.** Cada funcionalidad nueva vive en `src/features/<nombre>/` con su modelo, eventos, acciones, componentes, textos y un `README.md` de diseño. Ya existen `pomodoro` (dominio, con eventos), `music` (servicio local, sin eventos), `items` (entidades propias, azar e imágenes), `temporal` (sección propia, estado de UI propio, archivos adjuntos y quests enlazadas), `complex` (repetición y requisitos, sin eventos propios) y `horizon` (plazos calculados, sin eventos). El dominio importa solo el `model.ts` de cada funcionalidad, nunca su `index.ts`, para no crear ciclos con el store.
 
 ## Escalabilidad
 
@@ -241,6 +248,9 @@ Cada decisión queda registrada con la alternativa que se descartó, para no rea
 | ADR-10 | Imagen de los objetos reducida a 160 px y guardada como data URL en el evento | Ficheros en la carpeta de la app (plugin `fs`); imagen original | Se sincroniza con los demás eventos, sin plugin ni permisos nuevos | 3–30 KB por imagen dentro de SQLite; si se cambia mucho, valorar snapshots |
 | ADR-11 | Adjuntos (PDF e imágenes de hasta 20 MB) en un almacén de binarios aparte, por su SHA-256: tabla `blobs` en SQLite e IndexedDB en el navegador; en el evento, solo la referencia y una miniatura de 320 px | El archivo dentro del evento como ADR-10; plugin `fs`; IndexedDB también en la app nativa | Un PDF de varios MB se leería en cada arranque y no cabe en `localStorage`; la misma conexión SQLite evita plugins y permisos nuevos; el hash evita duplicados entre dispositivos | La fase 2 tendrá que sincronizar binarios además de eventos; un dispositivo puede ver la referencia antes que el archivo («no está en este equipo») |
 | ADR-12 | Encargos temporales como entidad y tablón propios (`TemporalDef`, sección aparte) | Una cuarta categoría de quest | Tienen fecha y se cumplen una vez: no se aceptan, no ocupan huecos ni tienen objetivos ni esperas | Comparten con las quests la recompensa (XP y oro suman al jugador), no `completedCount` ni los drops |
+| ADR-13 | Repetición (en cualquier categoría) y requisitos como campos opcionales de `QuestDef`, con una guarda en la proyección: `quest_accepted` se ignora si faltan requisitos | Eventos nuevos para los requisitos; una categoría «cadena»; comprobarlo solo en la acción | La definición ya viaja entera en `quest_created` y los datos antiguos se leen igual; con la guarda, todos los dispositivos llegan al mismo estado | Repetición y requisitos no se editan hasta que exista `quest_updated`; un requisito retirado deja de bloquear |
+| ADR-14 | Quests enlazadas a un encargo con `TemporalDef.questIds` y los eventos `temporal_linked` / `temporal_unlinked`; `temporal_completed` se ignora mientras quede alguna sin terminar | `QuestDef.temporalId` fijado al crear la quest; borrar las quests al retirar el encargo | Se pueden enlazar y desenlazar después, como deltas que se suman entre dispositivos; `linkedAt` hace que una repetible cuente solo si se completa tras enlazarla | Con el reloj de cada equipo, un encargo cumplido justo tras la última quest podría volver a pendiente al fusionar (lo resuelve el reloj híbrido); retirar un encargo deja sus quests en el tablón |
+| ADR-15 | Plazos calculados con la hora actual (`horizonOf`), excluyentes y con «1 mes» (de 15 a 30 días) para no dejar huecos; fecha límite opcional en `QuestDef` | Guardar el plazo en un evento; plazos acumulativos; solo los cuatro plazos pedidos | Cambia solo con el paso del tiempo, sin eventos; cada fecha cae en un plazo y los contadores suman el total | Una quest sin fecha propia ni encargo sale en «sin fecha»; las que se repiten no tienen fecha límite |
 
 ## Hoja de ruta
 
