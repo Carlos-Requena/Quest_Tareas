@@ -133,7 +133,7 @@ En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · 
 - [x] Snapshot de la proyección (`src/features/snapshot/`) y tests con Vitest del dominio y el store (302)
 - [x] Mercader con Hu Tao (`src/features/merchant/`), personaje con su equipo (`src/features/equipment/`) y atributos por área (`src/features/attributes/`)
 - [x] Equipo de serie (`src/features/armory/`), rachas (`src/features/streaks/`), objetivo de tipo lista (`src/features/checklist/`) y crónica del aventurero (`src/features/chronicle/`)
-- [ ] **Fase 1.5 (endurecimiento):** hechos los eventos versionados, el reloj lógico híbrido, el error boundary (`src/features/recovery/`), la CSP estricta y la CI en macOS y Windows (314 tests). Se cierra cuando la CI pase en verde en los dos sistemas
+- [x] **Fase 1.5 (endurecimiento):** eventos versionados, reloj lógico híbrido, error boundary (`src/features/recovery/`), CSP estricta y CI en verde en macOS y Windows (314 tests)
 - [ ] **Fase 2:** sincronización con Google Drive
   - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`
   - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`

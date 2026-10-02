@@ -300,5 +300,5 @@ No hay fechas comprometidas: cada fase termina cuando se cumple su puerta, no en
 - [x] Añadir un error boundary con pantalla de recuperación
 - [x] Configurar GitHub Actions con `tauri-action` para macOS y Windows
 - [x] CSP estricta en `tauri.conf.json`
-- [ ] CI en verde en macOS y Windows (puerta de la fase 1.5) y probar a mano el instalador de Windows
+- [x] CI en verde en macOS y Windows (puerta de la fase 1.5). Queda probar a mano el instalador de Windows
 - [ ] Crear el proyecto en Google Cloud con un OAuth Client ID de tipo «Desktop app» (lo hace el propietario de la cuenta)
