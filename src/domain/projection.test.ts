@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { conditionsMet, countConditionsMet, effectiveStatus, project } from "./projection";
 import { compareEvents, type EventBody, type GameEvent } from "./events";
 import { isPomodoroCondition } from "./types";
-import { at, MIN, questDef, randomStream, T0, temporalDef, withMeta } from "../test/streams";
+import { at, gearDef, MIN, questDef, randomStream, T0, temporalDef, withMeta } from "../test/streams";
 import { canonical } from "../features/snapshot/model";
 import { linkedQuestDone } from "../features/temporal/model";
 import { seededRandom } from "../lib/id";
@@ -183,6 +183,18 @@ describe("invariantes sobre historiales aleatorios", () => {
       }
     }
     for (const q of st.quests.values()) expect(q.temporalId).toBe(owner.get(q.id));
+
+    // Mercader y equipo: el oro nunca baja de 0; solo es tuyo y llevas puesto lo que existe, en su ranura.
+    expect(player.gold).toBeGreaterThanOrEqual(0);
+    for (const id of Object.keys(player.owned)) expect(st.gear.has(id)).toBe(true);
+    for (const [slot, id] of Object.entries(player.equipped)) {
+      expect(player.owned[id!]).toBeDefined();
+      expect(st.gear.get(id!)?.slot).toBe(slot);
+    }
+
+    // Atributos: nunca más XP que la de las quests, y cada uno con al menos una quest.
+    expect(player.attributes.reduce((s, a) => s + a.xp, 0)).toBeLessThanOrEqual(player.xp);
+    for (const a of player.attributes) expect(a.quests).toBeGreaterThan(0);
     return st;
   }
 
@@ -210,6 +222,85 @@ describe("invariantes sobre historiales aleatorios", () => {
       }
       expect(project(ev).player.xp).toBe(expected);
     }
+  });
+
+  it("el oro solo baja al comprar, justo el precio pagado y si llegaba", () => {
+    for (const seed of ["oro1", "oro2", "oro3"]) {
+      const ev = randomStream(seed, 400);
+      let purchases = 0;
+      let prev = project([]);
+      for (let i = 0; i < ev.length; i++) {
+        const e = ev[i];
+        const next = project(ev.slice(0, i + 1));
+        const delta = next.player.gold - prev.player.gold;
+        if (e.type === "gear_purchased") {
+          const bought = !prev.player.owned[e.gearId] && !!next.player.owned[e.gearId];
+          expect(delta).toBe(bought ? -e.price : 0);
+          if (bought) {
+            expect(prev.player.gold).toBeGreaterThanOrEqual(e.price);
+            purchases++;
+          }
+        } else expect(delta).toBeGreaterThanOrEqual(0);
+        prev = next;
+      }
+      // El historial ejercita de verdad las compras.
+      expect(purchases).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("mercader, equipo y atributos", () => {
+  const helmet = { type: "gear_created", gear: gearDef("yelmo", { slot: "head", rarity: "rare" }) } as const;
+  const buy = (price = 20) => ({ type: "gear_purchased", gearId: "yelmo", price }) as const;
+  const equip = { type: "gear_equipped", gearId: "yelmo" } as const;
+
+  it("comprar gasta el oro del evento y no toca la XP ni el nivel", () => {
+    const st = project(withMeta([created, accept, complete, helmet, buy(20)]));
+    expect(st.player).toMatchObject({ xp: 150, gold: 10 });
+    expect(st.player.owned.yelmo).toMatchObject({ price: 20 });
+  });
+
+  it("sin oro suficiente en ese momento, la compra no vale (ni gasta)", () => {
+    const st = project(withMeta([created, helmet, buy(20), accept, complete]));
+    expect(st.player.gold).toBe(30);
+    expect(st.player.owned).toEqual({});
+  });
+
+  it("dos dispositivos que gastan el mismo oro sin conexión: solo vale la primera compra", () => {
+    const cloak = { type: "gear_created", gear: gearDef("capa", { slot: "cape" }) } as const;
+    const shared = [at(T0, created), at(T0 + 1, accept), at(T0 + 2, complete), at(T0 + 3, helmet), at(T0 + 4, cloak)];
+    const laptop = at(T0 + 10 * MIN, buy(25), "portatil");
+    const desktop = at(T0 + 11 * MIN, { type: "gear_purchased", gearId: "capa", price: 25 }, "sobremesa");
+    const a = project([...shared, laptop, desktop].sort(compareEvents));
+    const b = project([desktop, laptop, ...shared].sort(compareEvents));
+    expect(canonical(a)).toBe(canonical(b));
+    expect(Object.keys(a.player.owned)).toEqual(["yelmo"]);
+    expect(a.player.gold).toBe(5);
+  });
+
+  it("solo te pones lo que has comprado, y se quita al retirarlo del catálogo", () => {
+    const rich = [created, accept, complete, helmet];
+    expect(project(withMeta([...rich, equip])).player.equipped).toEqual({});
+    expect(project(withMeta([...rich, buy(), equip])).player.equipped).toEqual({ head: "yelmo" });
+    const gone = project(withMeta([...rich, buy(), equip, { type: "gear_deleted", gearId: "yelmo" }]));
+    expect(gone.player.equipped).toEqual({});
+    expect(gone.player.owned).toEqual({});
+    // El oro pagado no se devuelve: la compra ya se hizo.
+    expect(gone.player.gold).toBe(10);
+  });
+
+  it("una quest completada sube el atributo de su área, una sola vez", () => {
+    const q = { type: "quest_created", quest: questDef("q", { area: " Salud ", reward: { xp: 150, gold: 30 } }) } as const;
+    const st = project(withMeta([q, accept, complete, complete]));
+    expect(st.player.attributes).toHaveLength(1);
+    expect(st.player.attributes[0]).toMatchObject({ key: "salud", name: "Salud", xp: 150, quests: 1, level: 2 });
+  });
+
+  it("las quests sin área y los encargos dan XP, pero no suben atributos", () => {
+    const t = { type: "temporal_created", temporal: temporalDef("t") } as const;
+    const st = project(withMeta([created, accept, complete, t, { type: "temporal_completed", temporalId: "t", reward: { xp: 300, gold: 0 } }]));
+    expect(st.player.xp).toBe(450);
+    expect(st.player.attributes).toEqual([]);
   });
 });
 

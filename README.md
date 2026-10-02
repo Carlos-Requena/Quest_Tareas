@@ -55,6 +55,9 @@ src/
     complex/        Quests complejas: repetición tras completarlas (cualquier categoría) y requisitos
     horizon/        Plazos: clasificar quests y encargos por lo que falta (1 día, 7 días, 2 semanas, 1 mes, +1 mes)
     snapshot/       Snapshot de la proyección: cada clic aplica solo su evento y el arranque no reproduce todo el historial
+    merchant/       Mercader (Hu Tao): catálogo de equipo y decoración, precios por rareza, escaparate semanal y compras
+    equipment/      Personaje: el muñeco con su equipo, el armario y la decoración del menú (fondo y emblema)
+    attributes/     Atributos: un nivel por cada área de las quests, con su radar
   test/            Utilidades de los tests (historiales aleatorios con semilla)
 src-tauri/         Backend Rust (plugin SQL)
 ```
@@ -75,11 +78,19 @@ Para no reproducir todo el historial en cada arranque, cada 100 eventos se guard
 | Subir de nivel | «LEVEL UP!» con destello y sonido de arpegio |
 | Clavar un encargo temporal | El texto irrumpe gigante con estela de zoom y golpea el pergamino, un destello lo recorre, la cabecera se enciende en rojo, las calaveras se estampan una a una con su mancha de tinta y la «cámara» se lanza contra el pergamino hasta fundirse en blanco; el cartel cae en el tablón con su chincheta |
 | Cumplir un encargo temporal | Texto dorado gigante, fogonazo con destellos horizontales y rayos, silueta del aventurero, calaveras que se vuelven de oro y un contador de oro que gira como una tragaperras hasta la campanilla |
+| Comprar al mercader | Hu Tao comenta la pieza en su cuadro de diálogo; al pagar, un sello rojo «SOLD» cae sobre su escaparate con lluvia de monedas (y fanfarria y estrellas desde épico) |
+| Ponerse una pieza | La pieza cae sobre el muñeco con un muelle, en el color de su rareza; lo mítico y lo legendario brillan |
 | Botín | Un cofre que se abre con un clic: se carga de luz (su color sube de rareza), estalla con monedas y rayos y la interfaz vibra; cada objeto aterriza con un golpe proporcional a su rareza y los mejores traen fanfarria y rótulo |
 
 ## Objetos
 
 Seis rarezas con su color: común (gris), poco común (verde), raro (azul), épico (morado), mítico (rojo) y legendario (dorado). Los objetos se crean en el almanaque (tecla `I`) con nombre, imagen, rareza, tipo y descripción. Cada quest da su objeto garantizado (opcional) y un botín aleatorio: 1 tirada estándar, o 2 mejoradas en las de élite, con pity como en Genshin. Detalles: [src/features/items/README.md](src/features/items/README.md).
+
+## Mercader, personaje y atributos
+
+- **Mercader** (tecla `C` o el farol de la cabecera): **Hu Tao** vende equipo para el personaje y decoración del menú. Comprar cuesta: el precio lo pone ella según la rareza (de 1.200 G a 100.000 G), lo bueno pide rango (de F a A) y cada semana solo saca 5 piezas a su escaparate, más las recién añadidas. Las piezas se añaden a mano desde la tienda, sin precio. Detalles: [src/features/merchant/README.md](src/features/merchant/README.md).
+- **Personaje** (tecla `P` o el yelmo de la cabecera): un muñeco que se pone lo que compras (cabeza, cuerpo, manos, pies, arma, escudo, capa y amuleto) y dos ranuras de decoración: el **fondo** de la app y el **emblema** de la cabecera. Detalles: [src/features/equipment/README.md](src/features/equipment/README.md).
+- **Atributos**: cada área de las quests (Salud, Estudio…) sube de nivel con su XP, y se ven en un radar junto al muñeco. Detalles: [src/features/attributes/README.md](src/features/attributes/README.md).
 
 ## Encargos temporales
 
@@ -98,7 +109,7 @@ Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en la c
 
 ## Atajos
 
-`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` nueva quest · `T` tablón de encargos temporales · `I` objetos · `L` idioma · `M` música
+`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` nueva quest · `T` tablón de encargos temporales · `I` objetos · `C` mercader · `P` personaje · `L` idioma · `M` música
 
 En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `H` plazo · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` cumplir · `E` editar · `Esc` cerrar.
 
@@ -111,7 +122,8 @@ En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · 
 - [x] Objetos con rareza, inventario, almanaque y drops (`src/features/items/`)
 - [x] Encargos temporales con calaveras, adjuntos PDF/imagen y recordatorios (`src/features/temporal/`)
 - [x] Quests complejas: repetición y requisitos (`src/features/complex/`); plazos (`src/features/horizon/`); encargos enlazados con quests
-- [x] Snapshot de la proyección (`src/features/snapshot/`) y 231 tests con Vitest del dominio y el store
+- [x] Snapshot de la proyección (`src/features/snapshot/`) y tests con Vitest del dominio y el store (278)
+- [x] Mercader con Hu Tao (`src/features/merchant/`), personaje con su equipo (`src/features/equipment/`) y atributos por área (`src/features/attributes/`)
 - [ ] **Fase 2:** sincronización con Google Drive
   - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`
   - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`

@@ -221,6 +221,12 @@ Algunas guardas no dependen solo de la entidad del evento, sino del estado de ot
 |---|---|---|
 | `quest_accepted` | La quest pide requisitos que aún no se han completado | `prerequisitesMet(q, quests)` (`features/complex/model.ts`) |
 | `temporal_completed` | Alguna quest enlazada al encargo no está terminada | `linkDone(questId, since)`, que `project()` pasa a `applyTemporalEvent` (`features/temporal/model.ts`) |
+| `gear_purchased` | El oro no llega en ese punto del historial, la pieza no existe o ya es tuya | `applyMerchantEvent(acc.merchant, e, ts, acc.gold)` devuelve el oro gastado (`features/merchant/model.ts`) |
+| `gear_equipped` | La pieza no es tuya | `applyEquipmentEvent(acc.equipment, acc.merchant, e)` (`features/equipment/model.ts`) |
+
+Una guarda de oro es la del doble gasto: si dos equipos gastan el mismo oro sin conexión, al fusionar solo vale la compra que llega primero. Lo que puede cambiar al fusionar (el escaparate de esa semana, el rango) no se comprueba aquí sino en la acción, como los huecos al aceptar una quest; si no, una compra legítima podría desaparecer.
+
+Además, `quest_completed` suma su XP al **atributo** del área de la quest (`gainAttribute`, `features/attributes/model.ts`). No es un evento nuevo: los atributos salen de los `quest_completed` que ya había, así que aparecen también para las quests completadas antes de existir.
 
 `applyTemporalEvent` no conoce las quests: `project()` le pasa una función que las consulta. Así el modelo de los encargos sigue siendo puro y la regla vive en un solo sitio. Como las guardas se evalúan en el orden de los eventos, el resultado es el mismo en todos los dispositivos.
 
@@ -229,6 +235,8 @@ Al terminar el recorrido, `finishProjection()` calcula además **a qué encargo 
 ### Lo que depende de la hora, en la interfaz
 
 El **plazo** de una quest o un encargo (1 día, 7 días, 2 semanas, 1 mes, +1 mes) también se calcula al pintar: `horizonOf({ dueAt, allDay }, now)` en `features/horizon/model.ts`. La fecha de una quest es la suya (`QuestDef.dueAt`) o la de su encargo (`questDue`). Nada de esto genera eventos.
+
+El **escaparate del mercader** también: `showcase(catalog, owned, now)` elige 5 piezas con la semana como semilla (`seededRandom("2026-10-5:<id>")`) y añade las recién llegadas. Cambia solo cada lunes y todos los equipos ven el mismo.
 
 ### El azar también se guarda
 
@@ -338,6 +346,7 @@ interface BlobStore {
 - **Tauri**: tabla `blobs` en el mismo `quests.db` (`id`, `mime`, `size`, `data` en base64, `created`, `synced`). Usa la misma conexión que los eventos (`sqliteDb()` en `eventStore.ts`), así que no hacen falta plugins ni permisos nuevos. El puente JS↔Rust viaja en JSON, por eso el binario va en base64.
 - **Navegador**: IndexedDB (`quests.blobs`), que admite archivos grandes.
 - **Limpieza**: al quitar un adjunto o retirar un encargo, las acciones borran los binarios que ya no usa nadie.
+- **También el fondo del menú**: el mercader guarda ahí la imagen grande de los fondos que se venden (`GearDef.art`), con la misma norma. Como el almacén es compartido, las dos limpiezas miran las referencias de ambos (`liveBlobIds` de los encargos y `gearBlobIds` del mercader) antes de borrar.
 
 Detalles y límites en el [README de los encargos temporales](../src/features/temporal/README.md).
 
@@ -412,7 +421,7 @@ La segunda llamada recibe la misma promesa que la primera.
 - **Teclado.** Un único `keydown` en `window` traduce teclas a acciones. Se ignora mientras escribes en un campo o hay un modal o el overlay abierto (estos tienen sus propios atajos). Las flechas mueven ±1 en horizontal y ±2 en vertical, porque la cuadrícula tiene 2 columnas.
 - **Reloj.** `useNow()` actualiza `now` cada 20 segundos para que «Vuelve en 3 h» avance y las repetibles reaparezcan sin recargar.
 - **Avisos.** `say(texto)` muestra el mensaje dorado junto a los botones y lo borra a los 4,5 s, salvo que haya llegado otro aviso entretanto. Se ve también con el tablón vacío y, en el tablón de encargos, abajo, sobre la madera.
-- **Dos tablones.** `section` (en el store) elige entre el Quest Board y los encargos temporales. Se cambia con el selector de la cabecera o la tecla `T`. `App` maneja las teclas comunes (`T`, `H`, `I`, `L`, `M`) y, en el tablón de encargos, deja el resto a `TemporalBoard`, que mueve la selección por la posición de los carteles en pantalla (su rejilla es irregular).
+- **Dos tablones.** `section` (en el store) elige entre el Quest Board y los encargos temporales. Se cambia con el selector de la cabecera o la tecla `T`. `App` maneja las teclas comunes (`T`, `H`, `I`, `C` mercader, `P` personaje, `L`, `M`) y, en el tablón de encargos, deja el resto a `TemporalBoard`, que mueve la selección por la posición de los carteles en pantalla (su rejilla es irregular).
 - **Saltar de un tablón a otro.** Desde el cartel abierto se va a una de sus quests (`goToQuest`) y desde el detalle de una quest, a su encargo (`goToTemporal`). Los dos ponen el plazo del tablón de destino en «Todo»: si no, lo elegido podría quedar oculto por el filtro y `App` seleccionaría otra cosa.
 - **Borrado en dos pasos.** «Retirar del tablón» pide un segundo clic («¿Seguro? Retirar») durante 3 s. No se usa `window.confirm` porque no está garantizado que funcione en el WebView de Tauri en todas las plataformas.
 
@@ -526,6 +535,15 @@ Tres detalles técnicos:
 - **Bordes rasgados estables.** `look.ts` genera con el PRNG con semilla (el id del encargo) el `clip-path` del papel, la inclinación y dónde caen las calaveras: el mismo cartel se ve igual siempre.
 
 El diseño completo, fase a fase y comparado con los vídeos, está en el [README de los encargos temporales](../src/features/temporal/README.md).
+
+### 9.8 El mercader y el personaje
+
+**Archivos:** `src/features/merchant/components/HuTaoStage.tsx`, `SoldSeal.tsx` y `src/features/equipment/components/Doll.tsx`
+
+- **Hu Tao es un `<video>` en bucle**, no una animación de la app: dos `<source>` (MP4 y WebM) y un póster. Solo el error del **último** `<source>` cuenta como «no hay vídeo»: el primero falla sin más si el navegador no sabe leer H.264. Con «reducir movimiento» no se reproduce.
+- **El diálogo se escribe letra a letra** con un intervalo de 24 ms. El resto de la frase ya está en el cuadro, invisible (`visibility: hidden`), así que el cuadro no cambia de alto. Se reinicia en un `useLayoutEffect`, para que la frase nueva no asome entera un fotograma.
+- **El sello «SOLD»** es una línea de tiempo de GSAP: cae girando con `power4.in` y, al tocar, lanza el sonido, las monedas (`burst`) y la sacudida (`quake`) del escaparate. El sello se pinta con `mix-blend-mode: multiply`, así parece tinta sobre el fondo claro del vídeo. Su opacidad inicial está en el CSS, no en React (GSAP controla su visibilidad).
+- **El muñeco es un SVG**: cada pieza es una forma pintada con `var(--rc)` (el color de su rareza) y, encima, la misma forma con un degradado de luz y sombra común a todas. Las piezas entran con un muelle de Motion (`AnimatePresence`, una clave por pieza), y el muñeco respira con una animación CSS.
 
 ---
 
@@ -645,7 +663,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 
 - **Navegador integrado** con `pnpm dev`: capturas durante las animaciones, inspección del DOM y llamadas directas a las acciones importando los módulos desde Vite (`await import('/src/store/actions.ts')`).
 - **App nativa** con `pnpm tauri dev`: lectura de los logs y comprobación de la base real con `sqlite3`.
-- **Tests** con Vitest (`pnpm test`): 231 tests en 13 archivos, en menos de un segundo. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
+- **Tests** con Vitest (`pnpm test`): 278 tests en 17 archivos, en un par de segundos. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
 
 | Archivo | Qué protege |
 |---|---|
@@ -653,10 +671,11 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | `src/domain/events.test.ts`, `leveling.test.ts` | Orden de los eventos y `nextTs`; curva de XP, rangos y huecos |
 | `src/features/*/model.test.ts`, `legacy.test.ts` | Reglas de cada funcionalidad: fases del pomodoro, pity y tiradas (200.000 tiradas con semilla), requisitos y repetición, plazos con sus bordes y los cambios de hora de 2026, guardas de los encargos, y los formatos antiguos (`pomodoroConfig`, `item` de texto) |
 | `src/features/snapshot/*.test.ts` | Snapshot + cola = reproducirlo todo, serialización y arranque |
+| `src/features/merchant/*.test.ts`, `equipment/model.test.ts`, `attributes/model.test.ts` | Precios y rangos, el escaparate semanal (con los cambios de hora), las guardas de la compra y del equipo, los atributos por área; con el store de verdad, comprar con cada bloqueo y ponerse lo comprado. En `projection.test.ts`, además: el oro solo baja al comprar, el doble gasto entre dispositivos y los invariantes del equipo |
 | `src/storage/eventStore.test.ts` | El almacén del navegador: orden, `since` / `countUpTo` y `merge` idempotente |
 | `src/store/game.test.ts` | El store tal como lo usa la app (happy-dom): arranque, `dispatch` incremental, snapshot, reloj atrasado y las acciones de quests, encargos, objetos y pomodoro |
 
-`src/test/streams.ts` genera historiales aleatorios con semilla que mezclan todos los tipos de evento (también imposibles y antiguos); `src/test/sfxMock.ts` silencia el sonido, porque en Node no hay `AudioContext`. Para comprobar que los tests sirven, se hizo una prueba de mutación: de 20 errores introducidos a propósito, detectan 19, y el que queda está en una rama inalcanzable (ver el README del snapshot).
+`src/test/streams.ts` genera historiales aleatorios con semilla que mezclan todos los tipos de evento (también imposibles y antiguos); `src/test/sfxMock.ts` silencia el sonido, porque en Node no hay `AudioContext`. Para comprobar que los tests sirven, se hizo una prueba de mutación: de 20 errores introducidos a propósito, detectan 19, y el que queda está en una rama inalcanzable (ver el README del snapshot). En el mercader, el equipo y los atributos, detectan los 11 que se probaron.
 
 ### Fallos encontrados y corregidos
 
@@ -674,10 +693,13 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 | Los recordatorios no se veían con el tablón de quests vacío | El aviso (`Toast`) solo se pintaba con una quest seleccionada | Pintarlo también en el estado vacío |
 | La campana del recordatorio al abrir la app daba avisos de autoplay | El WebView bloquea el audio antes de la primera interacción | Sin interacción previa (`navigator.userActivation`), solo el aviso |
 | Eventos del mismo milisegundo en orden inverso: un `quest_completed` antes de su `quest_accepted` se ignoraba (lo destaparon los tests del store) | El desempate de `ts` es el `id`, un UUID aleatorio; las acciones que emiten varios eventos seguidos los producían en el mismo milisegundo | `nextTs`: cada evento nuevo va al menos 1 ms después del último aplicado |
+| El pie se desbordaba en la ventana mínima (1.024 px) al añadir las teclas `C` y `P` | La regla estrecha de `.ft` estaba antes que la base en `app.css`: con la misma especificidad gana la última, así que **nunca se había aplicado** | Moverla detrás de la regla base; en ventana estrecha, las teclas de las ventanas (objetos, mercader, personaje) quedan con su icono |
+| La cabecera se desbordaba entre 1.181 y 1.249 px con los botones del mercader y del personaje | El ajuste compacto empezaba en 1.180 px | Empieza en 1.260 px |
 
 ### Trampas del entorno de pruebas (no son fallos de la app)
 
-- **Dos copias del mismo módulo.** Tras una recarga en caliente, Vite sirve el módulo editado como `game.ts?t=123…`. Importar `/src/store/game.ts` a mano daba **otra instancia** del store, con otros datos. Solución: recargar la página o importar la URL con `?t=`.
+- **Dos copias del mismo módulo.** Tras una recarga en caliente, Vite sirve el módulo editado como `game.ts?t=123…`. Importar `/src/store/game.ts` a mano daba **otra instancia** del store, con otros datos. Pasa incluso tras recargar la página si cambió alguna de sus dependencias. Solución: importar la URL exacta que cargó la app, que está en `performance.getEntriesByType("resource")`.
+- **Vídeo en el Chromium de Playwright.** No reproduce H.264: sin el WebM, el escaparate de Hu Tao enseñaría el cartel de respaldo. En macOS (WebKit) y Windows (WebView2) se usa el MP4.
 - **Oír sin altavoces.** Para revisar los sonidos de una animación, una prueba sustituye `window.AudioContext` por un `OfflineAudioContext` cuyo `currentTime` es el reloj de GSAP (pausado y avanzado a mano). Al final, `startRendering()` da el audio exacto de la animación, que se guarda como WAV, se mide con un espectrograma y se une a los fotogramas con `ffmpeg`. El reproductor de música debe estar desactivado (`quests.music`), porque `OfflineAudioContext` no tiene `createMediaElementSource`.
 - **Software sin GPU.** En Chromium sin interfaz, los textos gigantes con filtros tardan tanto en pintarse que GSAP frena su reloj (*lag smoothing*) y las capturas por tiempo real salen desfasadas. Con el reloj avanzado a mano no pasa.
 - **Animaciones que no avanzan.** Si la pestaña está oculta (`document.hidden`), el navegador frena `requestAnimationFrame`, que es el reloj de GSAP. En la ventana real de la app esto no ocurre. Para revisar una animación fotograma a fotograma, se importa la misma instancia de GSAP que usa la app (la URL `/node_modules/.vite/deps/gsap.js?v=…` aparece en el código que sirve Vite, por ejemplo en `fetch('/src/lib/fx.ts')`). Después se pausa `gsap.globalTimeline` y se avanza con `.time(t + 1/60)` en bucle: los callbacks se disparan en orden. La captura de pantalla puede repetir un fotograma viejo hasta que algo fuerza el repintado, como cambiar el tamaño del viewport.

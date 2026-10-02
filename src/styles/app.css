@@ -62,8 +62,9 @@ kbd {
   align-items: center;
   gap: 24px;
 }
-/* Ventana estrecha (el mínimo es 1024 px): menos aire para que quepa todo. */
-@media (max-width: 1180px) {
+/* Ventana estrecha (el mínimo es 1024 px): menos aire para que quepa todo.
+   Hasta 1260 px, porque la cabecera tiene también los botones del mercader y del personaje. */
+@media (max-width: 1260px) {
   .hdr {
     gap: 10px;
     padding: 0 14px 0 12px;
@@ -79,11 +80,6 @@ kbd {
   }
   .xpbar-track {
     width: 84px;
-  }
-  /* El pie tiene una tecla más (H, plazo): menos separación para que no se parta. */
-  .ft {
-    gap: 14px;
-    padding: 0 18px;
   }
 }
 .hdr-block {
@@ -801,10 +797,33 @@ kbd {
   margin-left: auto;
   white-space: nowrap;
 }
+/* Ventanas (objetos, mercader, personaje): con su nombre o, en ventana estrecha, con su icono. */
+.ft-win .ft-ico {
+  display: none;
+}
+@media (max-width: 1320px) {
+  .ft-win .ft-lbl {
+    display: none;
+  }
+  .ft-win .ft-ico {
+    display: inline-flex;
+  }
+  .ft-win kbd {
+    margin-right: 5px;
+  }
+}
 /* En la ventana mínima no cabe todo el pie: sobra la pista de las flechas. */
 @media (max-width: 1100px) {
   .ft-right {
     display: none;
+  }
+}
+/* El pie tiene más teclas (H, plazo; C y P, mercader y personaje): menos separación para que no se
+   parta. Va después de la regla base de .ft: antes estaba arriba y no se aplicaba. */
+@media (max-width: 1180px) {
+  .ft {
+    gap: 14px;
+    padding: 0 18px;
   }
 }
 

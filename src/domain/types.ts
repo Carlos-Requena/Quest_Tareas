@@ -1,6 +1,9 @@
 import type { Pomodoro, PomodoroConfig } from "../features/pomodoro/model";
 import type { ItemDef, Pity } from "../features/items/model";
 import type { TemporalState } from "../features/temporal/model";
+import type { GearDef, Purchase } from "../features/merchant/model";
+import type { Equipped } from "../features/equipment/model";
+import type { Attribute } from "../features/attributes/model";
 
 export type Category = "elite" | "repeat" | "request";
 
@@ -93,6 +96,12 @@ export interface PlayerState {
   /** Tiradas desde el último legendario y desde el último épico o superior. */
   pity: Pity;
   completedCount: number;
+  /** Equipo y decoración comprados al mercader, por id de pieza (features/merchant). */
+  owned: Record<string, Purchase>;
+  /** Lo que lleva puesto el muñeco y la decoración del menú, por ranura (features/equipment). */
+  equipped: Equipped;
+  /** Atributos: uno por área de las quests, de más a menos XP (features/attributes). */
+  attributes: Attribute[];
 }
 
 export interface GameState {
@@ -101,6 +110,8 @@ export interface GameState {
   items: Map<string, ItemDef>;
   /** Encargos temporales (citas, entregas, eventos con fecha), en su propio tablón. */
   temporals: Map<string, TemporalState>;
+  /** Catálogo del mercader: armaduras para el muñeco y decoración del menú (features/merchant). */
+  gear: Map<string, GearDef>;
   player: PlayerState;
 }
 

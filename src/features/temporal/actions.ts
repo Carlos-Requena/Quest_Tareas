@@ -4,6 +4,7 @@ import { sfx } from "../../lib/sfx";
 import i18n from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
 import { DEFAULT_REWARD, type QuestDef, type QuestState } from "../../domain/types";
+import { gearBlobIds } from "../merchant/model";
 import {
   TEMPORAL_KINDS,
   TEMPORAL_LIMITS,
@@ -138,10 +139,12 @@ async function storeFiles(files: PreparedFile[]): Promise<AttachmentRef[]> {
   return out;
 }
 
-/** Borra del almacén los binarios que ya no usa ningún encargo. */
+/** Borra del almacén los binarios que ya no usa ningún encargo (ni el fondo del mercader, que comparte almacén). */
 async function collect(candidates: string[]) {
   if (!candidates.length) return;
-  const live = liveBlobIds(useGame.getState().state.temporals.values());
+  const { state } = useGame.getState();
+  const live = liveBlobIds(state.temporals.values());
+  for (const id of gearBlobIds(state.gear.values())) live.add(id);
   const blobs = await openBlobStore();
   for (const id of new Set(candidates)) if (!live.has(id)) await blobs.remove(id);
 }

@@ -60,6 +60,18 @@
   --ink-faint: #a89577;
   --ink-red: #a3262a;
 
+  /* Mercader (src/features/merchant): el rojo de la funeraria de Hu Tao y su sello */
+  --merchant: #c9433a;
+  --merchant-hi: #ff9d8a;
+  --merchant-lo: #6b1712;
+  --merchant-deep: #1f0807;
+  /* Muñeco del personaje (src/features/equipment): piel, tela y costuras */
+  --doll-skin: #e9cfae;
+  --doll-skin-lo: #b98f6c;
+  --doll-cloth: #3a3029;
+  --doll-cloth-lo: #231c17;
+  --doll-hair: #4a3426;
+
   --f-display: "Cormorant Garamond", "Times New Roman", serif;
   --f-tag: "Cinzel", "Cormorant Garamond", serif;
   /* Shippori Mincho solo trae el subconjunto latino; el japonés cae en el mincho del sistema. */
