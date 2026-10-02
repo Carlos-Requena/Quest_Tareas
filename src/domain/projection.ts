@@ -1,6 +1,7 @@
 import type { GameEvent } from "./events";
 import type { ConditionDef, GameState, QuestState } from "./types";
 import { isCountCondition, isPomodoroCondition } from "./types";
+import { isFromFuture, upcastEvent } from "./upcast";
 import { levelFromXp, maxActiveFor, rankFor } from "./leveling";
 import { applyPomodoroEvent, newPomodoro, planOf, viewPomodoro } from "../features/pomodoro/model";
 import { upcastQuestDef } from "../features/pomodoro/legacy";
@@ -65,7 +66,10 @@ export function project(events: GameEvent[]): GameState {
  * Aplica UN evento sobre el acumulador (lo modifica). project() es aplicar todos en
  * orden; el store aplica solo el nuevo sobre una copia del anterior (features/snapshot).
  */
-export function applyEvent(acc: ProjectionAcc, e: GameEvent): void {
+export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
+  // De una versión más nueva de la app: no se sabe interpretar (domain/upcast.ts).
+  if (isFromFuture(raw)) return;
+  const e = upcastEvent(raw);
   const { quests, items, temporals } = acc;
   // Para los encargos con quests enlazadas: una quest que ya no existe no bloquea.
   const linkDone = (questId: string, since: number) => {

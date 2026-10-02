@@ -47,7 +47,7 @@ flowchart LR
 ```
 
 - **Sobre una copia** (`cloneAcc`): el estado anterior no cambia y todos los objetos son nuevos, igual que cuando se recalculaba todo. La copia cuesta O(tamaño del estado), no O(eventos).
-- **Mismo milisegundo:** los empates de `ts` se deshacen por `id`, que es aleatorio. Una acción que emite varios eventos seguidos (crear un encargo con sus quests, editarlo) los produce en el mismo milisegundo, y podían quedar al revés: un `quest_completed` antes de su `quest_accepted`, por ejemplo, y la guarda lo ignoraba. Ya pasaba antes del snapshot; lo destaparon los tests del store. Ahora `nextTs` (`src/domain/events.ts`) da a cada evento nuevo, como mínimo, el `ts` del último aplicado + 1 ms si el reloj no ha avanzado o va por detrás menos de 1 s. Así, los eventos de un equipo quedan siempre en el orden en que se hicieron.
+- **Mismo milisegundo:** los empates de `ts` se deshacen por `id`, que es aleatorio. Una acción que emite varios eventos seguidos (crear un encargo con sus quests, editarlo) los produce en el mismo milisegundo, y podían quedar al revés: un `quest_completed` antes de su `quest_accepted`, por ejemplo, y la guarda lo ignoraba. Ya pasaba antes del snapshot; lo destaparon los tests del store. Ahora `nextTs` (`src/domain/events.ts`) da a cada evento nuevo, como mínimo, el `ts` del último aplicado + 1 ms si el reloj no ha avanzado o va por detrás como mucho 1 minuto (`MAX_DRIFT_MS`; era 1 s hasta que pasó a ser un reloj lógico híbrido, ver «El orden» en COMO-FUNCIONA.md). Así, los eventos de un equipo quedan siempre en el orden en que se hicieron, también detrás de los fusionados de otros equipos.
 - **Reloj muy atrasado** (más de 1 s): el evento cae en medio del historial y el orden de las guardas puede cambiar. Entonces se recalcula todo (`rebuild()`). Mientras tanto, los `dispatch` que lleguen esperan.
 
 ### Arranque
@@ -137,7 +137,7 @@ Ninguno. El snapshot es una caché local de cada equipo y **no se sincroniza**: 
 | Archivo | Cambio |
 |---|---|
 | `src/domain/projection.ts` | `project()` partido en `newProjectionAcc` / `applyEvent` / `finishProjection`; `ProjectionAcc` y `PROJECTION_VERSION`; `temporalId` se recalcula entero |
-| `src/domain/events.ts` | `EventPos`, `comparePos` (`compareEvents` es el mismo) y `nextTs` |
+| `src/domain/events.ts` | `EventPos`, `comparePos` (`compareEvents` es el mismo) y `nextTs` (reloj lógico híbrido) |
 | `src/storage/eventStore.ts` | `EventStore.since(pos)` y `EventStore.countUpTo(pos)`, en SQLite y en `localStorage` |
 | `src/store/game.ts` | `events: GameEvent[]` se sustituye por `projected: Projected`; `dispatch` incremental; `rebuild()`; arranque con `restore()` |
 | `package.json`, `vitest.config.ts` | Vitest, happy-dom y `pnpm test` (zona horaria fija: Europe/Madrid) |

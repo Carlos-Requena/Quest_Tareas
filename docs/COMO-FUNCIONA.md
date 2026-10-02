@@ -115,6 +115,23 @@ Tauri 2 deniega todo por defecto. El WebView solo puede llamar a lo que se decla
 
 `sql:default` permite abrir la base de datos y hacer `SELECT`; `sql:allow-execute` permite escribir. Si mañana la app cargara contenido malicioso, no podría, por ejemplo, leer archivos arbitrarios del disco.
 
+### Content Security Policy (CSP)
+
+La segunda barrera es la CSP de `tauri.conf.json` (`app.security.csp`): qué puede cargar el WebView. Solo lo de la propia app (`'self'`), sin nada de internet:
+
+| Directiva | Valor | Por qué |
+|---|---|---|
+| `default-src`, `script-src` | `'self'` | Ningún script de fuera ni `eval`. Tauri añade solo los *nonces* de sus propios scripts |
+| `style-src` | `'self' 'unsafe-inline'` | Motion, GSAP y React escriben estilos en línea. Por eso `dangerousDisableAssetCspModification: ["style-src"]`: si Tauri añadiera un *nonce* aquí, el navegador ignoraría `'unsafe-inline'` |
+| `img-src` | `'self' data: blob:` | Miniaturas y objetos (`data:`), arte SVG de las piezas de serie (`data:`), adjuntos y fondo del menú (`blob:`) |
+| `media-src` | `'self' blob:` | Música y el vídeo de Hu Tao, que se reproduce desde memoria (`blob:`) |
+| `font-src` | `'self' data:` | Fontsource; Vite puede incrustar fuentes pequeñas como `data:` |
+| `frame-src`, `object-src` | `blob:` | El visor de PDF de los adjuntos: un `<iframe>` con el PDF en `blob:`. El documento `blob:` hereda la CSP, y el visor de PDF cuenta como `object` |
+| `connect-src` | `'self' ipc: http://ipc.localhost` | El puente con Rust (IPC) y `fetch` de los archivos propios |
+| `base-uri`, `form-action` | `'none'` | No hay `<base>` ni formularios que se envíen |
+
+`devCsp` es la misma para `pnpm tauri dev`, más lo que necesita Vite: scripts en línea (el preámbulo de React) y el WebSocket de la recarga en caliente. Si una funcionalidad nueva carga algo de otro origen (la fase 2, Google Drive), hay que añadirlo aquí de forma explícita y mínima, como los permisos.
+
 ### Dónde vive la base de datos
 
 Tauri resuelve `sqlite:quests.db` dentro de la carpeta de datos de la app, que depende del `identifier` (`com.quests.app`):
@@ -162,7 +179,8 @@ type GameEvent = EventMeta & EventBody;
 interface EventMeta {
   id: string;       // UUID único: permite deduplicar al fusionar
   deviceId: string; // qué equipo lo generó
-  ts: number;       // cuándo (milisegundos)
+  ts: number;       // cuándo (reloj lógico híbrido, en milisegundos)
+  v?: number;       // versión del formato (EVENT_VERSION); falta en los anteriores a la 1
 }
 
 type EventBody =
@@ -174,6 +192,19 @@ type EventBody =
 ```
 
 TypeScript trata `EventBody` como una *unión discriminada*: dentro de un `switch (e.type)`, sabe qué campos tiene cada caso.
+
+### Versión de los eventos
+
+Cada evento nuevo lleva `v: EVENT_VERSION` (`src/domain/events.ts`, ahora 1). Los anteriores no la llevan y cuentan como versión 0. Al aplicarlos, `applyEvent` pasa cada evento por `upcastEvent` (`src/domain/upcast.ts`), que lo sube de versión paso a paso con `UPCASTERS[n]` (de n a n + 1) sin tocar el original. El paso de 0 a 1 no cambia nada: los formatos de antes de versionar (el pomodoro único, el objeto de texto) ya los convierten por su forma los `legacy.ts` de cada funcionalidad.
+
+Un evento de una versión **más nueva** que la app (llegará con la sincronización, desde un equipo actualizado) se **ignora**: la proyección no sabe interpretarlo. Al actualizar la app, `PROJECTION_VERSION` habrá subido, el snapshot se descarta y el evento se aplica.
+
+Para cambiar el formato de un evento:
+
+1. Sube `EVENT_VERSION`.
+2. Añade el paso en `UPCASTERS` (el test comprueba que hay uno por versión).
+3. Sube `PROJECTION_VERSION`.
+4. Prueba con datos antiguos: `randomStream` ya mezcla eventos sin `v`, de la versión actual y de una futura.
 
 ### La proyección, línea a línea
 
@@ -244,9 +275,14 @@ Los drops de objetos son aleatorios, pero la proyección no puede tirar dados: d
 
 ### El orden
 
-Los eventos se ordenan por `ts` y, en caso de empate, por `id` (`compareEvents`). Así el orden es **determinista**: todos los dispositivos reproducen exactamente la misma secuencia. Su punto débil es que `ts` viene del reloj de cada equipo; el informe técnico propone sustituirlo por un reloj lógico híbrido.
+Los eventos se ordenan por `ts` y, en caso de empate, por `id` (`compareEvents`). Así el orden es **determinista**: todos los dispositivos reproducen exactamente la misma secuencia.
 
-El `id` es un UUID aleatorio, así que el desempate no respeta el orden en que se hicieron las cosas. Una acción que emite varios eventos seguidos los produce en el mismo milisegundo, y podían quedar al revés: un `quest_completed` antes de su `quest_accepted`, que la guarda ignoraba. Por eso `dispatch` usa `nextTs(now, último)`: si el reloj no ha avanzado desde el último evento aplicado, o va por detrás menos de 1 s, el nuevo va 1 ms después de él. Es un primer paso hacia el reloj híbrido, solo dentro de cada equipo.
+`ts` no es el reloj tal cual, sino un **reloj lógico híbrido** (HLC): `dispatch` lo calcula con `nextTs(now, último)`, donde «último» es el último evento aplicado, sea de este equipo o fusionado de otro:
+
+- **max(reloj, último + 1).** Lo que se hace después de ver un evento va siempre detrás de él. Sin esto, una acción que emite varios eventos en el mismo milisegundo los dejaba en el orden de su `id` aleatorio (un `quest_completed` antes de su `quest_accepted`), y un equipo con el reloj atrasado podía abandonar una quest «antes» de que otro la aceptara.
+- **Deriva máxima de 1 minuto** (`MAX_DRIFT_MS`). Si «último» va más de un minuto por delante del reloj (un equipo con la hora mal), no se le sigue: el evento lleva la hora del reloj, cae en medio del historial y se recalcula todo. Así un reloj del año 2099 no arrastra a los demás. Un minuto es menos que la precisión de las esperas y los pomodoros.
+
+Un HLC clásico guarda la hora física y un contador por separado. Aquí van juntos en los milisegundos: el contador «se come» 1 ms por evento. Así el formato de los eventos, las consultas de SQLite y el snapshot no cambian (ADR-25).
 
 ---
 
@@ -423,6 +459,7 @@ La segunda llamada recibe la misma promesa que la primera.
 - **Avisos.** `say(texto)` muestra el mensaje dorado junto a los botones y lo borra a los 4,5 s, salvo que haya llegado otro aviso entretanto. Se ve también con el tablón vacío y, en el tablón de encargos, abajo, sobre la madera.
 - **Dos tablones.** `section` (en el store) elige entre el Quest Board y los encargos temporales. Se cambia con el selector de la cabecera o la tecla `T`. `App` maneja las teclas comunes (`T`, `H`, `I`, `C` mercader, `P` personaje, `L`, `M`) y, en el tablón de encargos, deja el resto a `TemporalBoard`, que mueve la selección por la posición de los carteles en pantalla (su rejilla es irregular).
 - **Saltar de un tablón a otro.** Desde el cartel abierto se va a una de sus quests (`goToQuest`) y desde el detalle de una quest, a su encargo (`goToTemporal`). Los dos ponen el plazo del tablón de destino en «Todo»: si no, lo elegido podría quedar oculto por el filtro y `App` seleccionaría otra cosa.
+- **Fallos al dibujar.** `<ErrorBoundary>` (`features/recovery`) envuelve a `App` en `main.tsx`. Si un componente falla, sale una pantalla de recuperación en lugar de la ventana en negro: el progreso está a salvo, «Volver a intentarlo» monta la app otra vez (el store se conserva) y «Reiniciar Quests» recarga la ventana.
 - **Borrado en dos pasos.** «Retirar del tablón» pide un segundo clic («¿Seguro? Retirar») durante 3 s. No se usa `window.confirm` porque no está garantizado que funcione en el WebView de Tauri en todas las plataformas.
 
 ---
@@ -672,20 +709,22 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 
 ### Método
 
+- **CI** (`.github/workflows/ci.yml`): en cada push a `main` o a una rama `feature/`, `fix/` o `docs/`, y en cada pull request, GitHub Actions comprueba tipos, pasa los tests y compila la app con `tauri-action` en macOS y en Windows. Los instaladores sin firmar quedan 14 días como artefactos del run.
 - **Navegador integrado** con `pnpm dev`: capturas durante las animaciones, inspección del DOM y llamadas directas a las acciones importando los módulos desde Vite (`await import('/src/store/actions.ts')`).
 - **App nativa** con `pnpm tauri dev`: lectura de los logs y comprobación de la base real con `sqlite3`.
-- **Tests** con Vitest (`pnpm test`): 302 tests en 21 archivos, en un par de segundos. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
+- **Tests** con Vitest (`pnpm test`): 314 tests en 23 archivos, en un par de segundos. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
 
 | Archivo | Qué protege |
 |---|---|
 | `src/domain/projection.test.ts` | Contabilidad (XP y oro cobrados una vez, recompensa copiada), cada guarda de las quests, fusión de dispositivos en cualquier orden, determinismo e invariantes sobre 40 historiales aleatorios (progreso dentro de su rango, inventario solo con objetos del almanaque, una quest en un solo encargo pendiente…). Además, la XP total se recalcula a mano y tiene que coincidir |
-| `src/domain/events.test.ts`, `leveling.test.ts` | Orden de los eventos y `nextTs`; curva de XP, rangos y huecos |
+| `src/domain/events.test.ts`, `upcast.test.ts`, `leveling.test.ts` | Orden de los eventos y el reloj híbrido (`nextTs`, también entre dos equipos con los relojes desfasados); versión de los eventos (sin `v`, actual y futura); curva de XP, rangos y huecos |
 | `src/features/*/model.test.ts`, `legacy.test.ts` | Reglas de cada funcionalidad: fases del pomodoro, pity y tiradas (200.000 tiradas con semilla), requisitos y repetición, plazos con sus bordes y los cambios de hora de 2026, guardas de los encargos, y los formatos antiguos (`pomodoroConfig`, `item` de texto) |
 | `src/features/snapshot/*.test.ts` | Snapshot + cola = reproducirlo todo, serialización y arranque |
 | `src/features/merchant/*.test.ts`, `equipment/model.test.ts`, `attributes/model.test.ts` | Precios y rangos, el escaparate semanal (con los cambios de hora), las guardas de la compra y del equipo, los atributos por área; con el store de verdad, comprar con cada bloqueo y ponerse lo comprado. En `projection.test.ts`, además: el oro solo baja al comprar, el doble gasto entre dispositivos y los invariantes del equipo |
 | `src/features/armory`, `checklist`, `streaks`, `chronicle` (`model.test.ts`) | El catálogo de serie completo, en los dos idiomas y sin SVG rotos, y que no se edita con eventos; la lista (casillas limpias, marcar dos veces cuenta una, solo en curso); las rachas (plazos, se rompen solas, un duplicado no las sube); la crónica (una entrada por hecho que cuenta, su XP cuadra con la del jugador en historiales aleatorios, las páginas no se pasan de renglones) |
 | `src/storage/eventStore.test.ts` | El almacén del navegador: orden, `since` / `countUpTo` y `merge` idempotente |
-| `src/store/game.test.ts` | El store tal como lo usa la app (happy-dom): arranque, `dispatch` incremental, snapshot, reloj atrasado y las acciones de quests, encargos, objetos y pomodoro |
+| `src/store/game.test.ts` | El store tal como lo usa la app (happy-dom): arranque, `dispatch` incremental, snapshot, reloj atrasado, eventos fusionados de un equipo adelantado (reloj híbrido) y las acciones de quests, encargos, objetos y pomodoro |
+| `src/features/recovery/model.test.ts` | Lo que muestra y copia la pantalla de recuperación |
 
 `src/test/streams.ts` genera historiales aleatorios con semilla que mezclan todos los tipos de evento (también imposibles y antiguos); `src/test/sfxMock.ts` silencia el sonido, porque en Node no hay `AudioContext`. Para comprobar que los tests sirven, se hizo una prueba de mutación: de 20 errores introducidos a propósito, detectan 19, y el que queda está en una rama inalcanzable (ver el README del snapshot). En el mercader, el equipo y los atributos, detectan los 11 que se probaron.
 
@@ -738,7 +777,7 @@ Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). 
 3. **`src/store/actions.ts`**: crea `updateQuest(id, changes)`, que valida y llama a `dispatch`.
 4. **UI**: llama a la acción desde un formulario.
 
-No hay que tocar el almacenamiento: guarda cualquier evento sin saber qué es. TypeScript avisará si te dejas algún `switch` sin cubrir.
+No hay que tocar el almacenamiento: guarda cualquier evento sin saber qué es. TypeScript avisará si te dejas algún `switch` sin cubrir. Un tipo nuevo no cambia el formato de los que ya existen, así que no sube `EVENT_VERSION`. Cambiar la forma de uno que ya existe sí: ver «Versión de los eventos» en la sección 4.
 
 ### Añadir una funcionalidad completa
 
@@ -783,6 +822,7 @@ pnpm build              # comprobar tipos y compilar el frontend a dist/
 npx tsc --noEmit        # solo comprobar tipos
 pnpm test               # tests (Vitest): proyección, snapshot y niveles
 pnpm tauri build        # instalador para el sistema actual
+pnpm tauri build --debug --no-bundle   # app nativa de prueba, sin instalador (más rápido)
 ```
 
 Inspeccionar la base de datos de la app nativa en macOS:

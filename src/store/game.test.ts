@@ -137,6 +137,23 @@ describe("dispatch incremental", () => {
     expect(b.g().state.quests.get("q")?.status).toBe("active");
   });
 
+  it("tras fusionar eventos de un equipo con el reloj adelantado, lo nuevo va detrás de ellos (reloj híbrido)", async () => {
+    const b = await boot();
+    await addQuest(b, "q");
+    // Otro equipo, 30 s adelantado, acepta la quest; llega al fusionar.
+    const remote = { type: "quest_accepted", questId: "q", id: "remoto", deviceId: "otro", ts: Date.now() + 30_000, v: 1 } as GameEvent;
+    expect(await b.g().store!.merge([remote])).toBe(1);
+    await b.g().rebuild();
+    expect(b.g().state.quests.get("q")?.status).toBe("active");
+    // Abandonarla aquí justo después: con el reloj de este equipo quedaría antes y se ignoraría.
+    await b.actions.abandonQuest("q");
+    expect(lastEvent().type).toBe("quest_abandoned");
+    expect(lastEvent().ts).toBeGreaterThan(remote.ts);
+    expect(lastEvent().v).toBe(1);
+    expect(b.g().state.quests.get("q")?.status).toBe("available");
+    consistent(b);
+  });
+
   it("un dispatch durante un recálculo espera a que termine y no se pierde", async () => {
     const b = await boot();
     await addQuest(b, "q", { conditions: [{ id: "c", kind: "count", label: "x", target: 9 }] });

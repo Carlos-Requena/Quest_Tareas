@@ -7,6 +7,8 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react()],
+  // Versión de la app para el informe de la pantalla de recuperación (features/recovery).
+  define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "dev") },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

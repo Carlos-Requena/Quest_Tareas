@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isFromFuture } from "./upcast";
 import { conditionsMet, countConditionsMet, effectiveStatus, project } from "./projection";
 import { compareEvents, type EventBody, type GameEvent } from "./events";
 import { isPomodoroCondition } from "./types";
@@ -210,6 +211,8 @@ describe("invariantes sobre historiales aleatorios", () => {
       for (let i = 0; i < ev.length; i++) {
         const e = ev[i];
         const prev = project(ev.slice(0, i));
+        // Los de una versión futura de la app no cuentan (domain/upcast.ts).
+        if (isFromFuture(e)) continue;
         if (e.type === "quest_completed" && prev.quests.get(e.questId)?.status === "active") expected += e.reward.xp;
         if (e.type === "temporal_completed") {
           const t = prev.temporals.get(e.temporalId);

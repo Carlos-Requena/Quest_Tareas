@@ -1,0 +1,60 @@
+# CI de Quests: puerta de la fase 1.5 («CI verde en ambos sistemas»).
+# En macOS y Windows: tipos, tests, build del frontend y de la app de Tauri.
+# Los instaladores quedan como artefactos del run (sin firmar), para probarlos a mano.
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**", "fix/**", "docs/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, os: macos-latest }
+          - { name: Windows, os: windows-latest }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Tipos
+        run: pnpm exec tsc --noEmit
+      - name: Tests
+        run: pnpm test
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      # Sin tagName, tauri-action solo compila (pnpm build + cargo) y empaqueta.
+      - name: Build de la app
+        uses: tauri-apps/tauri-action@v0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quests-${{ matrix.name }}
+          retention-days: 14
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe

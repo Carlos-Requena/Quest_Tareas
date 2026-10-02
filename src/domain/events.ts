@@ -38,10 +38,20 @@ export type EventBody =
   | EquipmentEventBody
   | ChecklistEventBody;
 
+/**
+ * Versión del formato de los eventos que escribe esta app. NORMA: si cambias la forma
+ * de un evento, súbela, añade el paso en UPCASTERS (domain/upcast.ts) y sube también
+ * PROJECTION_VERSION (los equipos que ignoraban esos eventos tienen que recalcular).
+ */
+export const EVENT_VERSION = 1;
+
 export interface EventMeta {
   id: string;
   deviceId: string;
+  /** Marca del reloj lógico híbrido (ver nextTs): milisegundos, nunca hacia atrás en un equipo. */
   ts: number;
+  /** Versión del formato (EVENT_VERSION al escribirlo). Falta en los anteriores a la 1: cuentan como 0. */
+  v?: number;
 }
 
 export type GameEvent = EventMeta & EventBody;
@@ -55,16 +65,27 @@ export function comparePos(a: EventPos, b: EventPos): number {
 
 export const compareEvents: (a: GameEvent, b: GameEvent) => number = comparePos;
 
-/** Margen en el que un reloj igual o algo atrasado se trata como «el mismo instante». */
-export const SAME_MOMENT_MS = 1000;
+/**
+ * Lo más que el reloj de este equipo sigue a un evento que va por delante de él. Un
+ * minuto: menos que la precisión de las esperas y los pomodoros, que se muestran en minutos.
+ */
+export const MAX_DRIFT_MS = 60_000;
 
 /**
- * `ts` de un evento nuevo de este equipo. Los empates de `ts` se deshacen por `id`, que
- * es aleatorio: dos eventos del mismo milisegundo (una acción que emite varios) podrían
- * quedar al revés. Por eso, si el reloj no ha avanzado desde el último evento aplicado
- * (o va por detrás menos de SAME_MOMENT_MS), el nuevo va 1 ms después de él. Un retraso
- * mayor se deja como está: el evento cae en medio del historial y se recalcula todo.
+ * `ts` de un evento nuevo de este equipo: un reloj lógico híbrido (HLC) con el contador
+ * dentro de los milisegundos, así que el formato de los eventos no cambia.
+ *
+ * - Evento local: max(reloj, último + 1). Dos eventos del mismo milisegundo (una acción
+ *   que emite varios) no se reordenan por su `id` aleatorio.
+ * - Evento recibido: `last` es el último aplicado, también los fusionados de otros equipos.
+ *   Lo que se hace después de ver un evento va siempre detrás de él, aunque el reloj de
+ *   este equipo vaya atrasado.
+ * - Deriva: si `last` va más de MAX_DRIFT_MS por delante del reloj (un equipo con la hora
+ *   mal, un cambio de hora a mano), no se le sigue: se usa el reloj, el evento cae en medio
+ *   del historial y se recalcula todo. Así un reloj del año 2099 no arrastra a los demás.
+ *
+ * El orden total es (ts, id) en todos los equipos, así que todos llegan al mismo estado.
  */
 export function nextTs(now: number, last?: EventPos): number {
-  return last && now <= last.ts && last.ts - now < SAME_MOMENT_MS ? last.ts + 1 : now;
+  return last && now <= last.ts && last.ts - now <= MAX_DRIFT_MS ? last.ts + 1 : now;
 }

@@ -13,7 +13,7 @@ pnpm test           # tests (Vitest)
 pnpm tauri build    # instalador para la plataforma actual
 ```
 
-> El instalador de Windows (`.msi` / `.exe`) se compila en Windows o en CI (GitHub Actions con `tauri-action`).
+> El instalador de Windows (`.msi` / `.exe`) se compila en Windows o en la CI: `.github/workflows/ci.yml` comprueba tipos, pasa los tests y compila la app en macOS y Windows en cada push y pull request, y deja los instaladores (sin firmar) como artefactos del run.
 
 ## Documentación
 
@@ -34,7 +34,8 @@ pnpm tauri build    # instalador para la plataforma actual
 src/
   domain/      Lógica pura, sin UI
     types.ts        Quest, Condition, Reward, Player
-    events.ts       Eventos inmutables (quest_created, quest_accepted, progress_added, quest_completed…)
+    events.ts       Eventos inmutables (quest_created, quest_accepted, progress_added, quest_completed…), con versión y reloj lógico híbrido
+    upcast.ts       Versión de los eventos: los antiguos se convierten al leerlos, los de una versión futura se ignoran
     projection.ts   eventos → estado (quests, XP, nivel, oro, inventario, almanaque), de uno en uno (applyEvent)
     leveling.ts     Curva de XP, rangos F→S, huecos de quest activa
     seed.ts         Quests de ejemplo del primer arranque
@@ -58,14 +59,15 @@ src/
     merchant/       Mercader (Hu Tao): catálogo de equipo y decoración, precios por rareza, escaparate semanal y compras
     equipment/      Personaje: el muñeco con su equipo, el armario y la decoración del menú (fondo y emblema)
     attributes/     Atributos: un nivel por cada área de las quests, con su radar
+    recovery/       Error boundary: pantalla de recuperación si falla la interfaz, en vez de la ventana en negro
   test/            Utilidades de los tests (historiales aleatorios con semilla)
-src-tauri/         Backend Rust (plugin SQL)
+src-tauri/         Backend Rust (plugin SQL); la CSP estricta está en tauri.conf.json
 ```
 
 **Una carpeta por implementación:** cada funcionalidad nueva vive en `src/features/<nombre>/` con su modelo puro, eventos, acciones, componentes, estilos, textos y un `README.md` de diseño. Fuera de la carpeta solo se tocan los puntos de integración (tipos, unión de eventos, proyección y los componentes que la alojan). Ejemplo: [src/features/pomodoro/README.md](src/features/pomodoro/README.md).
 
 **Event sourcing:** nunca se guarda "XP = 1150"; se guardan los hechos y el estado se recalcula.
-Así, fusionar datos de varios dispositivos consiste solo en unir eventos por `id` y ordenarlos por `ts`.
+Así, fusionar datos de varios dispositivos consiste solo en unir eventos por `id` y ordenarlos por `ts`, que es un reloj lógico híbrido: lo que haces después de ver un evento va siempre detrás de él, aunque tu reloj vaya algo atrasado. Cada evento lleva la versión de su formato (`v`) para poder cambiarlo sin romper los datos ya guardados.
 Para no reproducir todo el historial en cada arranque, cada 100 eventos se guarda un *snapshot* del estado calculado (una caché: se puede borrar sin perder nada). Detalles: [src/features/snapshot/README.md](src/features/snapshot/README.md).
 
 ## Animaciones
@@ -131,6 +133,7 @@ En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · 
 - [x] Snapshot de la proyección (`src/features/snapshot/`) y tests con Vitest del dominio y el store (302)
 - [x] Mercader con Hu Tao (`src/features/merchant/`), personaje con su equipo (`src/features/equipment/`) y atributos por área (`src/features/attributes/`)
 - [x] Equipo de serie (`src/features/armory/`), rachas (`src/features/streaks/`), objetivo de tipo lista (`src/features/checklist/`) y crónica del aventurero (`src/features/chronicle/`)
+- [ ] **Fase 1.5 (endurecimiento):** hechos los eventos versionados, el reloj lógico híbrido, el error boundary (`src/features/recovery/`), la CSP estricta y la CI en macOS y Windows (314 tests). Se cierra cuando la CI pase en verde en los dos sistemas
 - [ ] **Fase 2:** sincronización con Google Drive
   - OAuth 2 PKCE con redirección a loopback desde Rust, scope `drive.file`
   - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`

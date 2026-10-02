@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { nextTs, type EventBody, type EventPos, type GameEvent } from "../domain/events";
+import { EVENT_VERSION, nextTs, type EventBody, type EventPos, type GameEvent } from "../domain/events";
 import { finishProjection, project } from "../domain/projection";
 import type { Category, GameState } from "../domain/types";
 import { seedEvents } from "../domain/seed";
@@ -83,9 +83,9 @@ function maybeSnapshot(p: Projected, force = false) {
 }
 
 export const useGame = create<GameStore>((set, get) => {
-  /** Los eventos de este equipo van siempre después del último aplicado (ver nextTs). */
+  /** Los eventos de este equipo van siempre después del último aplicado (reloj híbrido, ver nextTs). */
   const newEvent = (store: EventStore, body: EventBody, last?: EventPos) =>
-    ({ ...body, id: uid(), deviceId: store.deviceId, ts: nextTs(Date.now(), last) }) as GameEvent;
+    ({ ...body, id: uid(), deviceId: store.deviceId, ts: nextTs(Date.now(), last), v: EVENT_VERSION }) as GameEvent;
 
   async function load() {
     try {
@@ -132,7 +132,7 @@ export const useGame = create<GameStore>((set, get) => {
       const { store, projected } = get();
       if (!store) return;
       const e = newEvent(store, body, projected.last);
-      // Reloj del equipo muy atrasado: el evento cae en medio del historial y hay que recalcular.
+      // Reloj del equipo más de MAX_DRIFT_MS por detrás de lo aplicado: el evento cae en medio del historial y hay que recalcular.
       if (!goesAfter(projected, e)) {
         await store.append(e);
         return get().rebuild();

@@ -2,7 +2,7 @@
 // Mezclan eventos válidos con imposibles (completar sin aceptar, duplicados…) para que
 // las guardas de project() también se ejerciten, y algunos con formatos antiguos.
 
-import type { EventBody, GameEvent } from "../domain/events";
+import { EVENT_VERSION, type EventBody, type GameEvent } from "../domain/events";
 import type { QuestDef } from "../domain/types";
 import { RARITIES, type ItemDef } from "../features/items/model";
 import { TEMPORAL_KINDS, type TemporalDef } from "../features/temporal/model";
@@ -159,7 +159,10 @@ export function randomStream(seed: string, n: number): GameEvent[] {
   for (let i = 0; i < n; i++) {
     // A veces el mismo ts que el anterior (desempata el id); a veces horas después (esperas vencidas).
     ts += rnd() < 0.1 ? 0 : rnd() < 0.8 ? 60_000 : 3 * 3_600_000;
-    out.push({ ...body(), id: `${seed}-${String(i).padStart(5, "0")}`, deviceId: "test", ts } as GameEvent);
+    // Versión del formato (domain/upcast.ts): la mayoría sin `v` (anteriores a la 1), algunos
+    // con la actual y unos pocos de una versión futura, que la proyección ignora.
+    const v = i % 13 === 7 ? EVENT_VERSION + 1 : i % 3 === 0 ? EVENT_VERSION : undefined;
+    out.push({ ...body(), id: `${seed}-${String(i).padStart(5, "0")}`, deviceId: "test", ts, ...(v ? { v } : {}) } as GameEvent);
   }
   return out;
 }

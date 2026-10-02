@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) que convierte tareas en *quests* de estilo J
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist` y `chronicle`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle` y `recovery`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -50,7 +50,8 @@ pnpm tauri build        # instalador para el sistema actual
 src/
   domain/            Dominio PURO (sin React, Zustand, Tauri ni DOM)
     types.ts           QuestDef, QuestState, ConditionDef (contador | pomodoro), PlayerState…
-    events.ts          Unión EventBody (eventos de quest + PomodoroEventBody)
+    events.ts          Unión EventBody (eventos de quest + PomodoroEventBody), EVENT_VERSION y el reloj híbrido (nextTs)
+    upcast.ts          Versión de los eventos: upcastEvent (paso a paso hasta EVENT_VERSION) e isFromFuture
     projection.ts      project(eventos) → GameState (newProjectionAcc / applyEvent / finishProjection), PROJECTION_VERSION; conditionProgress, conditionsMet(q, now)…
     leveling.ts        Curva de XP, rangos F→S, huecos de quest activa
     seed.ts            Quests de ejemplo del primer arranque (en el idioma activo)
@@ -76,13 +77,15 @@ src/
     streaks/           Rachas de las quests que se repiten (sin eventos: se calculan en quest_completed)
     checklist/         Objetivo de tipo lista: casillas que se marcan (checklist_checked)
     chronicle/         Crónica del aventurero: diario de lo que ha pasado, apuntado por la proyección (sin eventos)
+    recovery/          Error boundary y pantalla de recuperación ante fallos de la interfaz (sin eventos)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
   test/              Utilidades de los tests (historiales aleatorios con semilla)
   lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), useMuted, id/PRNG, time (useNow, formatRemaining)
   styles/            theme.css (tokens), app.css (componentes)
 public/music/        Pistas de música (Vite las copia a dist/music/)
 public/merchant/     Vídeo de Hu Tao en bucle (MP4 + WebM) y su póster (se reproduce desde memoria, blob:)
-src-tauri/           Rust: lib.rs (plugin SQL), tauri.conf.json, capabilities/default.json
+src-tauri/           Rust: lib.rs (plugin SQL), tauri.conf.json (con la CSP), capabilities/default.json
+.github/workflows/   CI: tipos, tests y build de la app en macOS y Windows
 docs/                Esta guía, informe técnico, cómo funciona, img/ con los diagramas
 ```
 
@@ -103,10 +106,11 @@ components ──▶ store ──▶ domain ◀── storage
 - **Toda escritura pasa por `dispatch(evento)`** (`src/store/game.ts`). Ningún componente ni acción modifica el estado directamente.
 - **Los eventos guardados son inmutables.** Nunca se reescriben, se borran ni se «arreglan» en la base de datos.
 - **Cambiar la forma de un evento o de `QuestDef` exige compatibilidad hacia atrás**: los datos antiguos se convierten **al leerlos** (*upcasting*). Sigue el patrón de `src/features/pomodoro/legacy.ts`, que convierte el pomodoro antiguo en una condición de 1 ronda, y documéntalo en el README de la funcionalidad.
+- **Los eventos llevan versión (`v`).** Si cambias la forma de un evento que ya existe, sube `EVENT_VERSION` (`src/domain/events.ts`), añade el paso en `UPCASTERS` (`src/domain/upcast.ts`) y sube `PROJECTION_VERSION`. Un tipo de evento nuevo no la sube. La proyección ignora los eventos de una versión más nueva que la app.
 - **La proyección es tolerante:** cada `case` de `project()` tiene una **guarda** que ignora eventos imposibles (por ejemplo, completar una quest que no está activa). Así se fusionan eventos de varios dispositivos sin duplicar XP.
 - **Sube `PROJECTION_VERSION`** (`src/domain/projection.ts`) si cambias el resultado de `project()` para eventos ya guardados: un `case`, una guarda, un *upcaster* o un `apply*Event` de una funcionalidad. Si no, la app nativa arrancará desde un snapshot calculado con la lógica vieja. Ver [src/features/snapshot/README.md](../src/features/snapshot/README.md).
 - **El acumulador de la proyección (`ProjectionAcc`) solo guarda datos serializables** (`Map`, `Set`, objetos planos; nada de funciones ni clases), porque se guarda como snapshot y se copia con `structuredClone` en cada `dispatch`. Lo que depende del conjunto (nivel, `temporalId`…) va en `finishProjection` y se recalcula entero.
-- **El `ts` de un evento lo pone `dispatch`**, con `nextTs` (`src/domain/events.ts`): va al menos 1 ms después del último aplicado, para que los eventos que emite una acción seguida no se reordenen por su `id` aleatorio. No construyas eventos con `ts` propio fuera de los tests.
+- **El `ts` de un evento lo pone `dispatch`**, con `nextTs` (`src/domain/events.ts`), un reloj lógico híbrido: va al menos 1 ms después del último evento aplicado, sea de este equipo o fusionado de otro, salvo que ese vaya más de `MAX_DRIFT_MS` (1 minuto) por delante del reloj. Así, lo que emite una acción seguida no se reordena por su `id` aleatorio y lo que se hace tras ver un evento remoto va detrás de él. No construyas eventos con `ts` propio fuera de los tests.
 - **Prefiere deltas a valores absolutos** (`progress_added { amount: +1 }`), para que dos dispositivos sumen en vez de pisarse.
 - **Copia en el evento lo que no debe cambiar a posteriori**, como la recompensa en `quest_completed`.
 
@@ -185,13 +189,14 @@ src/features/<nombre>/
 - **Archivos del usuario** (adjuntos de los encargos): en el almacén de binarios, nunca en eventos ni en `public/`.
 - **Música:** se copia a `public/music/` y se registra en `src/features/music/tracks.ts` y en `i18n.ts`.
 - **Permisos de Tauri:** se conceden de forma explícita y mínima en `src-tauri/capabilities/default.json`. Cada plugin nuevo necesita su permiso y su registro en `src-tauri/src/lib.rs`.
+- **CSP (norma):** `app.security.csp` en `tauri.conf.json` solo permite lo propio (`'self'`, `data:` y `blob:` donde hace falta, e IPC). Si algo nuevo carga de otro origen (la fase 2 con Google), añade ese origen a la directiva exacta, también en `devCsp`, y explícalo en la tabla de [COMO-FUNCIONA.md](COMO-FUNCIONA.md) («Content Security Policy»). Nunca vuelvas a `csp: null`.
 - **Secretos:** nunca en el repositorio ni en SQLite. Los tokens OAuth de la fase 2 irán al llavero del sistema.
 
 ---
 
 ## 9. Norma: verificar antes de dar algo por terminado
 
-1. `npx tsc --noEmit` sin errores, `pnpm test` en verde y `pnpm build` correcto.
+1. `npx tsc --noEmit` sin errores, `pnpm test` en verde y `pnpm build` correcto. Al subir la rama, la CI (`.github/workflows/ci.yml`) lo repite en macOS y Windows y compila la app: tiene que quedar en verde antes de unirla a `main`.
 2. **Probarlo en ejecución**, no solo compilar: `pnpm dev` en el navegador o `pnpm tauri dev` si toca Rust o algo nativo.
 3. **Lógica de dominio:** escribe tests con Vitest (`*.test.ts` junto al módulo) con marcas de tiempo fijas. `src/test/streams.ts` tiene constructores (`questDef`, `temporalDef`, `withMeta`) y `randomStream(semilla, n)`, que genera historiales con todos los tipos de evento. Si añades un tipo de evento, añádelo también a `randomStream`. Para probar algo en la app abierta, importa el módulo puro (`await import('/src/features/x/model.ts')`).
 4. **Lo que depende del tiempo** (horas o minutos): no esperes. Inyecta eventos con `ts` en el pasado en el `localStorage` de pruebas del navegador y recarga.
@@ -240,12 +245,11 @@ Lo mismo vale para los otros diagramas (arquitectura, ciclo de vida, hoja de rut
 
 ## 11. Deuda conocida: no la empeores
 
-Prioridad alta, pendiente (fase 1.5 de la hoja de ruta):
-- **Tests: el dominio y el store están cubiertos** (302 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones. Tampoco hay CI que los ejecute.
-- **Eventos sin campo `v`.** El *upcasting* ya existe en `legacy.ts`, pero falta versión explícita.
-- **Orden por reloj local** (`ts`): falta un reloj lógico híbrido.
-- **Sin error boundary:** un fallo de React deja la ventana en negro.
-- **CSP desactivada** (`csp: null`) y **Windows sin probar**. Al activar la CSP, el visor de adjuntos necesita `blob:` en `img-src` y `frame-src` (y `data:` en `img-src` para las miniaturas).
+La fase 1.5 (endurecimiento) cerró la versión de los eventos (`v` + `UPCASTERS`), el reloj lógico híbrido, el error boundary (`features/recovery`), la CSP estricta y la CI en macOS y Windows. Queda pendiente:
+- **Tests:** el dominio y el store están cubiertos (314 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones.
+- **Windows a mano:** la CI compila y pasa los tests en Windows, pero nadie ha abierto la app allí (fuentes, animaciones, visor de PDF de WebView2). Los instaladores están en los artefactos de cada run de la CI.
+- **CSP sin revisar a simple vista en la app nativa:** se probó la misma política en Chromium y que la app de macOS arranca y abre la base de datos con ella, pero no se vio la ventana. Si algo no carga (vídeo, PDF, fondo), mira primero la CSP.
+- **Reloj con mucha deriva:** un equipo que vaya más de 1 minuto por detrás de un evento ya aplicado recalcula todo en cada acción hasta que su reloj lo alcanza.
 
 Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, no añadas más casos.
 
