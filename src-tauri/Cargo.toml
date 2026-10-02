@@ -42,3 +42,9 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+# Macros y build scripts (se compilan para el Mac aunque el destino sea iOS): sin `strip`.
+# Con strip = true, al compilar para iOS dentro de Xcode la librería de macros de sqlx salía
+# dañada («mis-aligned LINKEDIT string pool»). La app final se sigue reduciendo igual.
+[profile.release.build-override]
+strip = false
