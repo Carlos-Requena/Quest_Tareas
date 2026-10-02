@@ -8,6 +8,7 @@ import { seededRandom } from "../../../lib/id";
 import { sortTemporals } from "../model";
 import { temporalBusy, useTemporalUi, type Origin } from "../ui";
 import { Poster, ROW } from "./Poster";
+import { HorizonFilter, countHorizons, matchesHorizon, useHorizonUi } from "../../horizon";
 import "../temporal.css";
 
 type Dir = "left" | "right" | "up" | "down";
@@ -68,14 +69,23 @@ export function TemporalBoard() {
   const showDone = useTemporalUi((s) => s.showDone);
   const farewell = useTemporalUi((s) => s.farewell);
   const clearing = useTemporalUi((s) => s.cleared?.temporalId);
+  const horizon = useHorizonUi((s) => s.filter.temporal);
   const grid = useRef<HTMLDivElement>(null);
 
   const all = useMemo(() => sortTemporals(temporals.values()), [temporals]);
   const doneCount = all.filter((x) => x.status === "done").length;
   const pending = all.length - doneCount;
+  // Plazos (features/horizon): se cuentan y se filtran los pendientes; los cumplidos solo salen en «Todo».
+  const counts = useMemo(() => countHorizons(all.filter((x) => x.status === "pending"), (x) => x, now), [all, now]);
   // El recién cumplido sigue colgado durante su animación y un momento después,
   // para recibir el sello «CLEAR» antes de descolgarse.
-  const visible = all.filter((x) => x.status === "pending" || showDone || farewell?.id === x.id || clearing === x.id);
+  const visible = all.filter(
+    (x) =>
+      (x.status === "pending" && matchesHorizon(horizon, x, now)) ||
+      (x.status === "done" && showDone && horizon === "all") ||
+      farewell?.id === x.id ||
+      clearing === x.id,
+  );
   const selected = visible.find((x) => x.id === selectedId) ?? visible[0];
 
   useEffect(() => {
@@ -164,6 +174,8 @@ export function TemporalBoard() {
               onClick={() => {
                 sfx.move();
                 useTemporalUi.getState().setShowDone(!showDone);
+                // Los cumplidos no tienen plazo: para verlos, el filtro vuelve a «Todo».
+                if (!showDone) useHorizonUi.getState().setFilter("temporal", "all");
               }}
             >
               {showDone ? t("temporal.board.hideDone") : t("temporal.board.showDone", { n: doneCount })}
@@ -171,6 +183,8 @@ export function TemporalBoard() {
           )}
         </div>
       </header>
+
+      <HorizonFilter section="temporal" counts={counts} />
 
       <BoardToast />
 
@@ -204,10 +218,16 @@ export function TemporalBoard() {
             transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.45 }}
           >
             <span className="tp-tack" />
-            <p>{t("temporal.board.empty")}</p>
-            <p className="tb-empty-hint">
-              <Trans i18nKey="temporal.board.emptyHint" components={{ kbd: <kbd /> }} />
-            </p>
+            {pending > 0 && horizon !== "all" ? (
+              <p>{t("horizon.empty")}</p>
+            ) : (
+              <>
+                <p>{t("temporal.board.empty")}</p>
+                <p className="tb-empty-hint">
+                  <Trans i18nKey="temporal.board.emptyHint" components={{ kbd: <kbd /> }} />
+                </p>
+              </>
+            )}
           </motion.div>
         )}
       </div>

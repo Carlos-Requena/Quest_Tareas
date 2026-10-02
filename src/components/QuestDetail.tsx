@@ -7,6 +7,9 @@ import { conditionsMet, countConditionsMet } from "../domain/projection";
 import { isPomodoroCondition } from "../domain/types";
 import { PomodoroCondition } from "../features/pomodoro";
 import { QuestLoot } from "../features/items";
+import { QuestRequirements, blockers, dependents, recurs } from "../features/complex";
+import { QuestEventLink } from "../features/temporal";
+import { dueDate, dueLabel, questDue } from "../features/horizon";
 import { useGame } from "../store/game";
 import { abandonQuest, addProgress, primaryAction } from "../store/actions";
 import { formatRemaining } from "../lib/time";
@@ -40,6 +43,8 @@ function Section({ tag, label, children }: { tag: string; label: string; childre
 export function QuestDetail({ quest, status, now }: { quest?: QuestState; status?: QuestStatus; now: number }) {
   const maxActive = useGame((s) => s.state.player.maxActive);
   const activeCount = useGame((s) => [...s.state.quests.values()].filter((q) => q.status === "active").length);
+  const quests = useGame((s) => s.state.quests);
+  const temporals = useGame((s) => s.state.temporals);
   const dispatch = useGame((s) => s.dispatch);
   const say = useGame((s) => s.say);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -68,6 +73,10 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
   const meta = CATEGORY_META[quest.category];
   const active = status === "active";
   const met = conditionsMet(quest, now);
+  // Quests complejas: requisitos que la bloquean y quests que desbloquea.
+  const lock = status === "available" ? blockers(quest, quests) : [];
+  const hasRules = !!quest.requires?.length || dependents(quest.id, quests.values()).length > 0;
+  const due = questDue(quest, temporals);
 
   let primary: { label: string; enabled: boolean };
   if (active && met) primary = { label: t("actions.report"), enabled: true };
@@ -75,6 +84,7 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
     primary = { label: countConditionsMet(quest) ? t("pomodoro.pending") : t("actions.missing"), enabled: false };
   else if (status === "cooldown")
     primary = { label: t("actions.availableIn", { time: formatRemaining((quest.availableAt ?? 0) - now) }), enabled: false };
+  else if (lock.length) primary = { label: t("complex.actions.locked"), enabled: false };
   else if (activeCount >= maxActive) primary = { label: t("actions.noSlots"), enabled: false };
   else primary = { label: t("actions.accept"), enabled: true };
 
@@ -89,10 +99,16 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
             </span>
             <span className="sec-sub">{t(`category.${quest.category}`)}</span>
             <span className="detail-meta-right muted">
-              {quest.category === "repeat"
+              {recurs(quest)
                 ? t("detail.reappears", { time: formatRemaining((quest.cooldownMinutes ?? 0) * 60_000) })
                 : t("detail.once")}
               {quest.completions > 0 && t("detail.completedTimes", { n: quest.completions })}
+              {due && (
+                <span className={`detail-due ${due.temporal ? "" : "is-own"}`}>
+                  {" · "}
+                  {t("horizon.detail.deadline", { date: dueDate(due) })} ({dueLabel(due, now)})
+                </span>
+              )}
             </span>
           </motion.div>
 
@@ -118,6 +134,18 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
           {quest.description && (
             <Section tag="Request" label={t("detail.description")}>
               <p className="desc">{quest.description}</p>
+            </Section>
+          )}
+
+          {quest.temporalId && (
+            <Section tag="Timed Posting" label={t("temporal.quests.detail")}>
+              <QuestEventLink quest={quest} />
+            </Section>
+          )}
+
+          {hasRules && (
+            <Section tag="Prerequisite" label={t("complex.detail.requires")}>
+              <QuestRequirements quest={quest} />
             </Section>
           )}
 

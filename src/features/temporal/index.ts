@@ -9,3 +9,6 @@ export { useTemporalUi, temporalBusy } from "./ui";
 export { TemporalBoard } from "./components/TemporalBoard";
 export { SectionSwitch, switchSection } from "./components/SectionSwitch";
 export { TemporalOverlays } from "./components/TemporalOverlays";
+export { QuestEventLink } from "./components/QuestEventLink";
+export { Skull } from "./components/Skull";
+export { linkState, type LinkState } from "./links";

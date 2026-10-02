@@ -21,6 +21,7 @@ export function Footer() {
       <footer className="ft">
         <Key k="Enter" label={t("temporal.footer.open")} />
         <Key k="T" label={t("temporal.footer.switchToBoard")} />
+        <Key k="H" label={t("horizon.label")} />
         <button className="ft-new ft-items" onClick={() => setCollection("inventory")}>
           <kbd>I</kbd>
           {t("items.open")}
@@ -39,6 +40,7 @@ export function Footer() {
       <Key k="X" label={t("footer.abandon")} />
       <Key k="+" label={t("footer.progress")} />
       <Key k="Q E" label={t("footer.category")} />
+      <Key k="H" label={t("horizon.label")} />
       <Key k="T" label={t("temporal.footer.switchToTemporal")} />
       <button className="ft-new ft-items" onClick={() => setCollection("inventory")}>
         <kbd>I</kbd>

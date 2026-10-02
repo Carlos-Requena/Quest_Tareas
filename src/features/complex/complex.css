@@ -1,0 +1,155 @@
+/* ───────────── Quests complejas (src/features/complex) ───────────── */
+
+/* Repetición en el formulario: opción + «cada N unidades». */
+.rc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.field .rc-row > select:first-child {
+  flex: 1 1 auto;
+  width: auto;
+}
+.field .rc-n {
+  flex: 0 0 64px;
+  width: 64px;
+}
+.field .rc-unit {
+  flex: 0 0 116px;
+  width: 116px;
+}
+.rc-every {
+  font-size: 12px;
+}
+.rc-hint {
+  margin: 0;
+  font-size: 11px;
+}
+
+/* Requisitos en el formulario: chapas numeradas + desplegable. */
+.rq-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.rq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 2px 0 9px;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+}
+.rq-chip .gem,
+.rq-row .gem {
+  width: 5px;
+  height: 5px;
+  color: var(--cat);
+}
+.rq-i {
+  font-size: 11px;
+  color: var(--muted);
+}
+.rq-title {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.field .rq-pick {
+  flex: 1 1 200px;
+  width: auto;
+}
+
+/* Requisitos en el detalle de la quest. */
+.rq-detail {
+  display: grid;
+  gap: 6px;
+}
+.rq-row {
+  display: grid;
+  grid-template-columns: 16px 6px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.035);
+  transition: background 0.2s;
+}
+.rq-row:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.rq-row.is-met {
+  background: rgba(214, 178, 94, 0.09);
+}
+.rq-mark {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.rq-row.is-met .rq-mark,
+.rq-row.is-met .rq-state {
+  color: var(--gold);
+}
+.rq-row .rq-title {
+  max-width: none;
+  font-size: 15px;
+  font-weight: 700;
+}
+.rq-state {
+  font-size: 11px;
+  color: var(--muted);
+}
+.rq-unlocks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.rq-link {
+  color: var(--gold);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.rq-link:hover {
+  color: var(--gold-hi);
+}
+
+.lock-ico {
+  display: block;
+  width: 11px;
+  height: 12px;
+}
+
+/* Tarjeta bloqueada: apagada, con el candado y lo que pide en el pie. */
+.card.is-locked .card-tagline,
+.card.is-locked .card-title,
+.card.is-locked .card-gem,
+.card.is-locked .card-foot b,
+.card.is-locked .card-unit {
+  opacity: 0.42;
+}
+.card-lock-note {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.card-lock-note span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-lock-note .lock-ico {
+  flex: none;
+  color: var(--gold);
+}

@@ -7,7 +7,7 @@ import { calm } from "../../../lib/fx";
 import { useNow } from "../../../lib/time";
 import { LANGS, currentLang, num } from "../../../i18n";
 import { GoldIcon } from "../../../components/Header";
-import { KIND_META, isPdf, type TemporalState } from "../model";
+import { KIND_META, isPdf, pendingLinks, type TemporalState } from "../model";
 import { tornEdge, skullSpots } from "../look";
 import { dueChip, longDate, longDue } from "../format";
 import { formatSize } from "../files";
@@ -17,6 +17,7 @@ import { Skull } from "./Skull";
 import { ClipIcon } from "./Poster";
 import { useFilePicker } from "./TemporalForm";
 import { ACCEPT } from "../files";
+import { PosterQuests } from "./PosterQuests";
 
 /** El cartel en grande: todos sus datos, sus adjuntos y las acciones (cumplir, editar, adjuntar, retirar). */
 export function PosterView() {
@@ -43,6 +44,8 @@ function View({ t }: { t: TemporalState }) {
   const skulls = useMemo(() => skullSpots(`${t.id}:view`, t.difficulty, "landscape"), [t.id, t.difficulty]);
   const locale = LANGS[currentLang()].locale;
   const picker = useFilePicker((files) => attachFiles(t.id, files));
+  // Quests enlazadas sin terminar: mientras haya alguna, no se puede cumplir.
+  const missing = useGame((s) => (pending ? pendingLinks(t, s.state.quests).length : 0));
 
   // Se despliega desde el cartel del tablón: misma posición, tamaño e inclinación al empezar.
   useLayoutEffect(() => {
@@ -174,6 +177,8 @@ function View({ t }: { t: TemporalState }) {
                 </div>
               )}
 
+              <PosterQuests t={t} />
+
               <div className="pv-files pv-in">
                 <span className="pv-lbl">
                   <ClipIcon /> {tr("temporal.view.attachments")}
@@ -234,9 +239,14 @@ function View({ t }: { t: TemporalState }) {
 
         <div className="pv-actions">
           {pending && (
-            <button className="btn btn-primary is-ready" onClick={() => completeTemporal(t.id)}>
+            <button
+              className={`btn btn-primary ${missing ? "is-disabled" : "is-ready"}`}
+              disabled={missing > 0}
+              title={missing ? tr("temporal.quests.hint") : undefined}
+              onClick={() => completeTemporal(t.id)}
+            >
               <span className="btn-key">↵</span>
-              {tr("temporal.view.complete")}
+              {missing ? tr("temporal.quests.missing", { count: missing }) : tr("temporal.view.complete")}
             </button>
           )}
           {pending && (
@@ -264,7 +274,7 @@ function View({ t }: { t: TemporalState }) {
             className={`btn btn-ghost ${confirmDelete ? "btn-danger" : ""}`}
             onClick={() => (confirmDelete ? deleteTemporal(t.id) : setConfirmDelete(true))}
           >
-            {confirmDelete ? tr("temporal.view.deleteConfirm") : tr("temporal.view.delete")}
+            {confirmDelete ? (missing ? tr("temporal.view.deleteConfirmQuests") : tr("temporal.view.deleteConfirm")) : tr("temporal.view.delete")}
           </button>
           <button className="btn btn-ghost pv-close" onClick={close}>
             <span className="btn-key">⎋</span>

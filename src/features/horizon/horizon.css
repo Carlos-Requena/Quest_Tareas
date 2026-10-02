@@ -1,0 +1,189 @@
+/* ───────────── Plazos (src/features/horizon) ───────────── */
+
+/* Color de cada plazo: rojo lo urgente, oro esta semana, verde dos semanas, cian el mes, violeta lo lejano. */
+.hz-all {
+  --hz-c: var(--gold);
+}
+.hz-day {
+  --hz-c: var(--elite);
+}
+.hz-week {
+  --hz-c: var(--gold);
+}
+.hz-fortnight {
+  --hz-c: var(--request);
+}
+.hz-month {
+  --hz-c: var(--stamp);
+}
+.hz-later {
+  --hz-c: var(--repeat);
+}
+.hz-none {
+  --hz-c: var(--muted);
+}
+
+/* Filtro del tablón de quests: fila fina bajo las pestañas de categoría. La columna
+   mide unos 400 px: el número va en una chapa sobre la esquina, no al lado. */
+.hz {
+  display: flex;
+  gap: 3px;
+  margin-top: 7px;
+}
+.hz-btn {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 5px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid color-mix(in srgb, var(--hz-c) 45%, transparent);
+  transition: color 0.2s, opacity 0.2s;
+}
+.hz-btn > * {
+  position: relative;
+  z-index: 1;
+}
+.hz-btn:hover {
+  color: var(--text);
+}
+.hz-btn.is-empty {
+  opacity: 0.45;
+}
+.hz-btn.on {
+  color: var(--text);
+  font-weight: 700;
+  opacity: 1;
+}
+.hz-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--hz-c);
+  box-shadow: 0 0 5px var(--hz-c);
+}
+.hz-lbl {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hz-on-board .hz-dot {
+  display: none;
+}
+.hz-on-board .hz-n {
+  position: absolute;
+  z-index: 2;
+  top: -6px;
+  right: -2px;
+  min-width: 14px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 7px;
+  font-size: 10px;
+  line-height: 13px;
+  text-align: center;
+  color: var(--bg);
+  background: var(--hz-c);
+}
+.hz-on-board .hz-btn.is-empty .hz-n {
+  display: none;
+}
+.hz-on-temporal .hz-n {
+  font-size: 10px;
+}
+.hz-hl {
+  position: absolute !important;
+  inset: 0;
+  z-index: 0 !important;
+  border: 1px solid var(--hz-c);
+  background: color-mix(in srgb, var(--hz-c) 14%, transparent);
+}
+
+/* En el tablón de encargos: chapas oscuras sobre la madera; la elegida, de pergamino. */
+.hz-on-temporal {
+  position: relative;
+  z-index: 2;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0 70px;
+}
+.hz-on-temporal .hz-btn {
+  flex: 0 0 auto;
+  padding: 0 11px;
+  border-radius: 12px;
+  color: var(--parchment-hi);
+  background: rgba(29, 15, 6, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(29, 15, 6, 0.6);
+}
+.hz-on-temporal .hz-btn:hover {
+  background: rgba(29, 15, 6, 0.7);
+}
+.hz-on-temporal .hz-btn.on {
+  color: var(--ink);
+  background: transparent;
+}
+.hz-on-temporal .hz-hl {
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--parchment-hi), var(--parchment));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.hz-on-temporal .hz-n {
+  color: var(--ink-faint);
+}
+.hz-on-temporal .hz-btn.on .hz-n {
+  color: var(--ink-red);
+}
+
+/* Plazo en la tarjeta de quest. */
+.due-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 16px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--hz-c);
+  border: 1px solid color-mix(in srgb, var(--hz-c) 55%, transparent);
+  background: color-mix(in srgb, var(--hz-c) 10%, transparent);
+}
+.due-chip.is-overdue {
+  color: var(--text);
+  border-color: var(--elite);
+  background: color-mix(in srgb, var(--elite) 70%, transparent);
+}
+.due-chip .skull {
+  width: 11px;
+  height: 11px;
+}
+
+/* Campo de fecha límite del formulario de quest. */
+.dl-seg .seg-btn {
+  height: 32px;
+  gap: 6px;
+  font-size: 12px;
+}
+.dl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 18px;
+}
+.dl-row input[type="date"] {
+  width: auto;
+}
+.dl-hint {
+  margin: 0;
+  font-size: 11px;
+}

@@ -5,7 +5,8 @@ import gsap from "gsap";
 import { num } from "../../../i18n";
 import { sfx } from "../../../lib/sfx";
 import { burst, calm } from "../../../lib/fx";
-import { KIND_META, type TemporalState } from "../model";
+import { useGame } from "../../../store/game";
+import { KIND_META, linkedQuests, pendingLinks, type TemporalState } from "../model";
 import { posterLook } from "../look";
 import { dueChip, shortDue } from "../format";
 import { useTemporalUi } from "../ui";
@@ -36,6 +37,9 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
   const sketch = t.attachments.find((a) => a.thumb);
   const pdfs = t.attachments.length;
   const landscape = look.shape === "landscape";
+  // Quests enlazadas: cuántas hay y cuántas faltan (el encargo no se cumple hasta terminarlas).
+  const linked = useGame((s) => linkedQuests(t, s.state.quests).length);
+  const missing = useGame((s) => (t.status === "pending" ? pendingLinks(t, s.state.quests).length : 0));
   const rows = landscape ? 25 : sketch ? 31 : 25;
 
   const hang = useRef<HTMLDivElement>(null);
@@ -151,6 +155,14 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
             <b className="num">{pdfs}</b>
           </span>
         )}
+        {linked > 0 && (
+          <span className={`tp-quests ${missing ? "" : "is-ready"} ${pdfs > 0 ? "after-clip" : ""}`} title={tr("temporal.quests.badge")}>
+            <SwordIcon />
+            <b className="num">
+              {linked - missing}/{linked}
+            </b>
+          </span>
+        )}
         <div className="tp-skulls">
           {look.skulls.map((s, i) => (
             <Skull
@@ -170,6 +182,18 @@ export function ClipIcon() {
   return (
     <svg viewBox="0 0 16 24" className="clip-ico" aria-hidden>
       <path d="M11 6v11a3.5 3.5 0 0 1-7 0V5a2.3 2.3 0 0 1 4.6 0v11a1.1 1.1 0 0 1-2.2 0V7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Espada pequeña: las quests de un encargo. */
+export function SwordIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="sword-ico" aria-hidden>
+      <path d="M13.8 1.6 7 8.4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M14.4 1 12 1.6l2.4.6Z" fill="currentColor" />
+      <path d="M4.2 8.6l3.2 3.2M5.4 10.6l-3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="2.1" cy="13.9" r="1.1" fill="currentColor" />
     </svg>
   );
 }
