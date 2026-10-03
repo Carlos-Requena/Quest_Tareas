@@ -102,6 +102,7 @@ El lado Rust de Quests es pequeño: registra el plugin y los comandos propios de
 ```rust
 tauri::Builder::default()
     .plugin(tauri_plugin_sql::Builder::default().build())
+    .plugin(tauri_plugin_opener::init()) // contactos: tel:, mailto:, https:
     .manage(sync::SyncState::default())
     .invoke_handler(tauri::generate_handler![sync::sync_sign_in, sync::drive_list, /* … */])
     .run(tauri::generate_context!())
@@ -114,10 +115,13 @@ Los comandos propios se llaman con `invoke("drive_list", { kind })` desde `@taur
 Tauri 2 deniega todo por defecto. El WebView solo puede llamar a lo que se declara en `capabilities/default.json`:
 
 ```json
-"permissions": ["core:default", "sql:default", "sql:allow-execute"]
+"permissions": [
+  "core:default", "sql:default", "sql:allow-execute", "core:window:allow-destroy",
+  { "identifier": "opener:allow-open-url", "allow": [{ "url": "tel:*" }, { "url": "mailto:*" }, { "url": "https://*" }] }
+]
 ```
 
-`sql:default` permite abrir la base de datos y hacer `SELECT`; `sql:allow-execute` permite escribir. Si mañana la app cargara contenido malicioso, no podría, por ejemplo, leer archivos arbitrarios del disco.
+`sql:default` permite abrir la base de datos y hacer `SELECT`; `sql:allow-execute` permite escribir. `opener:allow-open-url` abre los contactos de las quests con la app del sistema (Teléfono, Mail, el navegador, WhatsApp o Mapas), **solo** con esos tres esquemas: nada de `file:` ni de otros programas, y sin `revealItemInDir`, que trae `opener:default`. Si mañana la app cargara contenido malicioso, no podría, por ejemplo, leer archivos arbitrarios del disco.
 
 ### Content Security Policy (CSP)
 

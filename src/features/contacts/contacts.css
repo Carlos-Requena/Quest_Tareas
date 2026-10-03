@@ -1,0 +1,217 @@
+/* ───────────── Contactos (src/features/contacts) ───────────── */
+
+.ct-ico {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+/* Formulario: una fila por contacto (tipo · a quién · dato · quitar) y el desplegable debajo. */
+.ct-edits {
+  display: grid;
+  gap: 6px;
+}
+.ct-edits:empty {
+  display: none;
+}
+.ct-edit {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 0.8fr) minmax(0, 1.2fr) 28px;
+  align-items: center;
+  gap: 8px;
+}
+.ct-kind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.field .ct-edit input {
+  padding: 7px 10px;
+}
+.ct-edit.is-wrong .ct-value {
+  border-color: color-mix(in srgb, var(--elite) 60%, transparent);
+}
+.ct-wrong {
+  grid-column: 2 / -1;
+  margin-top: -2px;
+  font-size: 11px;
+  color: var(--elite);
+}
+.field select.ct-add {
+  width: auto;
+  justify-self: start;
+  margin-top: 6px;
+  padding: 7px 12px;
+  color: var(--gold);
+  cursor: pointer;
+}
+.field select.ct-add:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Detalle de la quest: tarjetas oscuras con el botón de llamar, escribir o abrir. */
+.ct-list {
+  display: grid;
+  gap: 6px;
+}
+.ct-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto 30px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+}
+.ct-badge {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.ct-item.is-whatsapp .ct-badge {
+  color: var(--request);
+  background: color-mix(in srgb, var(--request) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--request) 35%, transparent);
+}
+.ct-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.35;
+}
+.ct-who {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ct-val {
+  font-size: 12.5px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+.ct-go {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--bg);
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  transition: filter 0.2s;
+}
+.ct-go:hover {
+  filter: brightness(1.12);
+}
+.ct-copy {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+.ct-copy svg {
+  width: 15px;
+  height: 15px;
+}
+.ct-copy:hover {
+  color: var(--text);
+}
+
+/* En el cartel abierto de un encargo: tinta sobre pergamino. */
+.ct-list.on-paper .ct-item {
+  background: rgba(59, 42, 26, 0.05);
+  border-color: rgba(59, 42, 26, 0.18);
+}
+.ct-list.on-paper .ct-badge {
+  color: var(--ink-red);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(163, 38, 42, 0.45);
+}
+.ct-list.on-paper .ct-who {
+  color: var(--ink);
+}
+.ct-list.on-paper .ct-val {
+  color: var(--ink);
+  opacity: 0.8;
+}
+.ct-list.on-paper .ct-go {
+  color: var(--parchment-hi);
+  background: linear-gradient(180deg, var(--copper), var(--ink-red));
+}
+.ct-list.on-paper .ct-copy {
+  color: var(--ink-faint);
+}
+.ct-list.on-paper .ct-copy:hover {
+  color: var(--ink);
+}
+
+/* En la tarjeta del tablón: un teléfono pequeño si la quest lleva contactos. */
+.card-contact {
+  display: inline-flex;
+  color: var(--gold);
+  opacity: 0.85;
+}
+.card-contact .ct-ico {
+  width: 12px;
+  height: 12px;
+}
+
+/* ───────────── Teléfono (features/mobile; 760 px es PHONE_MAX_WIDTH) ───────────── */
+
+@media (max-width: 760px) {
+  /* Formulario: el tipo arriba, a quién y el dato debajo, a lo ancho. */
+  .ct-edit {
+    grid-template-columns: minmax(0, 1fr) 40px;
+    gap: 6px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ct-kind {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .ct-edit .icon-btn {
+    grid-column: 2;
+    grid-row: 1;
+    height: 40px;
+  }
+  .ct-edit .ct-name,
+  .ct-edit .ct-value {
+    grid-column: 1 / -1;
+  }
+  .field .ct-edit input {
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+  .ct-wrong {
+    grid-column: 1 / -1;
+  }
+  .field select.ct-add {
+    min-height: 40px;
+    font-size: 16px;
+  }
+  .ct-go,
+  .ct-copy {
+    height: 40px;
+  }
+  .ct-copy {
+    width: 40px;
+  }
+  .ct-item {
+    grid-template-columns: 30px minmax(0, 1fr) auto 40px;
+  }
+}

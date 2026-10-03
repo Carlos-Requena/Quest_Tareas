@@ -4,6 +4,8 @@ mod sync;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
+        // Contactos de las quests: llamar, escribir, abrir la web o Mapas (features/contacts).
+        .plugin(tauri_plugin_opener::init())
         // Hoja de inicio de sesión de Google en iOS (sync/oauth.rs).
         .plugin(tauri_plugin_web_auth::init())
         // Sincronización con Google Drive (src/sync y src/features/sync).

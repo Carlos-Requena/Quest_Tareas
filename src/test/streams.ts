@@ -7,6 +7,7 @@ import type { QuestDef } from "../domain/types";
 import { RARITIES, type ItemDef } from "../features/items/model";
 import { TEMPORAL_KINDS, type TemporalDef } from "../features/temporal/model";
 import { GEAR_SLOTS, type GearDef } from "../features/merchant/model";
+import type { AgendaDef } from "../features/agenda/model";
 import { seededRandom } from "../lib/id";
 
 export const T0 = Date.UTC(2026, 0, 1);
@@ -48,9 +49,14 @@ export function temporalDef(id: string, extra: Partial<TemporalDef> = {}): Tempo
     reward: { xp: 300, gold: 50 },
     attachments: [],
     questIds: [],
+    contacts: [],
     createdAt: T0,
     ...extra,
   };
+}
+
+export function agendaDef(id: string, extra: Partial<AgendaDef> = {}): AgendaDef {
+  return { id, title: `Bloque ${id}`, date: "2026-01-05", start: 9 * 60, end: 10 * 60, notes: "", color: "gold", createdAt: T0, ...extra };
 }
 
 let seq = 0;
@@ -93,8 +99,30 @@ export function randomStream(seed: string, n: number): GameEvent[] {
     return { type: "gear_unequipped", slot: pick(GEAR_SLOTS) };
   };
 
+  // Agenda (features/agenda): bloques sueltos y que se repiten, con datos mal formados a veces.
+  const A = ["a0", "a1", "a2"];
+  const agendaBody = (): EventBody => {
+    const a = pick(A);
+    const r = rnd();
+    const day = `2026-01-${String(5 + Math.floor(rnd() * 20)).padStart(2, "0")}`;
+    if (r < 0.35)
+      return {
+        type: "agenda_created",
+        entry: agendaDef(a, {
+          date: rnd() < 0.9 ? day : "2026-02-31",
+          start: Math.floor(rnd() * 1500) - 30,
+          end: Math.floor(rnd() * 1500),
+          repeat: rnd() < 0.5 ? { days: rnd() < 0.3 ? [0, 1, 2, 3, 4, 5, 6] : [1, 3, 3, 9], until: rnd() < 0.3 ? "2026-01-20" : undefined } : undefined,
+        }),
+      };
+    if (r < 0.6) return { type: "agenda_updated", entryId: a, patch: rnd() < 0.5 ? { title: "Movido", start: 600, end: 660 } : { repeat: undefined, color: "elite" } };
+    if (r < 0.85) return { type: "agenda_skipped", entryId: a, date: day };
+    return { type: "agenda_deleted", entryId: a };
+  };
+
   const body = (): EventBody => {
     if (rnd() < 0.12) return gearBody();
+    if (rnd() < 0.06) return agendaBody();
     const q = pick(Q);
     const r = rnd();
     if (r < 0.1)
@@ -118,6 +146,16 @@ export function randomStream(seed: string, n: number): GameEvent[] {
           cooldownMinutes: rnd() < 0.4 ? 30 : undefined,
           requires: rnd() < 0.3 ? [pick(Q)] : undefined,
           dueAt: rnd() < 0.3 ? T0 + Math.floor(rnd() * 40) * 86_400_000 : undefined,
+          // Contactos (features/contacts), a veces con uno repetido, vacío o de un tipo desconocido que se limpian.
+          contacts:
+            rnd() < 0.2
+              ? ([
+                  { id: "k1", kind: "phone", name: "Dentista", value: "+34 600 000 000" },
+                  { id: "k1", kind: "email", name: "", value: "otra@x.es" },
+                  { id: "k2", kind: "fax", name: "", value: "123" },
+                  { id: "k3", kind: "email", name: "", value: "  " },
+                ] as QuestDef["contacts"])
+              : undefined,
         }),
       };
     if (r < 0.25) return { type: "quest_accepted", questId: q };
@@ -145,14 +183,20 @@ export function randomStream(seed: string, n: number): GameEvent[] {
     if (r < 0.78) return { type: "collectible_purchased", itemId: pick(I), price: Math.floor(rnd() * 80) };
     const t = pick(TT);
     if (r < 0.83)
-      return { type: "temporal_created", temporal: temporalDef(t, { kind: pick(TEMPORAL_KINDS), questIds: rnd() < 0.5 ? [pick(Q)] : [] }) };
+      return {
+        type: "temporal_created",
+        // Sin aceptar en algunos: sus quests quedan en reserva hasta `temporal_accepted`.
+        temporal: temporalDef(t, { kind: pick(TEMPORAL_KINDS), questIds: rnd() < 0.5 ? [pick(Q)] : [], ...(rnd() < 0.4 ? { planned: true } : {}) }),
+      };
     if (r < 0.86) return { type: "temporal_updated", temporalId: t, patch: { title: "Editado", difficulty: 1 + Math.floor(rnd() * 5) } };
     if (r < 0.9) return { type: "temporal_linked", temporalId: t, questId: q };
     if (r < 0.92) return { type: "temporal_unlinked", temporalId: t, questId: q };
     if (r < 0.93)
       return { type: "temporal_attached", temporalId: t, attachment: { id: `a${Math.floor(rnd() * 3)}`, blobId: "sha", name: "f.pdf", mime: "application/pdf", size: 10, addedAt: T0 } };
     if (r < 0.94) return { type: "temporal_detached", temporalId: t, attachmentId: `a${Math.floor(rnd() * 3)}` };
-    if (r < 0.99) return { type: "temporal_completed", temporalId: t, reward: { xp: 200, gold: 40 } };
+    if (r < 0.96) return { type: "temporal_completed", temporalId: t, reward: { xp: 200, gold: 40 } };
+    if (r < 0.985) return { type: "temporal_accepted", temporalId: t };
+    if (r < 0.995) return { type: "temporal_postponed", temporalId: t };
     return { type: "temporal_deleted", temporalId: t };
   };
 

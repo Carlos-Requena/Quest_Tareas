@@ -14,6 +14,7 @@ import { Skull } from "./Skull";
 import { ClipIcon } from "./Poster";
 import { TemporalQuestsField } from "./TemporalQuestsField";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
+import { ContactsField } from "../../contacts";
 
 /** Tecla modificadora del atajo de guardar: ⌘ en macOS, Ctrl en Windows. */
 const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl";
@@ -21,7 +22,11 @@ const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl";
 /** Ventana para clavar un encargo nuevo o editar uno pendiente. */
 export function TemporalFormModal() {
   const form = useTemporalUi((s) => s.form);
-  return <AnimatePresence>{form && <Modal key={form.mode === "edit" ? form.id : "new"} editId={form.mode === "edit" ? form.id : undefined} />}</AnimatePresence>;
+  return (
+    <AnimatePresence>
+      {form && <Modal key={form.mode === "edit" ? form.id : "new"} editId={form.mode === "edit" ? form.id : undefined} date={form.mode === "create" ? form.date : undefined} />}
+    </AnimatePresence>
+  );
 }
 
 /** Convierte los archivos elegidos (o soltados) en adjuntos listos, con sus errores traducidos. */
@@ -50,10 +55,10 @@ export function useFilePicker(onReady: (files: PreparedFile[]) => void) {
   return { take, errors, setErrors, busy };
 }
 
-function Modal({ editId }: { editId?: string }) {
+function Modal({ editId, date }: { editId?: string; date?: string }) {
   const editing = useGame((s) => (editId ? s.state.temporals.get(editId) : undefined));
   const { t } = useTranslation();
-  const [d, setD] = useState<TemporalDraft>(() => (editing ? draftOf(editing, useGame.getState().state.quests) : emptyDraft()));
+  const [d, setD] = useState<TemporalDraft>(() => (editing ? draftOf(editing, useGame.getState().state.quests) : emptyDraft(Date.now(), date)));
   const quests = useGame((s) => s.state.quests);
   const [hoverSkull, setHoverSkull] = useState<number>();
   const [saving, setSaving] = useState(false);
@@ -214,6 +219,8 @@ function Modal({ editId }: { editId?: string }) {
             <textarea rows={3} value={d.notes} maxLength={TEMPORAL_LIMITS.notes} onChange={(e) => set({ notes: e.target.value })} placeholder={t("temporal.form.notesPh")} />
           </label>
 
+          <ContactsField value={d.contacts} onChange={(contacts) => set({ contacts })} />
+
           <TemporalQuestsField d={d} set={set} editId={editId} />
 
           <div className="field">
@@ -275,6 +282,24 @@ function Modal({ editId }: { editId?: string }) {
           </div>
 
           <RewardPreview reward={draftReward(d, quests)} hint={t("rewards.temporal", { pct: Math.round(temporalBonusRate(d.difficulty) * 100) })} />
+
+          {/* Solo al clavarlo: después se acepta o se aplaza desde el cartel. */}
+          {!editId && (
+            <div className="field tf-accept">
+              <label className="tf-check">
+                <input
+                  type="checkbox"
+                  checked={d.accept}
+                  onChange={(e) => {
+                    sfx.move();
+                    set({ accept: e.target.checked });
+                  }}
+                />
+                {t("temporal.form.accept")}
+              </label>
+              <p className="tf-hint muted">{t("temporal.form.acceptHint")}</p>
+            </div>
+          )}
         </div>
 
         <footer className="modal-f">

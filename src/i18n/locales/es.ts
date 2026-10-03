@@ -10,6 +10,9 @@ import { equipmentEs } from "../../features/equipment/i18n";
 import { attributesEs } from "../../features/attributes/i18n";
 import { armoryEs } from "../../features/armory/i18n";
 import { checklistEs } from "../../features/checklist/i18n";
+import { contactsEs } from "../../features/contacts/i18n";
+import { agendaEs } from "../../features/agenda/i18n";
+import { calendarEs } from "../../features/calendar/i18n";
 import { streaksEs } from "../../features/streaks/i18n";
 import { rewardsEs } from "../../features/rewards/i18n";
 import { collectiblesEs } from "../../features/collectibles/i18n";
@@ -149,6 +152,9 @@ export const es = {
   attributes: attributesEs,
   armory: armoryEs,
   checklist: checklistEs,
+  contacts: contactsEs,
+  agenda: agendaEs,
+  calendar: calendarEs,
   streaks: streaksEs,
   rewards: rewardsEs,
   collectibles: collectiblesEs,

@@ -1,0 +1,553 @@
+/* ───────────── Calendario (src/features/calendar) ───────────── */
+
+.main-calendar {
+  display: block;
+  padding: 16px 24px 10px;
+  min-height: 0;
+}
+.cal {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.cal-ico {
+  width: 16px;
+  height: 16px;
+}
+
+/* Cabecera: vista, navegación y la semana o el día que se ve. */
+.cal-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.cal-views {
+  width: 200px;
+}
+.cal-views .seg-btn {
+  height: 32px;
+  font-size: 13px;
+}
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cal-nav-btn,
+.cal-today {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  font-size: 18px;
+  color: var(--text-2);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  transition: color 0.2s, border-color 0.2s;
+}
+.cal-today {
+  font-size: 13px;
+}
+.cal-nav-btn:hover,
+.cal-today:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.cal-today.on {
+  color: var(--gold);
+  border-color: color-mix(in srgb, var(--gold) 50%, transparent);
+}
+.cal-title {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+/* «sábado, 3 de octubre» → «Sábado, 3 de octubre»: solo la primera letra. */
+.cal-title::first-letter {
+  text-transform: uppercase;
+}
+
+/* La vista de debajo de la cabecera (se desliza en el teléfono para pasar de semana o de día). */
+.cal-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Semana: siete columnas de lunes a domingo ── */
+.cal-week {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.cal-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  transition: border-color 0.2s, background 0.2s;
+}
+.cal-col.is-past {
+  opacity: 0.72;
+}
+.cal-col.is-selected {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.035);
+}
+.cal-col.is-today {
+  border-color: color-mix(in srgb, var(--gold) 55%, transparent);
+  box-shadow: inset 0 2px 0 var(--gold), 0 0 18px rgba(214, 178, 94, 0.08);
+  opacity: 1;
+}
+.cal-col-h {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 6px 6px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.cal-date {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text-2);
+}
+.cal-date:hover {
+  color: var(--text);
+}
+.cal-wd {
+  font-family: var(--f-tag);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.cal-dn {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+.cal-col.is-today .cal-wd,
+.cal-col.is-today .cal-dn {
+  color: var(--gold-hi);
+}
+.cal-add {
+  width: 26px;
+  height: 26px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  border: 1px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.cal-col:hover .cal-add,
+.cal-add.on,
+.cal-add:focus-visible {
+  color: var(--gold);
+  border-color: color-mix(in srgb, var(--gold) 40%, transparent);
+}
+.cal-items {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  scrollbar-width: thin;
+}
+.cal-sep {
+  height: 1px;
+  margin: 2px 4px;
+  background: var(--line);
+}
+.cal-free {
+  padding: 6px 4px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--faint);
+}
+
+/* Menú «+» de un día. */
+.cal-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 4px;
+  z-index: 20;
+  min-width: 220px;
+  display: grid;
+  padding: 4px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+.cal-col:nth-child(n + 6) .cal-menu {
+  right: 4px;
+}
+.cal-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  font-size: 13px;
+  text-align: left;
+  color: var(--text-2);
+}
+.cal-menu button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+.cal-menu .skull {
+  width: 16px;
+  height: 16px;
+}
+.cal-menu .gem {
+  color: var(--gold);
+}
+
+/* Lo que sale en un día: bloque (color a la izquierda), encargo (pergamino) o quest (gema). */
+.cal-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  width: 100%;
+  padding: 5px 7px;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--text);
+  background: color-mix(in srgb, var(--c) 9%, transparent);
+  border-left: 3px solid var(--c);
+  transition: background 0.2s, transform 0.15s;
+}
+.cal-chip:hover {
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  transform: translateX(1px);
+}
+.cal-chip-title {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.cal-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--c);
+}
+.cal-rep {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+.cal-chip.is-quest .gem {
+  color: var(--c);
+}
+.cal-chip.is-quest .cal-chip-title {
+  flex: 1 1 0;
+}
+.cal-chip.is-quest.is-active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent);
+}
+/* Encargo: un trocito de pergamino con su calavera. */
+.cal-chip.is-temporal {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--parchment-hi), var(--parchment));
+  border-left-color: var(--skull);
+}
+.cal-chip.is-temporal:hover {
+  background: var(--parchment-hi);
+}
+.cal-chip.is-temporal .skull {
+  width: 15px;
+  height: 15px;
+}
+.cal-chip.is-temporal .cal-time {
+  color: var(--ink-red);
+  font-weight: 700;
+}
+.cal-chip.is-temporal .cal-chip-title {
+  font-weight: 600;
+}
+.cal-state {
+  margin-left: auto;
+  font-size: 10px;
+  font-style: italic;
+  color: var(--ink-faint);
+}
+.cal-chip.is-temporal.is-planned {
+  opacity: 0.75;
+  background: transparent;
+  color: var(--parchment);
+  outline: 1px dashed color-mix(in srgb, var(--parchment) 45%, transparent);
+  outline-offset: -1px;
+}
+.cal-chip.is-temporal.is-planned .cal-state,
+.cal-chip.is-temporal.is-planned .cal-time {
+  color: var(--parchment-lo);
+}
+.cal-chip.is-temporal.is-done {
+  opacity: 0.6;
+  border-left-color: var(--gold);
+}
+.cal-chip.is-temporal.is-done .cal-chip-title {
+  text-decoration: line-through;
+}
+
+/* ── Día: lo de todo el día arriba y la rejilla por horas ── */
+.cal-dayview {
+  --cal-gutter: 56px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+.cal-allday {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.cal-allday-lbl {
+  flex: none;
+  width: calc(var(--cal-gutter) - 10px);
+  padding-top: 6px;
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: var(--muted);
+}
+.cal-allday-items {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cal-allday-items .cal-chip {
+  width: auto;
+  max-width: 280px;
+}
+.cal-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.cal-grid {
+  position: relative;
+  cursor: copy;
+}
+.cal-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--line);
+  pointer-events: none;
+}
+.cal-hour span {
+  position: absolute;
+  left: 8px;
+  top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.cal-block {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 3px 8px;
+  overflow: hidden;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  background: color-mix(in srgb, var(--c) 18%, var(--panel-solid));
+  border-left: 3px solid var(--c);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition: filter 0.2s;
+}
+.cal-block:hover {
+  filter: brightness(1.18);
+  z-index: 2;
+}
+.cal-block.is-short {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.cal-block-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.cal-block .cal-time .skull {
+  width: 14px;
+  height: 14px;
+}
+.cal-block.is-temporal {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--parchment-hi), var(--parchment));
+  border-left-color: var(--skull);
+}
+.cal-block.is-temporal .cal-time {
+  color: var(--ink-red);
+  font-weight: 700;
+}
+.cal-block.is-temporal.is-planned {
+  opacity: 0.75;
+}
+/* La hora actual: una línea roja con su punto. */
+.cal-now {
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--cal-gutter) - 6px);
+  right: 0;
+  height: 2px;
+  background: var(--elite);
+  box-shadow: 0 0 8px var(--elite);
+  pointer-events: none;
+}
+.cal-now::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--elite);
+}
+
+/* Avisos del calendario, abajo en el centro. */
+.cal {
+  position: relative;
+}
+.cal-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 10;
+  max-width: 70%;
+  translate: -50% 0;
+  pointer-events: none;
+}
+.cal-toast .toast {
+  display: block;
+  padding: 6px 16px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.cal-toast:not(:has(.toast)) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-chip:hover {
+    transform: none;
+  }
+}
+
+/* ───────────── Teléfono (features/mobile; 760 px es PHONE_MAX_WIDTH) ───────────── */
+
+@media (max-width: 760px) {
+  .main-calendar {
+    padding: 10px 12px 8px;
+  }
+  .cal {
+    gap: 10px;
+  }
+  .cal-head {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+  .cal-title {
+    order: -1;
+    flex-basis: 100%;
+    font-size: 20px;
+  }
+  .cal-views {
+    flex: 1;
+    width: auto;
+  }
+  .cal-views .seg-btn,
+  .cal-nav-btn,
+  .cal-today {
+    height: 40px;
+    min-width: 40px;
+  }
+  /* La semana, en filas: un día debajo de otro (con hueco para el rombo de crear). */
+  .cal-week {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+    padding-bottom: 90px;
+    align-content: start;
+  }
+  /* Con min-height: 0 la rejilla reparte su alto entre los días y se pisan; así mide su contenido. */
+  .cal-col {
+    min-height: auto;
+  }
+  .cal-col-h {
+    padding: 4px 4px 4px 10px;
+  }
+  .cal-add {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+    color: var(--gold);
+  }
+  /* En filas, cada día mide lo que su contenido (sin flex: 1, que lo dejaba en cero). */
+  .cal-items {
+    flex: none;
+    overflow: visible;
+  }
+  .cal-chip {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  .cal-menu {
+    min-width: 0;
+    left: 8px;
+    right: 8px;
+  }
+  .cal-menu button {
+    min-height: 44px;
+    font-size: 15px;
+  }
+  .cal-dayview {
+    --cal-gutter: 48px;
+    margin-bottom: 80px;
+  }
+  .cal-allday-items .cal-chip {
+    max-width: none;
+  }
+  .cal-block {
+    font-size: 13px;
+  }
+  /* En el teléfono, los avisos los pinta la barra (features/mobile). */
+  .cal-toast {
+    display: none;
+  }
+}

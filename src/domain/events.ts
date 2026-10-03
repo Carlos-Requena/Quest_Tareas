@@ -6,6 +6,7 @@ import type { MerchantEventBody } from "../features/merchant/events";
 import type { EquipmentEventBody } from "../features/equipment/events";
 import type { ChecklistEventBody } from "../features/checklist/events";
 import type { CollectibleEventBody } from "../features/collectibles/events";
+import type { AgendaEventBody } from "../features/agenda/events";
 import type { Drop } from "../features/items/model";
 
 /**
@@ -38,7 +39,8 @@ export type EventBody =
   | MerchantEventBody
   | EquipmentEventBody
   | ChecklistEventBody
-  | CollectibleEventBody;
+  | CollectibleEventBody
+  | AgendaEventBody;
 
 /**
  * Versión del formato de los eventos que escribe esta app. NORMA: si cambias la forma

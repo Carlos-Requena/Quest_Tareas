@@ -12,6 +12,9 @@ export type TemporalEventBody =
   // Quests enlazadas, también como deltas: hay que terminarlas todas para cumplir el encargo.
   | { type: "temporal_linked"; temporalId: string; questId: string }
   | { type: "temporal_unlinked"; temporalId: string; questId: string }
+  // Aceptar un encargo saca sus quests de la reserva al Quest Board; aplazarlo las devuelve.
+  | { type: "temporal_accepted"; temporalId: string }
+  | { type: "temporal_postponed"; temporalId: string }
   | {
       type: "temporal_completed";
       temporalId: string;

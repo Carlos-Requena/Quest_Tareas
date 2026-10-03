@@ -21,8 +21,8 @@ import {
 
 export type Tab = "all" | Category;
 
-/** Sección de la ventana: el tablón de quests o el de encargos temporales. */
-export type Section = "board" | "temporal";
+/** Sección de la ventana: el tablón de quests, el de encargos temporales o el calendario (features/calendar). */
+export type Section = "board" | "temporal" | "calendar";
 
 /** Pestaña abierta en la ventana de objetos (inventario, almanaque o probabilidades). */
 export type CollectionTab = "inventory" | "almanac" | "rates";

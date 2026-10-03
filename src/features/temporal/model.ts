@@ -7,6 +7,7 @@
 
 import type { QuestState } from "../../domain/types";
 import type { TemporalEventBody } from "./events";
+import { cleanContacts, type ContactRef } from "../contacts/model";
 
 // ───────────── Tipos de cartel ─────────────
 
@@ -91,18 +92,31 @@ export interface TemporalDef {
    * Falta en los datos anteriores (se lee como []).
    */
   questIds: string[];
+  /** A quién llamar o escribir, o dónde ir (features/contacts). Falta en los anteriores (se lee como []). */
+  contacts: ContactRef[];
   createdAt: number;
+  /**
+   * Se clava sin aceptar: sus quests quedan en reserva (fuera del Quest Board) hasta
+   * aceptarlo con `temporal_accepted`. Solo cuenta en `temporal_created`. Falta en los
+   * encargos anteriores, que nacen aceptados (sus quests ya estaban en el tablón).
+   */
+  planned?: boolean;
 }
 
-/** Campos editables con `temporal_updated`. Los adjuntos y las quests van con sus propios eventos (deltas). */
-export type TemporalPatch = Partial<Omit<TemporalDef, "id" | "createdAt" | "attachments" | "questIds">>;
+/** Campos editables con `temporal_updated`. Los adjuntos, las quests y la aceptación van con sus propios eventos. */
+export type TemporalPatch = Partial<Omit<TemporalDef, "id" | "createdAt" | "attachments" | "questIds" | "planned">>;
 
 export const TEMPORAL_LIMITS = { title: 80, place: 60, notes: 600, attachments: 8, fileMb: 20, quests: 12 } as const;
 
 export type TemporalStatus = "pending" | "done";
 
-export interface TemporalState extends TemporalDef {
+export interface TemporalState extends Omit<TemporalDef, "planned"> {
   status: TemporalStatus;
+  /**
+   * Cuándo se aceptó (ts del evento). Sin él, el encargo está «sin aceptar»: sus quests
+   * siguen en reserva y no se puede cumplir. Los anteriores a esta versión, al crearse.
+   */
+  acceptedAt?: number;
   /** Cuándo se cumplió (ts del evento). */
   completedAt?: number;
   /** Recompensa ganada: copia del evento, no cambia si se edita después. */
@@ -149,13 +163,41 @@ export function urgencyOf(t: Pick<TemporalState, "status" | "dueAt" | "allDay">,
   return "later";
 }
 
-/** Orden del tablón: pendientes por fecha (los vencidos primero) y, si se muestran, los cumplidos del más reciente al más antiguo. */
+/** Aceptado: sus quests están en el Quest Board y se puede cumplir. */
+export const isAccepted = (t: Pick<TemporalState, "acceptedAt">) => t.acceptedAt !== undefined;
+
+/**
+ * Orden del tablón: los pendientes aceptados primero y después los que aún no se han
+ * aceptado, cada grupo por fecha (los vencidos primero); si se muestran, los cumplidos
+ * del más reciente al más antiguo.
+ */
 export function sortTemporals(list: Iterable<TemporalState>): TemporalState[] {
   return [...list].sort((a, b) => {
     if (a.status !== b.status) return a.status === "pending" ? -1 : 1;
     if (a.status === "done") return (b.completedAt ?? 0) - (a.completedAt ?? 0);
+    if (isAccepted(a) !== isAccepted(b)) return isAccepted(a) ? -1 : 1;
     return a.dueAt - b.dueAt || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1);
   });
+}
+
+// ───────────── Aceptados y sin aceptar ─────────────
+
+/** Filtro del tablón por aceptación (se combina con el de plazos). */
+export const ACCEPT_FILTERS = ["all", "accepted", "planned"] as const;
+export type AcceptFilter = (typeof ACCEPT_FILTERS)[number];
+
+/** ¿Entra el encargo pendiente en el filtro? */
+export const matchesAccept = (f: AcceptFilter, t: Pick<TemporalState, "acceptedAt">) =>
+  f === "all" || (f === "accepted") === isAccepted(t);
+
+/** Cuántos pendientes hay en cada opción del filtro. */
+export function countAccept(list: Iterable<Pick<TemporalState, "acceptedAt">>): Record<AcceptFilter, number> {
+  const n = { all: 0, accepted: 0, planned: 0 };
+  for (const t of list) {
+    n.all++;
+    n[isAccepted(t) ? "accepted" : "planned"]++;
+  }
+  return n;
 }
 
 /** Encargos que piden atención (hoy o vencidos): el aviso de la cabecera. */
@@ -197,6 +239,13 @@ export function linkCandidates(quests: Iterable<QuestState>, temporalId?: string
   return [...quests].filter((q) => q.status !== "done" && (!q.temporalId || q.temporalId === temporalId)).sort((a, b) => a.createdAt - b.createdAt);
 }
 
+/**
+ * La quest está en reserva: pertenece a un encargo pendiente que aún no se ha aceptado.
+ * No sale en el Quest Board y `quest_accepted` se ignora hasta aceptar el encargo.
+ */
+export const inReserve = (acc: Pick<TemporalAcc, "board">, questId: string): boolean =>
+  [...acc.board.values()].some((t) => t.status === "pending" && !isAccepted(t) && t.questIds.includes(questId));
+
 /** Encargo pendiente al que pertenece cada quest (índice inverso de los enlaces). */
 export function questOwners(board: Iterable<TemporalState>): Map<string, string> {
   const owners = new Map<string, string>();
@@ -216,7 +265,7 @@ export interface TemporalAcc {
 export const newTemporalAcc = (): TemporalAcc => ({ board: new Map(), deleted: new Set() });
 
 /** Datos tolerantes: lo que venga mal formado se corrige al leer, sin reescribir el evento. */
-function normalize(def: TemporalDef): TemporalDef {
+function normalize<T extends Omit<TemporalDef, "planned">>(def: T): T {
   const kind = TEMPORAL_KINDS.includes(def.kind) ? def.kind : "summons";
   return {
     ...def,
@@ -227,6 +276,8 @@ function normalize(def: TemporalDef): TemporalDef {
     notes: def.notes ?? "",
     reward: { xp: Math.max(0, def.reward?.xp ?? 0), gold: Math.max(0, def.reward?.gold ?? 0) },
     attachments: Array.isArray(def.attachments) ? def.attachments : [],
+    // Los encargos anteriores a los contactos no los traen.
+    contacts: cleanContacts(def.contacts),
     // Los encargos anteriores a las quests enlazadas no traen `questIds`.
     questIds: Array.isArray(def.questIds) ? [...new Set(def.questIds.filter((id) => typeof id === "string" && id))].slice(0, TEMPORAL_LIMITS.quests) : [],
   };
@@ -250,9 +301,31 @@ export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: n
     case "temporal_created": {
       const id = e.temporal.id;
       if (acc.board.has(id) || acc.deleted.has(id)) return;
-      const def = normalize(e.temporal);
+      // Sin `planned` (todos los anteriores), nace aceptado.
+      const { planned, ...def } = normalize(e.temporal);
       const questIds = def.questIds.filter((q) => !ownedElsewhere(acc, q, id));
-      acc.board.set(id, { ...def, questIds, status: "pending", linkedAt: Object.fromEntries(questIds.map((q) => [q, ts])) });
+      acc.board.set(id, {
+        ...def,
+        questIds,
+        status: "pending",
+        ...(planned === true ? {} : { acceptedAt: ts }),
+        linkedAt: Object.fromEntries(questIds.map((q) => [q, ts])),
+      });
+      return;
+    }
+    case "temporal_accepted": {
+      const t = acc.board.get(e.temporalId);
+      // Solo un pendiente sin aceptar: si dos dispositivos lo aceptan, cuenta el primero.
+      if (t?.status !== "pending" || isAccepted(t)) return;
+      acc.board.set(t.id, { ...t, acceptedAt: ts });
+      return;
+    }
+    case "temporal_postponed": {
+      const t = acc.board.get(e.temporalId);
+      // Aplazar devuelve sus quests a la reserva (las que estén en curso siguen en curso).
+      if (t?.status !== "pending" || !isAccepted(t)) return;
+      const { acceptedAt: _was, ...rest } = t;
+      acc.board.set(t.id, rest);
       return;
     }
     case "temporal_updated": {
@@ -261,7 +334,8 @@ export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: n
       if (t?.status !== "pending") return;
       // Solo los campos editables: la identidad, los adjuntos, las quests y el estado no se tocan con un parche.
       const patch: Partial<TemporalState> = { ...e.patch };
-      for (const k of ["id", "createdAt", "attachments", "questIds", "linkedAt", "status", "completedAt", "earned"] as const) delete patch[k];
+      for (const k of ["id", "createdAt", "attachments", "questIds", "linkedAt", "status", "acceptedAt", "completedAt", "earned"] as const) delete patch[k];
+      delete (patch as { planned?: boolean }).planned;
       acc.board.set(t.id, { ...t, ...normalize({ ...t, ...patch }), status: t.status });
       return;
     }
@@ -296,6 +370,8 @@ export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: n
       const t = acc.board.get(e.temporalId);
       // Si dos dispositivos lo cumplen sin conexión, solo cuenta el primero.
       if (t?.status !== "pending") return;
+      // Sin aceptar no se puede cumplir (sus quests ni siquiera están en el Quest Board).
+      if (!isAccepted(t)) return;
       // Con quests enlazadas sin terminar no se puede cumplir.
       if (t.questIds.some((q) => !linkDone(q, t.linkedAt[q] ?? 0))) return;
       const earned = { xp: Math.max(0, e.reward.xp), gold: Math.max(0, e.reward.gold) };

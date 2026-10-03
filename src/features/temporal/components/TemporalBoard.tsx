@@ -5,9 +5,10 @@ import { useGame } from "../../../store/game";
 import { useNow } from "../../../lib/time";
 import { sfx } from "../../../lib/sfx";
 import { seededRandom } from "../../../lib/id";
-import { sortTemporals } from "../model";
+import { countAccept, matchesAccept, sortTemporals } from "../model";
 import { temporalBusy, useTemporalUi, type Origin } from "../ui";
 import { Poster, ROW } from "./Poster";
+import { AcceptFilter } from "./AcceptFilter";
 import { HorizonFilter, countHorizons, matchesHorizon, useHorizonUi } from "../../horizon";
 import "../temporal.css";
 import { merchantBusy } from "../../merchant/ui";
@@ -75,19 +76,23 @@ export function TemporalBoard() {
   const farewell = useTemporalUi((s) => s.farewell);
   const clearing = useTemporalUi((s) => s.cleared?.temporalId);
   const horizon = useHorizonUi((s) => s.filter.temporal);
+  const accept = useTemporalUi((s) => s.accept);
   const grid = useRef<HTMLDivElement>(null);
 
   const all = useMemo(() => sortTemporals(temporals.values()), [temporals]);
   const doneCount = all.filter((x) => x.status === "done").length;
   const pending = all.length - doneCount;
-  // Plazos (features/horizon): se cuentan y se filtran los pendientes; los cumplidos solo salen en «Todo».
-  const counts = useMemo(() => countHorizons(all.filter((x) => x.status === "pending"), (x) => x, now), [all, now]);
+  // Plazos (features/horizon) y aceptación: se cuentan y se filtran los pendientes; cada
+  // filtro cuenta lo que deja el otro. Los cumplidos solo salen en «Todo» (y están aceptados).
+  const open = useMemo(() => all.filter((x) => x.status === "pending"), [all]);
+  const counts = useMemo(() => countHorizons(open.filter((x) => matchesAccept(accept, x)), (x) => x, now), [open, accept, now]);
+  const acceptCounts = useMemo(() => countAccept(open.filter((x) => matchesHorizon(horizon, x, now))), [open, horizon, now]);
   // El recién cumplido sigue colgado durante su animación y un momento después,
   // para recibir el sello «CLEAR» antes de descolgarse.
   const visible = all.filter(
     (x) =>
-      (x.status === "pending" && matchesHorizon(horizon, x, now)) ||
-      (x.status === "done" && showDone && horizon === "all") ||
+      (x.status === "pending" && matchesHorizon(horizon, x, now) && matchesAccept(accept, x)) ||
+      (x.status === "done" && showDone && horizon === "all" && accept !== "planned") ||
       farewell?.id === x.id ||
       clearing === x.id,
   );
@@ -180,8 +185,11 @@ export function TemporalBoard() {
               onClick={() => {
                 sfx.move();
                 useTemporalUi.getState().setShowDone(!showDone);
-                // Los cumplidos no tienen plazo: para verlos, el filtro vuelve a «Todo».
-                if (!showDone) useHorizonUi.getState().setFilter("temporal", "all");
+                // Los cumplidos no tienen plazo y están aceptados: para verlos, el plazo vuelve a «Todo» y no se quedan fuera por «Sin aceptar».
+                if (!showDone) {
+                  useHorizonUi.getState().setFilter("temporal", "all");
+                  if (accept === "planned") useTemporalUi.getState().setAccept("all");
+                }
               }}
             >
               {showDone ? t("temporal.board.hideDone") : t("temporal.board.showDone", { n: doneCount })}
@@ -190,7 +198,10 @@ export function TemporalBoard() {
         </div>
       </header>
 
-      <HorizonFilter section="temporal" counts={counts} />
+      <div className="tb-filters">
+        <AcceptFilter counts={acceptCounts} />
+        <HorizonFilter section="temporal" counts={counts} />
+      </div>
 
       <BoardToast />
 
@@ -226,6 +237,8 @@ export function TemporalBoard() {
             <span className="tp-tack" />
             {pending > 0 && horizon !== "all" ? (
               <p>{t("horizon.empty")}</p>
+            ) : pending > 0 && accept !== "all" ? (
+              <p>{t("temporal.board.emptyFilter")}</p>
             ) : (
               <>
                 <p>{t("temporal.board.empty")}</p>

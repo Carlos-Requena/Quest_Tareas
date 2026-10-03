@@ -26,6 +26,8 @@ import { MerchantModal, merchantBusy, openMerchant } from "./features/merchant";
 import { Backdrop, CharacterModal, characterBusy, openCharacter } from "./features/equipment";
 import { ChronicleModal, chronicleBusy, openChronicle } from "./features/chronicle";
 import { DetailBack, MobileCreate, MobileMenu, MobileNav, isPhone, useMobileUi } from "./features/mobile";
+import { CalendarView, calendarBusy, toggleCalendar } from "./features/calendar";
+import { AgendaFormModal } from "./features/agenda";
 
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
@@ -52,7 +54,8 @@ export default function App() {
   const inTab = useMemo(
     () =>
       [...quests.values()]
-        .filter((q) => q.status !== "done" && (tab === "all" || q.category === tab))
+        // Las de un encargo sin aceptar esperan en reserva (features/temporal).
+        .filter((q) => q.status !== "done" && !q.reserved && (tab === "all" || q.category === tab))
         .sort((a, b) => ORDER[a.category] - ORDER[b.category] || a.createdAt - b.createdAt),
     [quests, tab],
   );
@@ -75,10 +78,11 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useGame.getState();
-      if (s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || e.metaKey || e.ctrlKey) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || e.metaKey || e.ctrlKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
 
-      // Teclas comunes a los dos tablones.
+      // Teclas comunes a los dos tablones y al calendario (que no tiene plazos: H no hace nada).
+      const board = s.section === "calendar" ? undefined : s.section;
       const common: Record<string, () => void> = {
         t: () => switchSection(),
         i: () => (sfx.move(), s.setCollection("inventory")),
@@ -87,15 +91,16 @@ export default function App() {
         j: () => (sfx.move(), openChronicle()),
         l: () => (sfx.move(), toggleLang()),
         m: () => music.toggle(),
-        h: () => (sfx.move(), cycleHorizon(s.section, 1)),
-        H: () => (sfx.move(), cycleHorizon(s.section, -1)),
+        s: () => toggleCalendar(),
+        h: () => board && (sfx.move(), cycleHorizon(board, 1)),
+        H: () => board && (sfx.move(), cycleHorizon(board, -1)),
       };
       if (common[e.key]) {
         common[e.key]();
         e.preventDefault();
         return;
       }
-      // El tablón de encargos temporales maneja sus propias teclas (TemporalBoard).
+      // El tablón de encargos temporales y el calendario manejan sus propias teclas.
       if (s.section !== "board") return;
 
       const idx = visible.findIndex((q) => q.id === selected?.id);
@@ -139,6 +144,10 @@ export default function App() {
       {section === "temporal" ? (
         <main className="main main-temporal">
           <TemporalBoard />
+        </main>
+      ) : section === "calendar" ? (
+        <main className="main main-calendar">
+          <CalendarView />
         </main>
       ) : (
         <main className="main">
@@ -203,6 +212,7 @@ export default function App() {
       <PomodoroWatcher />
       <SyncWatcher />
       <TemporalOverlays />
+      <AgendaFormModal />
     </div>
   );
 }

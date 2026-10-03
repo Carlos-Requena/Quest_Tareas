@@ -20,6 +20,9 @@ export function longDue(t: Pick<TemporalState, "dueAt" | "allDay">): string {
   return `${day} · ${t.allDay ? i18n.t("temporal.when.allDay") : clock(t.dueAt)}`;
 }
 
+/** «03/10/26»: la fecha pequeña del sello «ACCEPTED». */
+export const sealDate = (ms: number) => new Intl.DateTimeFormat(locale(), { day: "2-digit", month: "2-digit", year: "2-digit" }).format(ms);
+
 export const longDate = (ms: number) => new Intl.DateTimeFormat(locale(), { day: "numeric", month: "long", year: "numeric" }).format(ms);
 
 /** Etiqueta de cuenta atrás y su urgencia: «Faltan 2 h», «Mañana, 10:00», «En 5 días», «Vencido»… */

@@ -7,7 +7,7 @@ import { applyPomodoroEvent, newPomodoro, planOf, viewPomodoro } from "../featur
 import { upcastQuestDef } from "../features/pomodoro/legacy";
 import { applyItemEvent, newItemsAcc, receiveItems, registerItem, type ItemsAcc } from "../features/items/model";
 import { upcastReward } from "../features/items/legacy";
-import { applyTemporalEvent, linkedQuestDone, newTemporalAcc, questOwners, type TemporalAcc } from "../features/temporal/model";
+import { applyTemporalEvent, inReserve, isAccepted, linkedQuestDone, newTemporalAcc, questOwners, type TemporalAcc } from "../features/temporal/model";
 import { cleanRequires, prerequisitesMet, recurs } from "../features/complex/model";
 import { applyMerchantEvent, fullCatalog, gearOf, newMerchantAcc, type MerchantAcc } from "../features/merchant/model";
 import { applyEquipmentEvent, newEquipmentAcc, pruneEquipment, type EquipmentAcc } from "../features/equipment/model";
@@ -17,6 +17,8 @@ import { nextStreak } from "../features/streaks/model";
 import { newChronicleAcc, noteStart, record, type ChronicleAcc, type ChronicleFind } from "../features/chronicle/model";
 import { questReward, temporalValue } from "../features/rewards/model";
 import { applyCollectibleEvent } from "../features/collectibles/model";
+import { cleanContacts } from "../features/contacts/model";
+import { applyAgendaEvent, newAgendaAcc, type AgendaAcc } from "../features/agenda/model";
 
 /**
  * Versión de la lógica de la proyección. Un snapshot guardado con otra versión se
@@ -25,7 +27,7 @@ import { applyCollectibleEvent } from "../features/collectibles/model";
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 7;
+export const PROJECTION_VERSION = 9;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -41,6 +43,8 @@ export interface ProjectionAcc {
   equipment: EquipmentAcc;
   attributes: AttributesAcc;
   chronicle: ChronicleAcc;
+  /** Agenda personal (features/agenda): no toca al jugador. */
+  agenda: AgendaAcc;
   xp: number;
   gold: number;
   completedCount: number;
@@ -55,6 +59,7 @@ export const newProjectionAcc = (): ProjectionAcc => ({
   equipment: newEquipmentAcc(),
   attributes: newAttributesAcc(),
   chronicle: newChronicleAcc(),
+  agenda: newAgendaAcc(),
   xp: 0,
   gold: 0,
   completedCount: 0,
@@ -95,11 +100,14 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
         if (item) registerItem(items, item);
         // Listas con casillas válidas (features/checklist).
         const conditions = def.conditions.map((c) => (isChecklistCondition(c) ? cleanChecklist(c) : c));
+        // Contactos limpios (features/contacts); sin ninguno, el campo no está.
+        const contacts = cleanContacts(def.contacts);
         quests.set(def.id, {
           ...def,
           conditions,
           requires: cleanRequires(def),
           dueAt: Number.isFinite(def.dueAt) ? def.dueAt : undefined,
+          contacts: contacts.length ? contacts : undefined,
           // XP y oro salen de los objetivos (features/rewards); lo que trae el evento solo aporta el objeto.
           reward: questReward({ category: def.category, conditions, reward }),
           status: "available",
@@ -116,12 +124,14 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
       break;
 
     case "quest_accepted":
-      // Una quest con requisitos no se puede aceptar hasta completarlos (features/complex).
+      // Una quest con requisitos no se puede aceptar hasta completarlos (features/complex),
+      // ni una en reserva hasta aceptar su encargo (features/temporal).
       if (
         q &&
         (q.status === "available" ||
           (q.status === "cooldown" && e.ts >= (q.availableAt ?? 0))) &&
-        prerequisitesMet(q, quests)
+        prerequisitesMet(q, quests) &&
+        !inReserve(temporals, q.id)
       ) {
         q.status = "active";
         q.acceptedAt = e.ts;
@@ -241,6 +251,8 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
     case "temporal_detached":
     case "temporal_linked":
     case "temporal_unlinked":
+    case "temporal_accepted":
+    case "temporal_postponed":
     case "temporal_completed":
     case "temporal_deleted": {
       // Cumplir un encargo temporal también da XP y oro (copiados en el evento).
@@ -278,6 +290,14 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
       applyEquipmentEvent(acc.equipment, acc.merchant, e);
       break;
 
+    case "agenda_created":
+    case "agenda_updated":
+    case "agenda_skipped":
+    case "agenda_deleted":
+      // La agenda es para organizarse: no da XP ni oro.
+      applyAgendaEvent(acc.agenda, e);
+      break;
+
     case "collectible_purchased": {
       // Comprar un coleccionable gasta oro, solo si llega y aún no lo tienes (features/collectibles).
       const spent = applyCollectibleEvent(items, e, e.ts, acc.gold);
@@ -291,18 +311,22 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
 }
 
 /**
- * Cierra la proyección: lo que se deriva del acumulador entero (nivel, rango, huecos
- * y el encargo de cada quest). Se puede llamar después de cada evento.
+ * Cierra la proyección: lo que se deriva del acumulador entero (nivel, rango, huecos,
+ * el encargo de cada quest y si está en reserva). Se puede llamar después de cada evento.
  */
 export function finishProjection(acc: ProjectionAcc): GameState {
-  const { quests, items, temporals, merchant, equipment, attributes, chronicle, xp, gold, completedCount } = acc;
+  const { quests, items, temporals, merchant, equipment, attributes, chronicle, agenda, xp, gold, completedCount } = acc;
   // Cada quest sabe a qué encargo pendiente pertenece (para su fecha y su enlace).
   // Se recalcula entero: tras desenlazar o cumplir un encargo, la quest ya no lo tiene.
+  // Las de un encargo sin aceptar quedan en reserva, salvo las que ya estén en curso.
   const owners = questOwners(temporals.board.values());
   for (const q of quests.values()) {
     const temporalId = owners.get(q.id);
     if (temporalId) q.temporalId = temporalId;
     else delete q.temporalId;
+    const owner = temporalId ? temporals.board.get(temporalId) : undefined;
+    if (owner && !isAccepted(owner) && q.status !== "active" && q.status !== "done") q.reserved = true;
+    else delete q.reserved;
   }
   // Lo que vale un encargo pendiente depende de sus quests enlazadas (features/rewards).
   for (const t of temporals.board.values()) {
@@ -318,6 +342,7 @@ export function finishProjection(acc: ProjectionAcc): GameState {
     temporals: temporals.board,
     gear: fullCatalog(merchant),
     chronicle,
+    agenda: agenda.entries,
     player: {
       xp,
       gold,

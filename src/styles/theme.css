@@ -76,6 +76,8 @@
   --diary-ink-red: #8a2418;
   --diary-ribbon: #7a1c22;
   --ink-red: #a3262a;
+  /* Tinta azul de oficina: el sello «ACCEPTED» de los encargos aceptados. */
+  --ink-blue: #24508f;
 
   /* Mercader (src/features/merchant): el rojo de la funeraria de Hu Tao y su sello */
   --merchant: #c9433a;

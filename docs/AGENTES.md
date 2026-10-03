@@ -6,7 +6,7 @@ Esta guía es para cualquier agente (o persona) que vaya a hacer tareas en este 
 
 ## 1. Qué es Quests, en 30 segundos
 
-App de escritorio (macOS y Windows) y de **iPhone** que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos). Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú (con 69 piezas **de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos); junto al muñeco, los **atributos**: un nivel por cada área de las quests. Las quests que se repiten llevan su **racha**, los objetivos pueden ser **listas de casillas** y todo lo que haces queda en la **crónica del aventurero**, un diario gastado. Interfaz en español y japonés, con música de fondo. Los datos se **sincronizan entre equipos por Google Drive** (cada equipo sube sus eventos y baja los de los demás). En el iPhone es la misma app compilada para iOS, con una **interfaz de teléfono** (barra de abajo, detalle a pantalla completa, ventanas a pantalla completa).
+App de escritorio (macOS y Windows) y de **iPhone** que convierte tareas en *quests* de estilo JRPG: tablón con categorías, objetivos con contador o con pomodoro, quests que se repiten o que piden otras antes, XP, niveles, oro, objetos con rareza (inventario, almanaque y drops al estilo gacha) y animaciones (sello «EN CURSO», tarjeta que se rompe, «Quest Clear», «Level Up!»). Aparte, un tablón de **encargos temporales** (citas y eventos con fecha, con calaveras rojas según su dificultad, PDF o imágenes adjuntos y quests enlazadas que hay que terminar antes de cumplirlos): es lo que se planifica a largo plazo, así que un encargo se clava **sin aceptar** (sus quests esperan en reserva, fuera del Quest Board) y se **acepta** cuando se empieza, con su sello «ACCEPTED». Una tercera sección, el **calendario**, enseña la semana (quests con fecha límite, encargos y bloques) y el día por horas, con una **agenda personal** de bloques que se repiten. Las quests y los encargos pueden llevar **contactos** (teléfono, correo, WhatsApp, enlace, dirección) con su botón de llamar o escribir. Los dos tablones se filtran por **plazo**. El oro se gasta en el **mercader** (Hu Tao), que vende equipo para un **muñeco que representa al jugador** y decoración del menú (con 69 piezas **de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos); junto al muñeco, los **atributos**: un nivel por cada área de las quests. Las quests que se repiten llevan su **racha**, los objetivos pueden ser **listas de casillas** y todo lo que haces queda en la **crónica del aventurero**, un diario gastado. Interfaz en español y japonés, con música de fondo. Los datos se **sincronizan entre equipos por Google Drive** (cada equipo sube sus eventos y baja los de los demás). En el iPhone es la misma app compilada para iOS, con una **interfaz de teléfono** (barra de abajo, detalle a pantalla completa, ventanas a pantalla completa).
 
 - **Stack:** Tauri 2 (Rust) + React 19 + TypeScript 6 + Vite 8 + Zustand 5 + Motion + GSAP + i18next, con SQLite vía `tauri-plugin-sql`.
 - **Modelo de datos:** *event sourcing* local-first. Se guardan **eventos inmutables** en SQLite y el estado se **calcula** reproduciéndolos (`project()`).
@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) y de **iPhone** que convierte tareas en *que
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle`, `recovery`, `sync`, `mobile`, `rewards` y `collectibles`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle`, `recovery`, `sync`, `mobile`, `rewards`, `collectibles`, `contacts`, `agenda` y `calendar`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -93,7 +93,7 @@ src/
     pomodoro/          Pomodoro como tipo de condición (rondas; la última sin descanso)
     music/             Música de fondo (servicio local, sin eventos)
     items/             Objetos con rareza y tipo fijo: inventario, drops con pity, un almanaque por tipo de objeto (también el equipo); los de cofre son coleccionables únicos (eventos item_*)
-    temporal/          Encargos temporales: tablón aparte, calaveras, adjuntos y quests enlazadas (eventos temporal_*)
+    temporal/          Encargos temporales: tablón aparte, calaveras, adjuntos, quests enlazadas, aceptados o sin aceptar (quests en reserva) (eventos temporal_*)
     complex/           Quests complejas: repetición en cualquier categoría y requisitos (sin eventos propios)
     horizon/           Plazos: clasificación por lo que falta y fecha límite de las quests (sin eventos)
     snapshot/          Snapshot de la proyección: dispatch incremental y arranque sin reproducirlo todo (sin eventos)
@@ -108,6 +108,9 @@ src/
     sync/              Sincronización con Google Drive: un JSONL por equipo y los binarios por SHA-256 (sin eventos; la parte nativa en src-tauri/src/sync)
     mobile/            Interfaz de teléfono (iPhone): barra de abajo, menú «Más», detalle a pantalla completa, deslizar para pasar página (sin eventos)
     rewards/           Recompensa calculada: XP y oro según los objetivos y la categoría, y la de los encargos según sus quests (sin eventos; la aplica la proyección)
+    contacts/          Contactos de quests y encargos (teléfono, correo, WhatsApp, enlace, dirección) y abrirlos con tauri-plugin-opener (sin eventos: van en QuestDef / TemporalDef)
+    agenda/            Agenda personal por horas: bloques de un día o que se repiten ciertos días de la semana (eventos agenda_*; sin XP ni oro)
+    calendar/          Calendario: sección con la semana (quests con fecha, encargos y agenda) y el día por horas (sin eventos)
     collectibles/      Coleccionable de la semana en la ventana de Hu Tao: un objeto de cofre mítico o superior que no tienes, uno por semana (collectible_purchased)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
   test/              Utilidades de los tests (historiales aleatorios con semilla)
@@ -159,7 +162,7 @@ components ──▶ store ──▶ domain ◀── storage
 
 | Va en eventos (se sincroniza) | No va en eventos (por equipo) |
 |---|---|
-| Quests, aceptar, progreso (contadores y casillas de las listas), completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales y la referencia de sus adjuntos, el catálogo del mercader (con su icono), las compras (con su precio) y lo que lleva puesto el personaje | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), id del dispositivo en el navegador. Tampoco van en eventos, porque se calculan: rachas, atributos y crónica. Ni las piezas de serie, que están en el código. La sincronización guarda en la tabla `meta` sus cursores y la cuenta conectada, y el token en el llavero del sistema |
+| Quests (con sus contactos), aceptar, progreso (contadores y casillas de las listas), completar (con sus drops), pomodoros, objetos del almanaque (con su imagen), encargos temporales (aceptarlos y aplazarlos) y la referencia de sus adjuntos, los bloques de la agenda, el catálogo del mercader (con su icono), las compras (con su precio) y lo que lleva puesto el personaje | Idioma (`quests.lang`), silencio general (`quests.muted`), música (`quests.music`), el filtro de aceptados del tablón de encargos (`quests.temporalAccept`), la vista del calendario (`quests.calendarView`), id del dispositivo en el navegador. Tampoco van en eventos, porque se calculan: rachas, atributos y crónica. Ni las piezas de serie, que están en el código. La sincronización guarda en la tabla `meta` sus cursores y la cuenta conectada, y el token en el llavero del sistema |
 
 **Archivos adjuntos (norma):** en el evento solo va la referencia (nombre, tipo, tamaño, una miniatura pequeña y el `blobId`). El contenido va al almacén de binarios (`src/storage/blobStore.ts`), con su SHA-256 como clave. Nunca metas un archivo grande en un evento: se leería en cada arranque y no cabe en el `localStorage` del navegador. La imagen grande del **fondo del menú** (mercader) sigue la misma norma. El almacén lo comparten varias funcionalidades: **antes de borrar un binario, comprueba que no lo use ninguna** (`liveBlobIds` de los encargos y `gearBlobIds` del mercader).
 
@@ -283,7 +286,7 @@ Lo mismo vale para los otros diagramas (arquitectura, ciclo de vida, hoja de rut
 ## 11. Deuda conocida: no la empeores
 
 La fase 1.5 (endurecimiento) cerró la versión de los eventos (`v` + `UPCASTERS`), el reloj lógico híbrido, el error boundary (`features/recovery`), la CSP estricta y la CI en macOS y Windows. Queda pendiente:
-- **Tests:** el dominio, el store y la sincronización están cubiertos (332 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones.
+- **Tests:** el dominio, el store y la sincronización están cubiertos (394 tests; prueba de mutación 19/20, y 11/11 en el mercader, el equipo y los atributos). Siguen sin tests el almacén de binarios (`blobStore.ts`: IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones.
 - **Windows a mano:** la CI compila y pasa los tests en Windows, pero nadie ha abierto la app allí (fuentes, animaciones, visor de PDF de WebView2). Los instaladores están en los artefactos de cada run de la CI.
 - **CSP sin revisar a simple vista en la app nativa:** se probó la misma política en Chromium y que la app de macOS arranca y abre la base de datos con ella, pero no se vio la ventana. Si algo no carga (vídeo, PDF, fondo), mira primero la CSP.
 - **Reloj con mucha deriva:** un equipo que vaya más de 1 minuto por detrás de un evento ya aplicado recalcula todo en cada acción hasta que su reloj lo alcanza.
@@ -307,6 +310,9 @@ Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, 
 - **Precios elevados.** El precio sale de la rareza y lleva un recargo por ranura (`SLOT_PRICE_FACTOR`, nunca por debajo de ×1): de 1.200 G a 160.000 G.
 - **Equipo de serie para todos.** Las piezas que trae la app (features/armory) son para todo el que la instale, inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos, con arte propio (nunca imágenes de las series). Se añaden en el código, no con eventos.
 - **Todo traducido en japonés.** Lo que no escribe el usuario se traduce, también lo que lo parece: las áreas habituales de las quests (los atributos) y las piezas de serie.
+- **Calendario y agenda.** La semana enseña lo que hay que hacer (quests con fecha límite, encargos y bloques); el día por horas es una agenda personal que no da XP ni oro y no se marca como hecha. Los bloques se pueden repetir ciertos días de la semana (features/agenda y features/calendar).
+- **Contactos escritos a mano.** Teléfono, correo, WhatsApp, enlace o dirección, elegidos en un desplegable; no se eligen de la agenda del sistema (features/contacts).
+- **Los encargos son lo principal, pero la app abre en el Quest Board.** El tablón de encargos es lo que se planifica a largo plazo; aun así, al entrar se ven las quests y se pueden crear quests sueltas, sin encargo. Un encargo nuevo se clava **sin aceptar** (sus quests en reserva) y se acepta al empezarlo; el filtro Todos · Aceptados · Sin aceptar arranca en «Todos» (features/temporal).
 - **El vídeo de Hu Tao es público.** Va en el repositorio (`public/merchant/`) y no necesita crédito: es un vídeo no oficial.
 
 ---

@@ -13,6 +13,7 @@ const MARK: Record<LinkState, React.ReactNode> = {
   locked: <LockIcon />,
   available: "○",
   cooldown: "◷",
+  reserved: "◇",
 };
 
 /** Las quests del encargo en el cartel abierto: cuáles están terminadas y cuáles faltan. Cada una lleva al Quest Board. */
@@ -33,7 +34,12 @@ export function PosterQuests({ t }: { t: TemporalState }) {
       </span>
       <div className="pv-quest-list">
         {list.map((q, i) => (
-          <button key={q.id} className={`pv-quest is-${states[i]}`} title={tr("temporal.quests.goTo")} onClick={() => goToQuest(q.id)}>
+          <button
+            key={q.id}
+            className={`pv-quest is-${states[i]}`}
+            title={tr(states[i] === "reserved" ? "temporal.quests.reservedHint" : "temporal.quests.goTo")}
+            onClick={() => goToQuest(q.id)}
+          >
             <span className="pv-quest-mark">{MARK[states[i]]}</span>
             <span className="pv-quest-title">{q.title}</span>
             <span className="pv-quest-state">{tr(`temporal.quests.status.${states[i]}`)}</span>

@@ -7,17 +7,18 @@ import { calm } from "../../../lib/fx";
 import { useNow } from "../../../lib/time";
 import { LANGS, currentLang, num } from "../../../i18n";
 import { GoldIcon } from "../../../components/Header";
-import { KIND_META, isPdf, pendingLinks, type TemporalState } from "../model";
+import { KIND_META, isAccepted, isPdf, pendingLinks, type TemporalState } from "../model";
 import { tornEdge, skullSpots } from "../look";
-import { dueChip, longDate, longDue } from "../format";
+import { dueChip, longDate, longDue, sealDate } from "../format";
 import { formatSize } from "../files";
-import { attachFiles, completeTemporal, deleteTemporal, detachAttachment } from "../actions";
+import { acceptTemporal, attachFiles, completeTemporal, deleteTemporal, detachAttachment, postponeTemporal } from "../actions";
 import { useTemporalUi } from "../ui";
 import { Skull } from "./Skull";
 import { ClipIcon } from "./Poster";
 import { useFilePicker } from "./TemporalForm";
 import { ACCEPT } from "../files";
 import { PosterQuests } from "./PosterQuests";
+import { ContactList } from "../../contacts";
 
 /** El cartel en grande: todos sus datos, sus adjuntos y las acciones (cumplir, editar, adjuntar, retirar). */
 export function PosterView() {
@@ -40,6 +41,10 @@ function View({ t }: { t: TemporalState }) {
   const meta = KIND_META[t.kind];
   const chip = dueChip(t, now);
   const pending = t.status === "pending";
+  // Sin aceptar: se acepta (sus quests salen de la reserva); aceptado: se cumple o se aplaza.
+  const accepted = pending && isAccepted(t);
+  const sealRef = useRef<HTMLSpanElement>(null);
+  const wasAccepted = useRef(accepted);
   const clip = useMemo(() => tornEdge(`${t.id}:view`, 9, 34), [t.id]);
   const skulls = useMemo(() => skullSpots(`${t.id}:view`, t.difficulty, "landscape"), [t.id, t.difficulty]);
   const locale = LANGS[currentLang()].locale;
@@ -74,6 +79,24 @@ function View({ t }: { t: TemporalState }) {
     }, root);
     return () => ctx.revert();
   }, [origin]);
+
+  // Sello «ACCEPTED»: se estampa al aceptarlo, con sacudida del pergamino; si no, se fija.
+  useLayoutEffect(() => {
+    const el = sealRef.current;
+    if (!el) return;
+    const was = wasAccepted.current;
+    wasAccepted.current = accepted;
+    if (accepted && !was) {
+      const tl = gsap.timeline();
+      tl.fromTo(el, { scale: 3, opacity: 0, rotation: 26 }, { scale: 1, opacity: 0.9, rotation: 9, duration: 0.24, ease: "power4.in" })
+        .add(() => sfx.stamp())
+        .to(sheet.current, { keyframes: [{ x: -6, y: 2 }, { x: 5, y: -1 }, { x: -2 }, { x: 0, y: 0 }], duration: 0.22 });
+      return () => {
+        tl.kill();
+      };
+    }
+    gsap.set(el, { opacity: accepted ? 0.9 : 0, scale: 1, rotation: 9 });
+  }, [accepted]);
 
   /** Vuelve a su sitio en el tablón (si sigue ahí) y se cierra. */
   const close = () => {
@@ -117,7 +140,7 @@ function View({ t }: { t: TemporalState }) {
       // Con el foco en un botón (Tab), Enter pulsa ese botón: no cumple el encargo por sorpresa.
       if (e.key === "Enter" && e.target instanceof HTMLButtonElement && root.current?.contains(e.target)) return;
       if (e.key === "Escape") close();
-      else if (e.key === "Enter" && pending) completeTemporal(t.id);
+      else if (e.key === "Enter" && pending) (accepted ? completeTemporal : acceptTemporal)(t.id);
       else if (e.key === "e" && pending) ui.setForm({ mode: "edit", id: t.id });
       else return;
       e.preventDefault();
@@ -163,6 +186,11 @@ function View({ t }: { t: TemporalState }) {
                   <span className={`tp-chip is-${chip.urgency} pv-chip`}>
                     {pending ? chip.label : tr("temporal.view.completedOn", { date: longDate(t.completedAt ?? now) })}
                   </span>
+                  {pending && (
+                    <span className={`pv-accept-state ${accepted ? "is-accepted" : ""}`}>
+                      {accepted ? tr("temporal.view.acceptedOn", { date: longDate(t.acceptedAt ?? now) }) : tr("temporal.view.planned")}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="pv-lbl">{tr("temporal.view.place")}</span>
@@ -174,6 +202,13 @@ function View({ t }: { t: TemporalState }) {
                 <div className="pv-notes pv-in">
                   <span className="pv-lbl">{tr("temporal.view.notes")}</span>
                   <p>{t.notes}</p>
+                </div>
+              )}
+
+              {t.contacts.length > 0 && (
+                <div className="pv-contacts pv-in">
+                  <span className="pv-lbl">{tr("contacts.label")}</span>
+                  <ContactList contacts={t.contacts} paper />
                 </div>
               )}
 
@@ -225,6 +260,10 @@ function View({ t }: { t: TemporalState }) {
               </div>
             </div>
             <span className="tp-clear pv-clear">Clear</span>
+            <span className="tp-seal pv-seal" ref={sealRef} aria-hidden>
+              Accepted
+              <small className="num">{t.acceptedAt !== undefined ? sealDate(t.acceptedAt) : ""}</small>
+            </span>
           </div>
           <div className="pv-skulls">
             {skulls.map((s, i) => (
@@ -238,7 +277,13 @@ function View({ t }: { t: TemporalState }) {
         </div>
 
         <div className="pv-actions">
-          {pending && (
+          {pending && !accepted && (
+            <button className="btn btn-primary is-ready" onClick={() => acceptTemporal(t.id)}>
+              <span className="btn-key">↵</span>
+              {tr("temporal.view.accept")}
+            </button>
+          )}
+          {accepted && (
             <button
               className={`btn btn-primary ${missing ? "is-disabled" : "is-ready"}`}
               disabled={missing > 0}
@@ -247,6 +292,11 @@ function View({ t }: { t: TemporalState }) {
             >
               <span className="btn-key">↵</span>
               {missing ? tr("temporal.quests.missing", { count: missing }) : tr("temporal.view.complete")}
+            </button>
+          )}
+          {accepted && (
+            <button className="btn btn-ghost" title={tr("temporal.view.postponeHint")} onClick={() => postponeTemporal(t.id)}>
+              {tr("temporal.view.postpone")}
             </button>
           )}
           {pending && (

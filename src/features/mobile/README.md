@@ -37,7 +37,7 @@ Se descartó una app aparte para el móvil: duplicaría las pantallas y se desin
 ### El armazón
 
 - **Cabecera en dos filas**: emblema, «Quest Board» y oro con las quests en curso; debajo, rango, nivel y la barra de XP a lo ancho. El idioma, la música, el silencio, Google Drive y los botones de ventanas salen de la cabecera.
-- **Barra de abajo** (`MobileNav`): Tablón, Encargos (con el aviso rojo de los de hoy), Mercader, Personaje y **Más**. Sustituye al pie con las teclas.
+- **Barra de abajo** (`MobileNav`): Tablón, Encargos (con el aviso rojo de los de hoy), Calendario ([../calendar/README.md](../calendar/README.md)), Mercader, Personaje y **Más**: seis columnas. Sustituye al pie con las teclas. En el calendario, el rombo de crear añade un bloque a la agenda y deslizar el dedo pasa de semana o de día.
 - **Menú «Más»** (`MobileMenu`): objetos, crónica, idioma, música (con el volumen), sonido y Google Drive. Reutiliza los mismos controles que la cabecera; su CSS despliega quietos los paneles que en el escritorio salen al pasar el ratón.
 - **Rombo de crear** (`MobileCreate`): dorado, girado 45° como las gemas. Crea una quest en el tablón o un encargo en el de encargos.
 - **Avisos** encima de la barra (`.m-toast`), para que se vean también con el detalle cerrado. El del detalle y el del tablón de madera se esconden.

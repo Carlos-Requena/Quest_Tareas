@@ -9,6 +9,10 @@
     "core:default",
     "sql:default",
     "sql:allow-execute",
-    "core:window:allow-destroy"
+    "core:window:allow-destroy",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "tel:*" }, { "url": "mailto:*" }, { "url": "https://*" }]
+    }
   ]
 }

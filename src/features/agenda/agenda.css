@@ -1,0 +1,111 @@
+/* ───────────── Agenda (src/features/agenda) ───────────── */
+
+.ag-form {
+  width: min(600px, 94vw);
+}
+/* Al editar hay hasta cuatro botones: los de quitar van en su fila si no caben. */
+.ag-form .modal-f {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.ag-repeat .seg-btn {
+  flex: 1 1 0;
+}
+.ag-repeat-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-top: 10px;
+}
+.ag-days {
+  display: flex;
+  gap: 5px;
+}
+.ag-day {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background 0.2s, color 0.2s;
+}
+.ag-day:hover {
+  color: var(--text);
+}
+.ag-day.on {
+  color: var(--bg);
+  background: var(--cat);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--cat) 45%, transparent);
+}
+.ag-until {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ag-until .lbl {
+  margin: 0;
+  white-space: nowrap;
+}
+.field .ag-until input {
+  width: auto;
+  padding: 6px 10px;
+  color-scheme: dark;
+}
+.field input[type="date"],
+.field input[type="time"] {
+  color-scheme: dark;
+}
+.ag-colors {
+  display: flex;
+  gap: 10px;
+}
+.ag-color {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--c);
+  opacity: 0.55;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.ag-color:hover {
+  opacity: 0.85;
+}
+.ag-color.on {
+  opacity: 1;
+  transform: scale(1.12);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c), 0 0 12px var(--c);
+}
+.ag-delete {
+  display: flex;
+  gap: 6px;
+  margin-right: auto;
+}
+
+/* ───────────── Teléfono (features/mobile; 760 px es PHONE_MAX_WIDTH) ───────────── */
+
+@media (max-width: 760px) {
+  .ag-day {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+  .ag-days {
+    flex-wrap: wrap;
+  }
+  .ag-color {
+    width: 40px;
+    height: 40px;
+  }
+  .ag-delete {
+    flex-wrap: wrap;
+  }
+  .field .ag-until input {
+    font-size: 16px;
+    padding: 9px 10px;
+  }
+}

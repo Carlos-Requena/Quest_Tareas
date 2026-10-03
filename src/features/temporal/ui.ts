@@ -6,7 +6,19 @@
 
 import { create } from "zustand";
 import type { PlayerState } from "../../domain/types";
-import type { AttachmentRef, TemporalReward } from "./model";
+import { ACCEPT_FILTERS, type AcceptFilter, type AttachmentRef, type TemporalReward } from "./model";
+
+/** El filtro por aceptación se recuerda en cada equipo (como el idioma): no es un dato del juego. */
+const ACCEPT_KEY = "quests.temporalAccept";
+
+function loadAccept(): AcceptFilter {
+  try {
+    const v = localStorage.getItem(ACCEPT_KEY);
+    return ACCEPT_FILTERS.find((f) => f === v) ?? "all";
+  } catch {
+    return "all";
+  }
+}
 
 /** Lo que necesita la animación de «encargo cumplido». */
 export interface TemporalClear {
@@ -16,7 +28,8 @@ export interface TemporalClear {
   reward: TemporalReward;
 }
 
-export type TemporalForm = { mode: "create" } | { mode: "edit"; id: string };
+/** `date` (AAAA-MM-DD): el día en que se clava, si se crea desde el calendario. */
+export type TemporalForm = { mode: "create"; date?: string } | { mode: "edit"; id: string };
 
 /** Rectángulo de pantalla desde el que se abre un cartel (para que «salga» del tablón). */
 export interface Origin {
@@ -40,6 +53,8 @@ interface TemporalUi {
   viewer?: AttachmentRef;
   /** Mostrar también los cumplidos en el tablón. */
   showDone: boolean;
+  /** Filtro por aceptación: todos, solo los aceptados o solo los que aún no. */
+  accept: AcceptFilter;
   /** Cartel que acaba de llegar al tablón: cae y se clava con su chincheta. */
   landed?: { id: string; key: number };
   /** Cartel recién cumplido: recibe el sello «CLEAR» y se descuelga del tablón. */
@@ -53,12 +68,14 @@ interface TemporalUi {
   setCleared(c?: TemporalClear): void;
   setViewer(a?: AttachmentRef): void;
   setShowDone(v: boolean): void;
+  setAccept(f: AcceptFilter): void;
   land(id: string): void;
   bid(id?: string): void;
 }
 
 export const useTemporalUi = create<TemporalUi>((set) => ({
   showDone: false,
+  accept: loadAccept(),
   select: (selectedId) => set({ selectedId }),
   open: (id, origin) => set({ viewing: { id, origin }, selectedId: id }),
   closeView: () => set({ viewing: undefined }),
@@ -67,6 +84,14 @@ export const useTemporalUi = create<TemporalUi>((set) => ({
   setCleared: (cleared) => set({ cleared }),
   setViewer: (viewer) => set({ viewer }),
   setShowDone: (showDone) => set({ showDone }),
+  setAccept: (accept) => {
+    try {
+      localStorage.setItem(ACCEPT_KEY, accept);
+    } catch {
+      // Sin almacenamiento (modo privado): solo dura esta sesión.
+    }
+    set({ accept });
+  },
   land: (id) => set({ landed: { id, key: Date.now() }, selectedId: id }),
   bid: (id) => set({ farewell: id ? { id, key: Date.now() } : undefined }),
 }));

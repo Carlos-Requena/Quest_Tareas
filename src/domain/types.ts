@@ -7,6 +7,8 @@ import type { Attribute } from "../features/attributes/model";
 import type { Checked, ChecklistConditionDef } from "../features/checklist/model";
 import type { Streak } from "../features/streaks/model";
 import type { ChronicleAcc } from "../features/chronicle/model";
+import type { ContactRef } from "../features/contacts/model";
+import type { AgendaState } from "../features/agenda/model";
 
 export type Category = "elite" | "repeat" | "request";
 
@@ -64,6 +66,8 @@ export interface QuestDef {
   requires?: string[];
   /** Fecha límite opcional, todo el día: medianoche local de ese día (features/horizon). */
   dueAt?: number;
+  /** A quién llamar o escribir, o dónde ir (features/contacts). Falta si no hay ninguno. */
+  contacts?: ContactRef[];
   createdAt: number;
 }
 
@@ -84,6 +88,11 @@ export interface QuestState extends QuestDef {
   lastCompletedAt?: number;
   /** Encargo temporal pendiente al que pertenece, si lo hay (calculado a partir de sus enlaces). */
   temporalId?: string;
+  /**
+   * En reserva: su encargo aún no se ha aceptado. No sale en el Quest Board ni se puede
+   * aceptar hasta aceptar el encargo (calculado; las que ya están en curso no lo llevan).
+   */
+  reserved?: boolean;
   /** Racha de las quests que se repiten: veces seguidas a tiempo (features/streaks). */
   streak?: Streak;
 }
@@ -124,6 +133,8 @@ export interface GameState {
   gear: Map<string, GearDef>;
   /** Crónica del aventurero: lo que ha pasado, en orden (features/chronicle). */
   chronicle: ChronicleAcc;
+  /** Agenda personal por horas: bloques de un día o que se repiten (features/agenda). */
+  agenda: Map<string, AgendaState>;
   player: PlayerState;
 }
 

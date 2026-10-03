@@ -11,6 +11,7 @@ import {
   TEMPORAL_LIMITS,
   clampSkulls,
   clampText,
+  isAccepted,
   liveBlobIds,
   pendingLinks,
   type AttachmentRef,
@@ -21,6 +22,7 @@ import {
 import type { PreparedFile } from "./files";
 import { useTemporalUi } from "./ui";
 import { useHorizonUi } from "../horizon/ui";
+import { cleanContacts, type ContactRef } from "../contacts/model";
 
 /** Lo que rellena el formulario de encargo. */
 export interface TemporalDraft {
@@ -45,6 +47,10 @@ export interface TemporalDraft {
   fullQuests: QuestDef[];
   /** En cadena: cada quest nueva requiere la anterior de la lista. */
   chain: boolean;
+  /** Solo al clavarlo: aceptarlo ya. Si no, se clava sin aceptar y sus quests quedan en reserva. */
+  accept: boolean;
+  /** A quién llamar o escribir, o dónde ir (features/contacts). */
+  contacts: ContactRef[];
 }
 
 /** Quest nueva escrita en el formulario del encargo: un título y cuántas veces hay que hacerla. */
@@ -67,14 +73,14 @@ export function dueAtOf(date: string, time: string): number {
   return new Date(+m[1], +m[2] - 1, +m[3], t ? +t[1] : 0, t ? +t[2] : 0).getTime();
 }
 
-/** Borrador nuevo: mañana a las 10:00, una calavera. */
-export function emptyDraft(now = Date.now()): TemporalDraft {
+/** Borrador nuevo: mañana (o el día elegido en el calendario) a las 10:00, una calavera. */
+export function emptyDraft(now = Date.now(), date?: string): TemporalDraft {
   const tomorrow = new Date(now + 86_400_000);
   return {
     title: "",
     kind: "summons",
     difficulty: 1,
-    date: isoDate(tomorrow),
+    date: date ?? isoDate(tomorrow),
     time: "10:00",
     place: "",
     notes: "",
@@ -84,6 +90,8 @@ export function emptyDraft(now = Date.now()): TemporalDraft {
     newQuests: [],
     fullQuests: [],
     chain: false,
+    accept: false,
+    contacts: [],
   };
 }
 
@@ -104,6 +112,8 @@ export function draftOf(t: TemporalDef, quests?: Map<string, QuestState>): Tempo
     newQuests: [],
     fullQuests: [],
     chain: false,
+    accept: false,
+    contacts: t.contacts ?? [],
   };
 }
 
@@ -124,7 +134,7 @@ export function draftReward(d: TemporalDraft, quests: Map<string, QuestState>): 
 }
 
 /** Valida y normaliza. Sin título o sin fecha no hay encargo. */
-function clean(d: TemporalDraft): Omit<TemporalDef, "id" | "createdAt" | "attachments" | "questIds"> | undefined {
+function clean(d: TemporalDraft): Omit<TemporalDef, "id" | "createdAt" | "attachments" | "questIds" | "planned"> | undefined {
   const title = clampText(d.title, TEMPORAL_LIMITS.title);
   const dueAt = dueAtOf(d.date, d.time);
   if (!title || !Number.isFinite(dueAt) || !TEMPORAL_KINDS.includes(d.kind)) return undefined;
@@ -136,6 +146,8 @@ function clean(d: TemporalDraft): Omit<TemporalDef, "id" | "createdAt" | "attach
     allDay: !d.time,
     place: clampText(d.place, TEMPORAL_LIMITS.place),
     notes: clampText(d.notes, TEMPORAL_LIMITS.notes),
+    // Los vacíos se quedan fuera (features/contacts).
+    contacts: cleanContacts(d.contacts),
     // Calculada (features/rewards): la proyección la recalcula si cambian sus quests.
     reward: draftReward(d, useGame.getState().state.quests),
   };
@@ -224,19 +236,31 @@ export async function createTemporal(d: TemporalDraft): Promise<boolean> {
   // Primero las quests (así el encargo nace enlazado a ellas) y después el encargo.
   const linked = d.questIds.slice(0, TEMPORAL_LIMITS.quests);
   const created = await createDraftQuests(d, fields, linked[linked.length - 1]);
-  const temporal: TemporalDef = { ...fields, id: uid(), attachments, questIds: [...linked, ...created], createdAt: Date.now() };
+  const temporal: TemporalDef = {
+    ...fields,
+    id: uid(),
+    attachments,
+    questIds: [...linked, ...created],
+    createdAt: Date.now(),
+    // Sin aceptar, sus quests esperan en reserva hasta que lo aceptes.
+    ...(d.accept ? {} : { planned: true }),
+  };
   const { dispatch, say } = useGame.getState();
   await dispatch({ type: "temporal_created", temporal });
   const ui = useTemporalUi.getState();
   ui.setForm(undefined);
   ui.select(temporal.id);
   ui.setPosted(temporal.id);
-  // Que el cartel nuevo se vea al llegar al tablón, sea cual sea el plazo elegido.
+  // Que el cartel nuevo se vea al llegar al tablón, sea cual sea el plazo o la aceptación elegidos.
   useHorizonUi.getState().setFilter("temporal", "all");
+  if (ui.accept !== (d.accept ? "accepted" : "planned")) ui.setAccept("all");
+  const quests = temporal.questIds.length;
   say(() =>
-    created.length
-      ? i18n.t("temporal.toast.questsCreated", { title: temporal.title, count: created.length })
-      : i18n.t("temporal.toast.posted", { title: temporal.title }),
+    !d.accept && quests
+      ? i18n.t("temporal.toast.questsReserved", { title: temporal.title, count: quests })
+      : created.length
+        ? i18n.t("temporal.toast.questsCreated", { title: temporal.title, count: created.length })
+        : i18n.t("temporal.toast.posted", { title: temporal.title }),
   );
   return true;
 }
@@ -313,11 +337,48 @@ export async function detachAttachment(id: string, attachmentId: string) {
   await collect([a.blobId]);
 }
 
+/** Acepta un encargo: sus quests salen de la reserva al Quest Board y ya se puede cumplir. */
+export async function acceptTemporal(id: string) {
+  const { state, dispatch, say } = useGame.getState();
+  const t = state.temporals.get(id);
+  if (t?.status !== "pending" || isAccepted(t)) return;
+  const freed = [...state.quests.values()].filter((q) => q.reserved && q.temporalId === id).length;
+  await dispatch({ type: "temporal_accepted", temporalId: id });
+  say(() =>
+    freed
+      ? i18n.t("temporal.toast.acceptedQuests", { title: t.title, count: freed })
+      : i18n.t("temporal.toast.accepted", { title: t.title }),
+  );
+}
+
+/** Aplaza un encargo aceptado: vuelve a «sin aceptar» y sus quests, a la reserva. */
+export async function postponeTemporal(id: string) {
+  const { state, dispatch, say } = useGame.getState();
+  const t = state.temporals.get(id);
+  if (t?.status !== "pending" || !isAccepted(t)) return;
+  // Con quests en curso no: primero se abandonan o se terminan (la proyección las dejaría en curso).
+  const busy = t.questIds.map((q) => state.quests.get(q)).find((q) => q?.status === "active");
+  if (busy) {
+    sfx.cancel();
+    say(() => i18n.t("temporal.toast.postponeBusy", { title: busy.title }));
+    return;
+  }
+  sfx.cancel();
+  await dispatch({ type: "temporal_postponed", temporalId: id });
+  say(() => i18n.t("temporal.toast.postponed", { title: t.title }));
+}
+
 /** Cumple el encargo: copia la recompensa en el evento y lanza la animación de «logro». */
 export async function completeTemporal(id: string) {
   const { state, dispatch, say } = useGame.getState();
   const t = state.temporals.get(id);
   if (t?.status !== "pending") return;
+  // Sin aceptar no se puede cumplir (la proyección también lo impide).
+  if (!isAccepted(t)) {
+    sfx.cancel();
+    say(() => i18n.t("temporal.toast.acceptFirst", { title: t.title }));
+    return;
+  }
   // Con quests enlazadas sin terminar, el encargo no se puede cumplir (la proyección también lo impide).
   const missing = pendingLinks(t, state.quests);
   if (missing.length) {
@@ -356,7 +417,15 @@ export async function loadAttachment(a: AttachmentRef): Promise<Blob | undefined
 /** Lleva al Quest Board con la quest elegida (desde un cartel o el formulario). */
 export function goToQuest(questId: string) {
   const g = useGame.getState();
-  if (!g.state.quests.has(questId)) return;
+  const q = g.state.quests.get(questId);
+  if (!q) return;
+  // En reserva no está en el Quest Board: aparecerá al aceptar su encargo.
+  if (q.reserved) {
+    sfx.cancel();
+    const owner = q.temporalId ? g.state.temporals.get(q.temporalId) : undefined;
+    g.say(() => i18n.t("temporal.toast.reserved", { title: q.title, temporal: owner?.title ?? "" }));
+    return;
+  }
   sfx.page();
   useTemporalUi.getState().closeView();
   // Pestaña y plazo a «todo»: si no, la quest podría quedar fuera del tablón filtrado.
@@ -372,6 +441,7 @@ export function goToTemporal(temporalId: string) {
   if (!g.state.temporals.has(temporalId)) return;
   sfx.page();
   useHorizonUi.getState().setFilter("temporal", "all");
+  useTemporalUi.getState().setAccept("all");
   g.setSection("temporal");
   useTemporalUi.getState().open(temporalId);
 }

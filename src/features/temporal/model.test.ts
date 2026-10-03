@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   applyTemporalEvent,
   clampSkulls,
+  countAccept,
+  matchesAccept,
   daysUntil,
   liveBlobIds,
   linkedQuestDone,
@@ -179,5 +181,77 @@ describe("quests enlazadas en la proyección", () => {
     expect(linkState(q("r"), T0 + 5 * MIN, st.quests, now)).toBe("cooldown");
     expect(linkState(q("r"), T0, st.quests, now)).toBe("done");
     expect(linkState(q("r"), T0 + 5 * MIN, st.quests, T0 + 2 * HOUR)).toBe("available");
+  });
+});
+
+describe("aceptados y sin aceptar", () => {
+  const run = (bodies: TemporalEventBody[], linkDone: (q: string, since: number) => boolean = () => true) => {
+    const acc: TemporalAcc = newTemporalAcc();
+    bodies.forEach((b, i) => applyTemporalEvent(acc, b, T0 + i * MIN, linkDone));
+    return acc;
+  };
+  const planned: TemporalEventBody = { type: "temporal_created", temporal: temporalDef("t", { planned: true }) };
+  const complete: TemporalEventBody = { type: "temporal_completed", temporalId: "t", reward: { xp: 10, gold: 10 } };
+
+  it("los encargos anteriores (sin `planned`) nacen aceptados; los nuevos sin aceptar, no", () => {
+    expect(run([{ type: "temporal_created", temporal: temporalDef("t") }]).board.get("t")?.acceptedAt).toBe(T0);
+    const t = run([planned]).board.get("t")!;
+    expect(t.acceptedAt).toBeUndefined();
+    expect("planned" in t).toBe(false);
+  });
+
+  it("aceptar cuenta una vez; aplazar solo uno aceptado; sin aceptar no se cumple", () => {
+    const acc = run([planned, complete, { type: "temporal_postponed", temporalId: "t" }, { type: "temporal_accepted", temporalId: "t" }, { type: "temporal_accepted", temporalId: "t" }]);
+    expect(acc.board.get("t")).toMatchObject({ status: "pending", acceptedAt: T0 + 3 * MIN });
+    const later = run([planned, { type: "temporal_accepted", temporalId: "t" }, { type: "temporal_postponed", temporalId: "t" }, complete]);
+    expect(later.board.get("t")).toMatchObject({ status: "pending" });
+    expect(later.board.get("t")?.acceptedAt).toBeUndefined();
+    const ok = run([planned, { type: "temporal_accepted", temporalId: "t" }, complete]);
+    expect(ok.board.get("t")?.status).toBe("done");
+    // Lo cumplido ya no se aplaza.
+    expect(run([planned, { type: "temporal_accepted", temporalId: "t" }, complete, { type: "temporal_postponed", temporalId: "t" }]).board.get("t")?.acceptedAt).toBe(T0 + MIN);
+  });
+
+  it("un parche no acepta ni aplaza", () => {
+    const acc = run([planned, { type: "temporal_updated", temporalId: "t", patch: { title: "X", acceptedAt: 5, planned: false } as never }]);
+    expect(acc.board.get("t")).toMatchObject({ title: "X" });
+    expect(acc.board.get("t")?.acceptedAt).toBeUndefined();
+  });
+
+  it("orden: aceptados primero, cada grupo por fecha; filtro y recuento", () => {
+    const st = (id: string, d: number, acceptedAt?: number) => state({ id, dueAt: midnight(d), acceptedAt });
+    const list = [st("p1", 1), st("a5", 5, 1), st("p0", 0), st("a2", 2, 1)];
+    expect(sortTemporals(list).map((t) => t.id)).toEqual(["a2", "a5", "p0", "p1"]);
+    expect(list.filter((t) => matchesAccept("planned", t)).map((t) => t.id)).toEqual(["p1", "p0"]);
+    expect(list.filter((t) => matchesAccept("all", t))).toHaveLength(4);
+    expect(countAccept(list)).toEqual({ all: 4, accepted: 2, planned: 2 });
+  });
+
+  it("proyección: sus quests quedan en reserva y no se aceptan hasta aceptar el encargo", () => {
+    const base = [
+      at(T0, { type: "quest_created", quest: questDef("q") }),
+      at(T0 + MIN, { type: "temporal_created", temporal: temporalDef("t", { questIds: ["q"], planned: true }) }),
+      at(T0 + 2 * MIN, { type: "quest_accepted", questId: "q" }),
+    ];
+    const held = project(base);
+    expect(held.quests.get("q")).toMatchObject({ status: "available", reserved: true, temporalId: "t" });
+    expect(linkState(held.quests.get("q")!, T0 + MIN, held.quests, T0 + 3 * MIN)).toBe("reserved");
+
+    const freed = project([...base, at(T0 + 3 * MIN, { type: "temporal_accepted", temporalId: "t" }), at(T0 + 4 * MIN, { type: "quest_accepted", questId: "q" })]);
+    expect(freed.quests.get("q")?.status).toBe("active");
+    expect(freed.quests.get("q")?.reserved).toBeUndefined();
+
+    // Aplazar con la quest en curso (otro equipo, sin conexión): sigue en curso y a la vista.
+    const busy = project([
+      ...base,
+      at(T0 + 3 * MIN, { type: "temporal_accepted", temporalId: "t" }),
+      at(T0 + 4 * MIN, { type: "quest_accepted", questId: "q" }),
+      at(T0 + 5 * MIN, { type: "temporal_postponed", temporalId: "t" }),
+    ]);
+    expect(busy.quests.get("q")).toMatchObject({ status: "active" });
+    expect(busy.quests.get("q")?.reserved).toBeUndefined();
+
+    // Retirar el encargo libera sus quests.
+    expect(project([...base, at(T0 + 3 * MIN, { type: "temporal_deleted", temporalId: "t" })]).quests.get("q")?.reserved).toBeUndefined();
   });
 });

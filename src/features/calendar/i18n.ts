@@ -1,0 +1,73 @@
+// Textos del calendario. Se montan bajo la clave `calendar` en src/i18n/locales/{es,ja}.ts.
+
+export const calendarEs = {
+  title: "Calendario",
+  view: {
+    switch: "Semana o día",
+    week: "Semana",
+    day: "Día",
+  },
+  today: "Hoy",
+  prevWeek: "Semana anterior",
+  nextWeek: "Semana siguiente",
+  prevDay: "Día anterior",
+  nextDay: "Día siguiente",
+  allDay: "Todo el día",
+  nothing: "Libre",
+  openDay: "Ver el día por horas",
+  add: "Añadir",
+  addBlock: "Bloque en la agenda",
+  addQuest: "Quest con fecha límite este día",
+  addTemporal: "Encargo este día",
+  gridHint: "Pulsa en una hora para añadir un bloque",
+  item: {
+    deadline: "Fecha límite",
+    active: "En curso",
+    planned: "Sin aceptar",
+    done: "Cumplido",
+    repeats: "Se repite",
+  },
+  footer: {
+    move: "Semana / día",
+    view: "Vista",
+    today: "Hoy",
+    new: "Nuevo bloque",
+    back: "Quest Board",
+  },
+};
+
+export const calendarJa: typeof calendarEs = {
+  title: "カレンダー",
+  view: {
+    switch: "週・日",
+    week: "週",
+    day: "日",
+  },
+  today: "今日",
+  prevWeek: "前の週",
+  nextWeek: "次の週",
+  prevDay: "前の日",
+  nextDay: "次の日",
+  allDay: "終日",
+  nothing: "予定なし",
+  openDay: "時間ごとに見る",
+  add: "追加",
+  addBlock: "予定を追加",
+  addQuest: "この日が期限のクエスト",
+  addTemporal: "この日の依頼",
+  gridHint: "時間をタップして予定を追加",
+  item: {
+    deadline: "期限",
+    active: "受注中",
+    planned: "未受注",
+    done: "達成",
+    repeats: "繰り返し",
+  },
+  footer: {
+    move: "週・日",
+    view: "表示",
+    today: "今日",
+    new: "新しい予定",
+    back: "Quest Board",
+  },
+};

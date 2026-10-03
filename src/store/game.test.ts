@@ -17,9 +17,10 @@ async function boot() {
   const temporal = await import("../features/temporal/actions");
   const items = await import("../features/items/actions");
   const pomodoro = await import("../features/pomodoro/actions");
+  const agenda = await import("../features/agenda/actions");
   await useGame.getState().init();
   const g = () => useGame.getState();
-  return { useGame, g, actions, temporal, items, pomodoro };
+  return { useGame, g, actions, temporal, items, pomodoro, agenda };
 }
 
 const stored = (): GameEvent[] => JSON.parse(localStorage.getItem("quests.events") ?? "[]").sort(compareEvents);
@@ -248,10 +249,12 @@ describe("acciones de encargos temporales", () => {
       { key: "1", title: "Pedir cita", target: 1 },
       { key: "2", title: "Llevar análisis", target: 1 },
     ];
-    expect(await b.temporal.createTemporal(draft(b, { newQuests: seeds, chain: true }))).toBe(true);
+    expect(await b.temporal.createTemporal(draft(b, { newQuests: seeds, chain: true, accept: true }))).toBe(true);
     const t = [...b.g().state.temporals.values()].find((x) => x.title === "Médico")!;
     const [q1, q2] = t.questIds.map((id) => b.g().state.quests.get(id)!);
     expect([q1.title, q2.title]).toEqual(["Pedir cita", "Llevar análisis"]);
+    expect(t.acceptedAt).toBeDefined();
+    expect(q1.reserved).toBeUndefined();
     expect(q2.requires).toEqual([q1.id]);
     expect(q1.temporalId).toBe(t.id);
 
@@ -270,6 +273,41 @@ describe("acciones de encargos temporales", () => {
     // 1 calavera (60 XP, 30 G × 45) + 20 % de sus dos quests (25 XP y 450 G cada una), redondeado a 5.
     expect(b.g().state.temporals.get(t.id)).toMatchObject({ status: "done", earned: { xp: 70, gold: 1530 } });
     expect(b.g().state.player.xp).toBe(xpBefore + 70);
+    consistent(b);
+  });
+
+  it("sin aceptar, sus quests esperan en reserva; al aceptarlo salen y se pueden hacer; aplazar pide no tener ninguna en curso", async () => {
+    const b = await boot();
+    expect(await b.temporal.createTemporal(draft(b, { newQuests: [{ key: "1", title: "Repasar", target: 1 }] }))).toBe(true);
+    const t = [...b.g().state.temporals.values()].find((x) => x.title === "Médico")!;
+    expect(t.acceptedAt).toBeUndefined();
+    const qid = t.questIds[0];
+    expect(b.g().state.quests.get(qid)).toMatchObject({ reserved: true, temporalId: t.id, status: "available" });
+    expect(b.g().toast?.text()).toContain("reserva");
+
+    // En reserva: ni se acepta la quest ni se cumple el encargo (sin escribir eventos).
+    const n = stored().length;
+    await b.actions.acceptQuest(qid);
+    await b.temporal.completeTemporal(t.id);
+    expect(stored()).toHaveLength(n);
+    expect(b.g().state.quests.get(qid)?.status).toBe("available");
+    expect(b.g().toast?.text()).toContain("Médico");
+
+    await b.temporal.acceptTemporal(t.id);
+    expect(b.g().state.temporals.get(t.id)?.acceptedAt).toBeDefined();
+    expect(b.g().state.quests.get(qid)?.reserved).toBeUndefined();
+    expect(b.g().toast?.text()).toContain("1 quest");
+
+    // Con la quest en curso no se aplaza; sin ella, sí, y vuelve a la reserva.
+    await b.actions.acceptQuest(qid);
+    expect(b.g().state.quests.get(qid)?.status).toBe("active");
+    const m = stored().length;
+    await b.temporal.postponeTemporal(t.id);
+    expect(stored()).toHaveLength(m);
+    await b.actions.abandonQuest(qid);
+    await b.temporal.postponeTemporal(t.id);
+    expect(b.g().state.temporals.get(t.id)?.acceptedAt).toBeUndefined();
+    expect(b.g().state.quests.get(qid)?.reserved).toBe(true);
     consistent(b);
   });
 
@@ -305,6 +343,55 @@ describe("acciones de encargos temporales", () => {
     expect(added.map((e) => e.type)).toEqual(["temporal_updated", "temporal_unlinked"]);
     expect((added[0] as Extract<GameEvent, { type: "temporal_updated" }>).patch).toEqual({ place: "Hospital" });
     expect(b.g().state.quests.get("q")?.temporalId).toBeUndefined();
+    consistent(b);
+  });
+});
+
+describe("contactos de los encargos", () => {
+  it("se guardan limpios al clavarlo y quitarlos todos se guarda como lista vacía", async () => {
+    const b = await boot();
+    const d = { ...b.temporal.emptyDraft(), title: "Dentista", contacts: [{ id: "k", kind: "phone" as const, name: " Clínica ", value: " 600 111 222 " }, { id: "v", kind: "email" as const, name: "", value: " " }] };
+    expect(await b.temporal.createTemporal(d)).toBe(true);
+    const t = [...b.g().state.temporals.values()].find((x) => x.title === "Dentista")!;
+    expect(t.contacts).toEqual([{ id: "k", kind: "phone", name: "Clínica", value: "600 111 222" }]);
+    const n = stored().length;
+    expect(await b.temporal.updateTemporal(t.id, { ...b.temporal.draftOf(t, b.g().state.quests), contacts: [] })).toBe(true);
+    const patch = (stored().slice(n)[0] as Extract<GameEvent, { type: "temporal_updated" }>).patch;
+    expect(patch).toEqual({ contacts: [] });
+    expect(b.g().state.temporals.get(t.id)?.contacts).toEqual([]);
+    consistent(b);
+  });
+});
+
+describe("acciones de la agenda", () => {
+  it("crea, edita con un parche mínimo, quita la repetición, salta un día y retira; sin tocar al jugador", async () => {
+    const b = await boot();
+    const player = b.g().state.player;
+    const d = { ...b.agenda.emptyAgendaDraft("2026-10-05", 19 * 60), title: "Gimnasio", repeat: "days" as const, days: [1, 4] };
+    expect(b.agenda.agendaDraftError({ ...d, end: "18:00" })).toBe("time");
+    expect(await b.agenda.saveAgenda(d)).toBe(true);
+    const e = [...b.g().state.agenda.values()].find((x) => x.title === "Gimnasio")!;
+    expect(e).toMatchObject({ start: 1140, end: 1200, repeat: { days: [1, 4] } });
+
+    // Solo cambia la hora de fin: el parche lleva solo eso.
+    let n = stored().length;
+    expect(await b.agenda.saveAgenda({ ...b.agenda.agendaDraftOf(e), end: "20:30" }, e.id)).toBe(true);
+    expect((stored().slice(n)[0] as Extract<GameEvent, { type: "agenda_updated" }>).patch).toEqual({ end: 1230 });
+
+    // Saltar un día que tiene bloque.
+    await b.agenda.skipAgendaDay(e.id, "2026-10-08", "8 oct");
+    expect(b.g().state.agenda.get(e.id)?.skipped).toEqual(["2026-10-08"]);
+
+    // Quitar la repetición no se pierde en el JSON (va como días vacíos).
+    n = stored().length;
+    await b.agenda.saveAgenda({ ...b.agenda.agendaDraftOf(b.g().state.agenda.get(e.id)!), repeat: "none" }, e.id);
+    expect((stored().slice(n)[0] as Extract<GameEvent, { type: "agenda_updated" }>).patch).toEqual({ repeat: { days: [] } });
+    expect(b.g().state.agenda.get(e.id)?.repeat).toBeUndefined();
+
+    // Un bloque suelto: «quitar este día» lo retira entero.
+    await b.agenda.skipAgendaDay(e.id, "2026-10-05", "5 oct");
+    expect(b.g().state.agenda.has(e.id)).toBe(false);
+    expect(b.g().state.player).toEqual(player);
     consistent(b);
   });
 });

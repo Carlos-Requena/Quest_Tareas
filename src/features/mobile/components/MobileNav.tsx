@@ -6,12 +6,13 @@ import { sfx } from "../../../lib/sfx";
 import { Skull, needsAttention, switchSection, useTemporalUi } from "../../temporal";
 import { LanternIcon, openMerchant } from "../../merchant";
 import { HelmetIcon, openCharacter } from "../../equipment";
+import { CalendarIcon, addBlock, useCalendarUi } from "../../calendar";
 import { useMobileUi } from "../ui";
 import "../mobile.css";
 
 /**
- * Barra de abajo del teléfono, en lugar del pie con las teclas: los dos tablones, el mercader,
- * el personaje y el menú «Más». En el escritorio no se ve (CSS).
+ * Barra de abajo del teléfono, en lugar del pie con las teclas: los dos tablones, el calendario,
+ * el mercader, el personaje y el menú «Más». En el escritorio no se ve (CSS).
  */
 export function MobileNav() {
   const section = useGame((s) => s.section);
@@ -21,7 +22,7 @@ export function MobileNav() {
   const { t } = useTranslation();
   const urgent = useMemo(() => needsAttention(temporals.values(), now), [temporals, now]);
 
-  const go = (target: "board" | "temporal") => {
+  const go = (target: "board" | "temporal" | "calendar") => {
     const ui = useMobileUi.getState();
     ui.closeDetail();
     ui.setMenu(false);
@@ -44,6 +45,7 @@ export function MobileNav() {
         icon={<Skull />}
         badge={urgent > 0 ? urgent : undefined}
       />
+      <NavButton on={section === "calendar" && !menu} label={t("calendar.title")} onClick={() => go("calendar")} icon={<CalendarIcon />} />
       <NavButton label={t("merchant.open")} onClick={open(() => openMerchant())} icon={<LanternIcon />} />
       <NavButton label={t("equipment.open")} onClick={open(() => openCharacter())} icon={<HelmetIcon />} />
       <NavButton
@@ -77,7 +79,7 @@ export function MobileCreate() {
   const detail = useMobileUi((s) => s.detail !== undefined);
   const { t } = useTranslation();
   if (detail) return null;
-  const label = section === "temporal" ? t("temporal.footer.new") : t("footer.newQuest");
+  const label = section === "temporal" ? t("temporal.footer.new") : section === "calendar" ? t("calendar.footer.new") : t("footer.newQuest");
   return (
     <button
       className="mfab"
@@ -86,6 +88,7 @@ export function MobileCreate() {
       onClick={() => {
         sfx.move();
         if (section === "temporal") useTemporalUi.getState().setForm({ mode: "create" });
+        else if (section === "calendar") addBlock(useCalendarUi.getState().day);
         else useGame.getState().setCreating(true);
       }}
     >

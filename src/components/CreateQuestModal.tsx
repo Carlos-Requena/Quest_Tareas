@@ -15,6 +15,7 @@ import { areaSuggestions } from "../features/attributes";
 import { ChecklistInputs, cleanChecklist, type ChecklistItem } from "../features/checklist";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../lib/motion";
 import { RewardPreview, questReward } from "../features/rewards";
+import { ContactsField, cleanContacts, type ContactRef } from "../features/contacts";
 
 /** Espera por defecto de una repetible: 20 h (diaria con margen). */
 const DEFAULT_COOLDOWN = 20 * 60;
@@ -73,7 +74,7 @@ export function CreateQuestModal() {
 /**
  * Formulario completo de una quest. Sin `onCreate`, la publica en el Quest Board.
  * Con `onCreate` (desde un encargo temporal), la devuelve sin publicarla: el encargo
- * la crea al guardarse. `preset` rellena cliente y área.
+ * la crea al guardarse. `preset` rellena cliente y área, o la fecha límite (desde el calendario).
  */
 export function QuestFormModal({
   onClose,
@@ -82,7 +83,7 @@ export function QuestFormModal({
 }: {
   onClose(): void;
   onCreate?(quest: QuestDef): void;
-  preset?: { client?: string; area?: string };
+  preset?: { client?: string; area?: string; dueAt?: number };
 }) {
   const dispatch = useGame((s) => s.dispatch);
   const select = useGame((s) => s.select);
@@ -103,7 +104,9 @@ export function QuestFormModal({
   const [cooldown, setCooldown] = useState<number | undefined>(undefined);
   const [cooldownTouched, setCooldownTouched] = useState(false);
   const [requires, setRequires] = useState<string[]>([]);
-  const [dueAt, setDueAt] = useState<number>();
+  const [dueAt, setDueAt] = useState<number | undefined>(preset?.dueAt);
+  // A quién llamar o escribir, o dónde ir (features/contacts).
+  const [contacts, setContacts] = useState<ContactRef[]>([]);
   const recurring = recurs({ category, cooldownMinutes: cooldown });
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +137,7 @@ export function QuestFormModal({
       requires: requires.length ? requires : undefined,
       // Las que se repiten no tienen fecha límite: tras la primera vuelta quedaría vencida.
       dueAt: recurring ? undefined : dueAt,
+      contacts: cleanContacts(contacts).length ? cleanContacts(contacts) : undefined,
       createdAt: Date.now(),
     };
     if (onCreate) {
@@ -343,6 +347,7 @@ export function QuestFormModal({
             }}
           />
           <DeadlineField value={dueAt} onChange={setDueAt} disabled={recurring} />
+          <ContactsField value={contacts} onChange={setContacts} />
           <RequiresField value={requires} onChange={setRequires} />
         </div>
 

@@ -15,6 +15,13 @@ export async function acceptQuest(id: string) {
   const { state, dispatch, say } = useGame.getState();
   const q = state.quests.get(id);
   if (!q || effectiveStatus(q, Date.now()) !== "available") return;
+  // En reserva: su encargo aún no se ha aceptado (features/temporal). La proyección también lo impide.
+  if (q.reserved) {
+    sfx.cancel();
+    const owner = q.temporalId ? state.temporals.get(q.temporalId) : undefined;
+    say(() => i18n.t("temporal.toast.reserved", { title: q.title, temporal: owner?.title ?? "" }));
+    return;
+  }
   // Quest con requisitos sin completar (features/complex): la proyección también lo impide.
   const lock = blockers(q, state.quests);
   if (lock.length) {

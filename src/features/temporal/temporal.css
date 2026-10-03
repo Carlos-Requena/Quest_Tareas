@@ -2023,6 +2023,189 @@
   }
 }
 
+/* ───────────── Aceptados y sin aceptar ───────────── */
+
+/* Sello «ACCEPTED» de los aceptados: tinta azul, más pequeño que «CLEAR», entre la
+   recompensa y la cinta, como el que pone el gremio al darte el encargo. GSAP controla su opacidad. */
+.tp-seal {
+  position: absolute;
+  right: 6%;
+  bottom: 19%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 7px 1px;
+  rotate: 0deg;
+  font-family: var(--f-tag);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-blue);
+  border: 2px solid var(--ink-blue);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 2px transparent, inset 0 0 0 3px color-mix(in srgb, var(--ink-blue) 70%, transparent);
+  mix-blend-mode: multiply;
+  opacity: 0;
+  pointer-events: none;
+}
+.tp-seal small {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  border-top: 1px solid currentColor;
+  padding-top: 1px;
+  margin-top: 1px;
+}
+/* En el tablón, sin fecha (no cabe entre la recompensa y la cinta); en grande, con ella. */
+.tp-seal small {
+  display: none;
+}
+.pv-seal small {
+  display: block;
+}
+.pv-seal {
+  right: 15%;
+  bottom: 11%;
+  padding: 4px 14px 2px;
+  font-size: 26px;
+  border-width: 3px;
+}
+.pv-seal small {
+  font-size: 13px;
+}
+
+/* Sin aceptar: el cartel está clavado pero nadie lo ha cogido aún; algo más pálido. */
+.tp.is-planned .tp-paper {
+  filter: saturate(0.72) brightness(0.96);
+}
+.tp.is-planned:hover .tp-paper,
+.tp.is-planned.is-selected .tp-paper {
+  filter: none;
+}
+
+/* Filtros del tablón: aceptación y plazo en una sola fila sobre la madera. */
+.tb-filters {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 6px 0 0;
+  padding: 0 70px;
+}
+.tb-filters .hz-on-temporal {
+  margin: 0;
+  padding: 0;
+}
+.tb-accept {
+  display: flex;
+  gap: 4px;
+  padding-right: 14px;
+  border-right: 1px solid rgba(29, 15, 6, 0.55);
+}
+.tb-accept-btn {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 11px;
+  border-radius: 12px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--parchment-hi);
+  background: rgba(29, 15, 6, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(29, 15, 6, 0.6);
+  transition: background 0.2s, opacity 0.2s;
+}
+.tb-accept-btn > * {
+  position: relative;
+  z-index: 1;
+}
+.tb-accept-btn:hover {
+  background: rgba(29, 15, 6, 0.7);
+}
+.tb-accept-btn.is-empty {
+  opacity: 0.5;
+}
+.tb-accept-btn.on {
+  color: var(--ink);
+  font-weight: 700;
+  background: transparent;
+  opacity: 1;
+}
+.tb-accept-hl {
+  position: absolute !important;
+  inset: 0;
+  z-index: 0 !important;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--parchment-hi), var(--parchment));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+/* Icono: un sello cuadrado (aceptados) o una chincheta sin sello (sin aceptar). */
+.tb-accept-ico {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+.tb-accept-btn.is-accepted .tb-accept-ico {
+  border: 2px solid var(--ink-blue);
+  background: color-mix(in srgb, var(--ink-blue) 25%, var(--parchment-hi));
+}
+.tb-accept-btn.is-planned .tb-accept-ico {
+  border-radius: 50%;
+  border: 2px dashed var(--parchment-lo);
+}
+.tb-accept-n {
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.tb-accept-btn.on .tb-accept-n {
+  color: var(--ink-red);
+}
+
+/* Cartel abierto: sus contactos (features/contacts), como las notas. */
+.pv-contacts {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+/* Cartel abierto: aceptado el… o sin aceptar. */
+.pv-accept-state {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-faint);
+}
+.pv-accept-state.is-accepted {
+  font-style: normal;
+  color: var(--ink-blue);
+}
+
+/* Las quests en reserva (encargo sin aceptar): a lápiz, esperando. */
+.pv-quest.is-reserved .pv-quest-title,
+.pv-quest.is-reserved .pv-quest-mark {
+  opacity: 0.6;
+}
+.pv-quest.is-reserved .pv-quest-state {
+  font-style: italic;
+}
+
+/* Formulario: aceptarlo ya o clavarlo sin aceptar. */
+.tf-accept .tf-check {
+  font-size: 13px;
+  color: var(--text);
+}
+.tf-accept .tf-hint {
+  margin: 4px 0 0;
+}
+
 /* ───────────── Teléfono (features/mobile; 760 px es PHONE_MAX_WIDTH) ───────────── */
 
 @media (max-width: 760px) {
@@ -2128,5 +2311,43 @@
   }
   .field .tq-pick {
     flex-basis: 100%;
+  }
+  /* Filtros: aceptación arriba y plazos debajo, cada fila deslizable. */
+  .tb-filters {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 6px;
+    padding: 0;
+  }
+  .tb-accept,
+  .tb-filters .hz-on-temporal {
+    /* En columna, sin esto miden lo que su texto y se salen de la pantalla. */
+    min-width: 0;
+  }
+  .tb-accept {
+    padding: 2px 16px 0;
+    border-right: none;
+  }
+  /* Las tres a partes iguales, a lo ancho. */
+  .tb-accept-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    height: 32px;
+    padding: 0 6px;
+    font-size: 12px;
+  }
+  .tb-accept-lbl {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tf-accept .tf-check {
+    font-size: 15px;
+    min-height: 40px;
+  }
+  .tf-accept .tf-check input {
+    width: 20px;
+    height: 20px;
   }
 }

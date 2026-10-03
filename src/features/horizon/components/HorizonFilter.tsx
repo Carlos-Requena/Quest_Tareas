@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import type { Section } from "../../../store/game";
+import type { HorizonSection } from "../ui";
 import { sfx } from "../../../lib/sfx";
 import type { HorizonFilter as Filter } from "../model";
 import { filtersOf, useHorizonUi } from "../ui";
@@ -10,7 +10,7 @@ import "../horizon.css";
  * Filtro de plazo de un tablón: Todo · 1 día · 7 días · 2 semanas · 1 mes · +1 mes
  * (· Sin fecha, en el de quests). Cada opción muestra cuántos hay. Tecla H.
  */
-export function HorizonFilter({ section, counts }: { section: Section; counts: Record<Filter, number> }) {
+export function HorizonFilter({ section, counts }: { section: HorizonSection; counts: Record<Filter, number> }) {
   const value = useHorizonUi((s) => s.filter[section]);
   const { t } = useTranslation();
 

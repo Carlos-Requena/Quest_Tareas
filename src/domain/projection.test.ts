@@ -214,7 +214,8 @@ describe("invariantes sobre historiales aleatorios", () => {
         if (e.type === "quest_completed" && prev.quests.get(e.questId)?.status === "active") expected += e.reward.xp;
         if (e.type === "temporal_completed") {
           const t = prev.temporals.get(e.temporalId);
-          const ok = t?.status === "pending" && t.questIds.every((q) => {
+          // Solo se cumple un encargo aceptado y con sus quests terminadas.
+          const ok = t?.status === "pending" && t.acceptedAt !== undefined && t.questIds.every((q) => {
             const qs = prev.quests.get(q);
             return !qs || linkedQuestDone(qs, t.linkedAt[q] ?? 0);
           });
@@ -223,6 +224,23 @@ describe("invariantes sobre historiales aleatorios", () => {
       }
       expect(project(ev).player.xp).toBe(expected);
     }
+  });
+
+  it("una quest en reserva (encargo sin aceptar) nunca pasa a en curso", () => {
+    let tried = 0;
+    for (const seed of ["res1", "res2", "res3", "res4"]) {
+      const ev = randomStream(seed, 400);
+      for (let i = 0; i < ev.length; i++) {
+        const e = ev[i];
+        if (e.type !== "quest_accepted" || isFromFuture(e)) continue;
+        const before = project(ev.slice(0, i)).quests.get(e.questId);
+        if (!before?.reserved) continue;
+        tried++;
+        expect(project(ev.slice(0, i + 1)).quests.get(e.questId)?.status).toBe(before.status);
+      }
+    }
+    // El historial ejercita de verdad la reserva.
+    expect(tried).toBeGreaterThan(0);
   });
 
   it("el oro solo baja al comprar, justo el precio pagado y si llegaba", () => {

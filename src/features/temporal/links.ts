@@ -7,12 +7,13 @@ import { effectiveStatus } from "../../domain/projection";
 import { prerequisitesMet } from "../complex/model";
 import { linkedQuestDone } from "./model";
 
-/** Terminada (para este encargo), en curso, bloqueada por requisitos, por aceptar o en espera. */
-export type LinkState = "done" | "active" | "locked" | "available" | "cooldown";
+/** Terminada (para este encargo), en curso, bloqueada por requisitos, por aceptar, en espera o en reserva (encargo sin aceptar). */
+export type LinkState = "done" | "active" | "locked" | "available" | "cooldown" | "reserved";
 
 /** `since`: cuándo se enlazó (sin él, la quest aún no está enlazada: basta con que esté completada). */
 export function linkState(q: QuestState, since: number | undefined, quests: Pick<Map<string, QuestState>, "get">, now: number): LinkState {
   if (since === undefined ? q.status === "done" : linkedQuestDone(q, since)) return "done";
+  if (q.reserved) return "reserved";
   const st = effectiveStatus(q, now);
   if (st === "active" || st === "cooldown") return st;
   if (st === "done") return "done";

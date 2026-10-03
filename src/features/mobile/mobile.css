@@ -29,7 +29,8 @@
 .mnav {
   position: relative;
   z-index: 40;
-  grid-template-columns: repeat(5, 1fr);
+  /* Tablón, encargos, calendario, mercader, personaje y «Más». */
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border-top: 1px solid var(--line);
   background: linear-gradient(180deg, #16130f, #0c0a08);
 }

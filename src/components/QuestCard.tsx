@@ -10,6 +10,7 @@ import { formatRemaining } from "../lib/time";
 import { num } from "../i18n";
 import { PomodoroBadge } from "../features/pomodoro";
 import { DueChip, type Due } from "../features/horizon";
+import { ContactIcon } from "../features/contacts";
 import { LockIcon, recurs } from "../features/complex";
 import { Skull, type TemporalState } from "../features/temporal";
 import { StreakBadge } from "../features/streaks";
@@ -169,6 +170,11 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
             </span>
           )}
           {due && <DueChip due={due} now={now} icon={due.temporal ? <Skull /> : undefined} />}
+          {!!quest.contacts?.length && (
+            <span className="card-contact" title={t("contacts.has", { count: quest.contacts.length })}>
+              <ContactIcon kind={quest.contacts[0].kind} />
+            </span>
+          )}
           <StreakBadge quest={quest} now={now} />
         </span>
         <span className="card-gem gem" />

@@ -6,9 +6,12 @@ import { useNow } from "../../../lib/time";
 import { sfx } from "../../../lib/sfx";
 import { needsAttention } from "../model";
 import { Skull } from "./Skull";
+import { CalendarIcon } from "../../calendar/components/CalendarIcon";
 import "../temporal.css";
 
-const SECTIONS: Section[] = ["board", "temporal"];
+const SECTIONS: Section[] = ["board", "temporal", "calendar"];
+/** Tecla de cada sección (el calendario, con S; los dos tablones se alternan con T). */
+const KEY: Record<Section, string> = { board: "T", temporal: "T", calendar: "S" };
 
 /** Cambia de tablón (botones de la cabecera o tecla T). */
 export function switchSection(next?: Section) {
@@ -20,7 +23,7 @@ export function switchSection(next?: Section) {
 }
 
 /**
- * Selector de sección en la cabecera: el tablón de quests o el de encargos temporales.
+ * Selector de sección en la cabecera: el tablón de quests, el de encargos temporales o el calendario.
  * El aviso rojo cuenta los encargos de hoy o vencidos, para verlos desde el otro tablón.
  */
 export function SectionSwitch() {
@@ -40,11 +43,11 @@ export function SectionSwitch() {
             role="tab"
             aria-selected={on}
             className={`secsw-btn ${on ? "on" : ""}`}
-            title={`${t(`temporal.section.${id}`)} (T)`}
+            title={`${t(`temporal.section.${id}`)} (${KEY[id]})`}
             onClick={() => switchSection(id)}
           >
             {on && <motion.span layoutId="secsw-hl" className="secsw-hl" transition={{ type: "spring", stiffness: 500, damping: 38 }} />}
-            <span className="secsw-ico">{id === "board" ? <span className="gem" /> : <Skull />}</span>
+            <span className="secsw-ico">{id === "board" ? <span className="gem" /> : id === "temporal" ? <Skull /> : <CalendarIcon />}</span>
             <span className="secsw-lbl">{t(`temporal.section.${id}`)}</span>
             {id === "temporal" && urgent > 0 && (
               <span className="secsw-badge num" title={t("temporal.section.attention", { count: urgent })}>

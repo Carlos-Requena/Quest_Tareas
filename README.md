@@ -108,7 +108,15 @@ Seis rarezas con su color: común (gris), poco común (verde), raro (azul), épi
 
 ## Encargos temporales
 
-Un tablón aparte (selector de la cabecera o tecla `T`) para lo que ocurre en una fecha: una cita con el médico, una entrega, un examen… Cada encargo es un cartel de pergamino clavado en un tablón de roble, con de 1 a 5 **calaveras rojas** según su dificultad, su fecha y hora (o todo el día), lugar, notas y recompensa en XP y oro. Se le pueden **adjuntar PDF e imágenes** (hasta 20 MB cada uno y 8 por encargo), que se ven en un visor dentro de la app. Los de hoy o vencidos se avisan al abrir la app, y los que tienen hora, 15 minutos antes. Detalles: [src/features/temporal/README.md](src/features/temporal/README.md).
+Un tablón aparte (selector de la cabecera o tecla `T`) para lo que ocurre en una fecha: una cita con el médico, una entrega, un examen… Cada encargo es un cartel de pergamino clavado en un tablón de roble, con de 1 a 5 **calaveras rojas** según su dificultad, su fecha y hora (o todo el día), lugar, notas y recompensa en XP y oro. Se le pueden **adjuntar PDF e imágenes** (hasta 20 MB cada uno y 8 por encargo), que se ven en un visor dentro de la app. Los de hoy o vencidos se avisan al abrir la app, y los que tienen hora, 15 minutos antes. Un encargo se clava **sin aceptar** (sus quests esperan en reserva, fuera del Quest Board) y se **acepta** cuando se empieza, con su sello «ACCEPTED»; el tablón se filtra por Todos · Aceptados · Sin aceptar. Detalles: [src/features/temporal/README.md](src/features/temporal/README.md).
+
+## Calendario y agenda
+
+Una tercera sección (selector de la cabecera o tecla `S`): la **semana** con lo que hay que hacer cada día (quests con fecha límite, encargos y bloques de la agenda) y el **día por horas**, la agenda personal con bloques que se repiten ciertos días de la semana. Desde cada día se añade un bloque, una quest con esa fecha límite o un encargo. Detalles: [src/features/calendar/README.md](src/features/calendar/README.md) y [src/features/agenda/README.md](src/features/agenda/README.md).
+
+## Contactos
+
+Las quests y los encargos pueden llevar contactos (teléfono, correo, WhatsApp, enlace o dirección), elegidos en un desplegable, con un botón para llamar, escribir, abrir o ver cómo llegar. Detalles: [src/features/contacts/README.md](src/features/contacts/README.md).
 
 ## Quests complejas y plazos
 
@@ -123,9 +131,11 @@ Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en la c
 
 ## Atajos
 
-`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` nueva quest · `T` tablón de encargos temporales · `I` objetos · `C` mercader · `P` personaje · `J` crónica · `L` idioma · `M` música
+`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` nueva quest · `T` tablón de encargos temporales · `S` calendario · `I` objetos · `C` mercader · `P` personaje · `J` crónica · `L` idioma · `M` música
 
-En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `H` plazo · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` cumplir · `E` editar · `Esc` cerrar.
+En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `H` plazo · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` aceptar (si no lo está) o cumplir · `E` editar · `Esc` cerrar.
+
+En el calendario: `←→` semana o día anterior / siguiente · `V` semana ↔ día · `H` hoy · `N` bloque nuevo · `S` volver al Quest Board.
 
 ## Hoja de ruta
 
@@ -145,4 +155,5 @@ En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · 
   - Cada dispositivo sube `events-<deviceId>.jsonl` a la carpeta `QuestsApp/`, y los adjuntos como `blob-<sha256>`
   - Descargar los ficheros de los demás → `EventStore.merge()` → reproyectar
   - Pendiente: publicar la app de Google Cloud en modo *In production* (en *Testing* hay que volver a conectar cada 7 días) y probarla en Windows
+- [x] Encargos aceptados y sin aceptar (`src/features/temporal/`), contactos (`src/features/contacts/`), calendario semanal (`src/features/calendar/`) y agenda por horas (`src/features/agenda/`)
 - [ ] Logros, estadísticas, editar quests, consecuencias, icono propio

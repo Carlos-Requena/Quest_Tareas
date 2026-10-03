@@ -10,6 +10,9 @@ import { equipmentJa } from "../../features/equipment/i18n";
 import { attributesJa } from "../../features/attributes/i18n";
 import { armoryJa } from "../../features/armory/i18n";
 import { checklistJa } from "../../features/checklist/i18n";
+import { contactsJa } from "../../features/contacts/i18n";
+import { agendaJa } from "../../features/agenda/i18n";
+import { calendarJa } from "../../features/calendar/i18n";
 import { streaksJa } from "../../features/streaks/i18n";
 import { rewardsJa } from "../../features/rewards/i18n";
 import { collectiblesJa } from "../../features/collectibles/i18n";
@@ -150,6 +153,9 @@ export const ja: Translation = {
   attributes: attributesJa,
   armory: armoryJa,
   checklist: checklistJa,
+  contacts: contactsJa,
+  agenda: agendaJa,
+  calendar: calendarJa,
   streaks: streaksJa,
   rewards: rewardsJa,
   collectibles: collectiblesJa,

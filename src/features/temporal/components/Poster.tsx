@@ -6,9 +6,9 @@ import { num } from "../../../i18n";
 import { sfx } from "../../../lib/sfx";
 import { burst, calm } from "../../../lib/fx";
 import { useGame } from "../../../store/game";
-import { KIND_META, linkedQuests, pendingLinks, type TemporalState } from "../model";
+import { KIND_META, isAccepted, linkedQuests, pendingLinks, type TemporalState } from "../model";
 import { posterLook } from "../look";
-import { dueChip, shortDue } from "../format";
+import { dueChip, sealDate, shortDue } from "../format";
 import { useTemporalUi } from "../ui";
 import { Skull } from "./Skull";
 import { isPhone } from "../../mobile";
@@ -45,6 +45,9 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
 
   const hang = useRef<HTMLDivElement>(null);
   const stampRef = useRef<HTMLSpanElement>(null);
+  const sealRef = useRef<HTMLSpanElement>(null);
+  const accepted = t.status === "pending" && isAccepted(t);
+  const wasAccepted = useRef(accepted);
   const landed = useTemporalUi((s) => (s.landed?.id === t.id ? s.landed.key : undefined));
   const farewell = useTemporalUi((s) => (s.farewell?.id === t.id ? s.farewell.key : undefined));
   // Mientras dura la animación de «cartel clavado», el cartel aún no está en el tablón: llega al final.
@@ -69,6 +72,25 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
     };
   }, [landed, look.rotate]);
 
+  // Sello «ACCEPTED»: se estampa al aceptarlo (también si llega de otro equipo). Si el
+  // cartel está abierto en grande, el sello lo pone la vista grande y aquí solo se fija.
+  useLayoutEffect(() => {
+    const el = sealRef.current;
+    if (!el) return;
+    const was = wasAccepted.current;
+    wasAccepted.current = accepted;
+    if (accepted && !was && useTemporalUi.getState().viewing?.id !== t.id) {
+      const tl = gsap.timeline();
+      tl.fromTo(el, { scale: 2.4, opacity: 0, rotation: 24 }, { scale: 1, opacity: 0.9, rotation: 9, duration: 0.22, ease: "power4.in" })
+        .add(() => sfx.stamp())
+        .to(hang.current, { keyframes: [{ x: -3 }, { x: 3 }, { x: 0 }], duration: 0.16 });
+      return () => {
+        tl.kill();
+      };
+    }
+    gsap.set(el, { opacity: accepted ? 0.9 : 0, scale: 1, rotation: 9 });
+  }, [accepted, t.id]);
+
   // Recién cumplido: el sello «CLEAR» cae sobre el cartel antes de que se descuelgue.
   useLayoutEffect(() => {
     if (!farewell || !stampRef.current) return;
@@ -86,7 +108,7 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
       ref={outerRef}
       layout
       data-tid={t.id}
-      className={`tp tp-${look.shape} is-${chip.urgency} ${selected ? "is-selected" : ""} ${meta.red ? "is-red" : ""}`}
+      className={`tp tp-${look.shape} is-${chip.urgency} ${selected ? "is-selected" : ""} ${meta.red ? "is-red" : ""} ${t.status === "pending" && !accepted ? "is-planned" : ""}`}
       style={
         {
           gridColumn: landscape ? "span 2" : "span 1",
@@ -147,6 +169,10 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
           </div>
           <span className="tp-clear" ref={stampRef}>
             Clear
+          </span>
+          <span className="tp-seal" ref={sealRef} aria-hidden>
+            Accepted
+            <small className="num">{t.acceptedAt !== undefined ? sealDate(t.acceptedAt) : ""}</small>
           </span>
         </div>
         <span className="tp-tack" />

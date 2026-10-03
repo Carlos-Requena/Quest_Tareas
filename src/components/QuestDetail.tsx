@@ -13,6 +13,7 @@ import { QuestRequirements, blockers, dependents, recurs } from "../features/com
 import { QuestEventLink } from "../features/temporal";
 import { dueDate, dueLabel, questDue } from "../features/horizon";
 import { areaName } from "../features/attributes";
+import { ContactList } from "../features/contacts";
 import { useGame } from "../store/game";
 import { abandonQuest, addProgress } from "../store/actions";
 import { detailPrimaryAction } from "../features/mobile";
@@ -135,6 +136,12 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
           {quest.description && (
             <Section tag="Request" label={t("detail.description")}>
               <p className="desc">{quest.description}</p>
+            </Section>
+          )}
+
+          {!!quest.contacts?.length && (
+            <Section tag="Contact" label={t("contacts.label")}>
+              <ContactList contacts={quest.contacts} />
             </Section>
           )}
 
