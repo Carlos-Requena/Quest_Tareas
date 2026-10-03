@@ -136,6 +136,14 @@
 .itile.is-locked .itile-name {
   color: var(--faint);
 }
+/* Pieza de equipo sin comprar: su glifo de ranura, apagado como los objetos. */
+.itile.is-locked .gart-glyph {
+  opacity: 0.35;
+}
+.itile.is-locked:hover .gart-glyph,
+.itile.is-locked.is-selected .gart-glyph {
+  opacity: 0.85;
+}
 .itile.is-locked:hover .itile-name,
 .itile.is-locked.is-selected .itile-name {
   color: var(--rc);
@@ -1226,6 +1234,12 @@
 }
 .book-tab.is-chest .book-tab-glyph {
   text-shadow: 0 0 8px var(--rc);
+}
+/* Icono de ranura (armaduras, fondos y emblemas). */
+.book-tab-svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 .book-tab:hover {
   transform: translateX(-4px);

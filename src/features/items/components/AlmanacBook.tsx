@@ -1,12 +1,23 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import { sfx } from "../../../lib/sfx";
 import { seededRandom } from "../../../lib/id";
 import { num } from "../../../i18n";
-import { ALMANAC_SECTIONS, KIND_GLYPH, RARITIES, RARITY_META, inSection, type AlmanacSection, type ItemDef } from "../model";
+import { RARITY_META, type ItemDef } from "../model";
+import {
+  ALMANACS,
+  almanacEntries,
+  almanacProgress,
+  almanacVisible,
+  entryOwned,
+  type Almanac,
+  type AlmanacEntry,
+} from "../almanac";
+import type { GearDef, Purchase } from "../../merchant/model";
+import { SlotGlyph } from "../../merchant/components/SlotGlyph";
 import { ItemTile } from "./ItemTile";
+import { GearTile } from "./GearTile";
 import { useSwipe } from "../../mobile";
 
 /** Cromos por página: 4 columnas × 3 filas. */
@@ -28,37 +39,54 @@ const leaf: Variants = {
 /** Inclinación estable de cada cromo pegado, como en un álbum de verdad. */
 const tiltOf = (id: string) => (seededRandom(id)() - 0.5) * 5;
 
+/** Presentación de cada almanaque: el color de su cinta y su pestaña, y la etiqueta decorativa (en inglés). */
+const ALMANAC_META: Record<Almanac, { color: string; tag: string }> = {
+  chest: { color: "var(--r-legendary)", tag: "Collection" },
+  quest: { color: "var(--gold)", tag: "Quest Items" },
+  armor: { color: "var(--merchant)", tag: "Armory" },
+  backdrop: { color: "var(--repeat)", tag: "Backdrops" },
+  emblem: { color: "var(--elite)", tag: "Emblems" },
+};
+
+/** Icono de la pestaña de cada almanaque. */
+function AlmanacGlyph({ a }: { a: Almanac }) {
+  if (a === "chest") return <span aria-hidden>❖</span>;
+  if (a === "quest") return <span aria-hidden>✦</span>;
+  return <SlotGlyph slot={a === "armor" ? "body" : a} className="book-tab-svg" />;
+}
+
 interface Props {
-  /** Todos los objetos, ya ordenados. */
-  all: ItemDef[];
+  items: Map<string, ItemDef>;
+  gear: Map<string, GearDef>;
   inventory: Record<string, number>;
-  selectedId?: string;
-  onSelect(id: string): void;
+  /** Equipo comprado a Hu Tao (features/merchant). */
+  owned: Record<string, Purchase>;
+  /** Clave del cromo elegido (`itemKey` o `gearKey`). */
+  selectedKey?: string;
+  onSelect(key: string): void;
   /** Contenido de la página derecha (ficha o formulario). Sin él, la portadilla con el progreso. */
   side?: ReactNode;
 }
 
-/** Color de la cinta y de la pestaña de cada sección. */
-const sectionColor = (s: AlmanacSection) => (s === "all" ? "var(--gold)" : s === "chest" ? "var(--r-legendary)" : "var(--gold-lo)");
-/** Icono de cada sección en el índice. */
-const sectionGlyph = (s: AlmanacSection) => (s === "all" ? "◆" : s === "chest" ? "❖" : KIND_GLYPH[s]);
-const sectionName = (s: AlmanacSection, t: TFunction) =>
-  s === "all" || s === "chest" ? t(`items.sections.${s}`) : t(`items.kinds.${s}`);
-
 /**
- * El almanaque como un libro abierto: cromos a la izquierda, ficha a la derecha e
- * índice por secciones (los coleccionables de los cofres y un tipo fijo por pestaña).
+ * El almanaque como un libro abierto: cromos a la izquierda, ficha a la derecha y, en
+ * el canto, un índice con un almanaque por tipo de objeto (coleccionables, objetos de
+ * quest, armaduras, fondos y emblemas). Solo sirve para ver lo que llevas.
  */
-export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Props) {
+export function AlmanacBook({ items, gear, inventory, owned, selectedKey, onSelect, side }: Props) {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<AlmanacSection>("all");
-  const list = all.filter((i) => inSection(i, filter));
-  const numberOf = new Map(all.map((i, n) => [i.id, n + 1]));
+  const [almanac, setAlmanac] = useState<Almanac>("chest");
+  const books = useMemo(
+    () => Object.fromEntries(ALMANACS.map((a) => [a, almanacEntries(a, items.values(), gear.values())])) as Record<Almanac, AlmanacEntry[]>,
+    [items, gear],
+  );
+  const list = books[almanac];
   const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
   const [{ page, dir }, setPage] = useState({ page: 0, dir: 1 });
   const cur = Math.min(page, pages - 1);
   const shown = list.slice(cur * PER_PAGE, (cur + 1) * PER_PAGE);
-  const owned = (i: ItemDef) => (inventory[i.id] ?? 0) > 0;
+  const isOwned = (e: AlmanacEntry) => entryOwned(e, { inventory, owned });
+  const meta = ALMANAC_META[almanac];
 
   const turn = (d: number) => {
     const next = Math.max(0, Math.min(pages - 1, cur + d));
@@ -68,16 +96,23 @@ export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Prop
   };
   const swipe = useSwipe(turn);
 
-  // Al cambiar de sección se vuelve a la primera página.
-  useEffect(() => setPage({ page: 0, dir: 1 }), [filter]);
+  /** Abre otro almanaque por su primera página. */
+  const open = (a: Almanac) => {
+    setAlmanac(a);
+    setPage({ page: 0, dir: 1 });
+  };
 
-  // Si se elige un objeto de otra página (p. ej. uno recién creado), el libro se abre por ella.
+  // Si se elige un cromo de otro almanaque u otra página (p. ej. un objeto recién creado), el libro se abre por él.
   useEffect(() => {
-    const idx = list.findIndex((i) => i.id === selectedId);
-    if (idx < 0) return;
-    const target = Math.floor(idx / PER_PAGE);
-    if (target !== cur) setPage({ page: target, dir: target > cur ? 1 : -1 });
-  }, [selectedId]);
+    if (!selectedKey) return;
+    const home = ALMANACS.find((a) => books[a].some((e) => e.key === selectedKey));
+    if (!home) return;
+    const target = Math.floor(books[home].findIndex((e) => e.key === selectedKey) / PER_PAGE);
+    if (home !== almanac) {
+      setAlmanac(home);
+      setPage({ page: target, dir: 1 });
+    } else if (target !== cur) setPage({ page: target, dir: target > cur ? 1 : -1 });
+  }, [selectedKey]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -91,8 +126,6 @@ export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Prop
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const ribbon = sectionColor(filter);
-
   return (
     <div className="book-wrap">
       <div className="book">
@@ -101,7 +134,7 @@ export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Prop
             <div className="book-leaves">
               <AnimatePresence initial={false} custom={dir}>
                 <motion.div
-                  key={`${filter}-${cur}`}
+                  key={`${almanac}-${cur}`}
                   className="book-leaf"
                   custom={dir}
                   variants={leaf}
@@ -110,25 +143,27 @@ export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Prop
                   exit="exit"
                 >
                   <h3 className="sec-h book-head">
-                    <span className="gem" style={{ color: ribbon }} />
-                    <span className="tag" style={{ color: ribbon }}>
-                      {filter === "all" ? "Almanac" : filter === "chest" ? "Collection" : sectionGlyph(filter)}
+                    <span className="gem" style={{ color: meta.color }} />
+                    <span className="tag" style={{ color: meta.color }}>
+                      {meta.tag}
                     </span>
-                    <span className="sec-sub">{filter === "all" ? t("items.book.subtitle") : sectionName(filter, t)}</span>
+                    <span className="sec-sub">{t(`items.almanacs.${almanac}`)}</span>
                     <span className="sec-line" />
                   </h3>
                   <div className="book-grid">
-                    {shown.map((i) => (
-                      <div key={i.id} className="book-slot" style={{ "--tilt": `${tiltOf(i.id)}deg` } as React.CSSProperties}>
-                        <ItemTile
-                          item={i}
-                          no={numberOf.get(i.id)}
-                          locked={!owned(i)}
-                          selected={i.id === selectedId}
-                          onClick={() => onSelect(i.id)}
-                        />
-                      </div>
-                    ))}
+                    {shown.map((e) => {
+                      const no = list.indexOf(e) + 1;
+                      const locked = !isOwned(e);
+                      return (
+                        <div key={e.key} className="book-slot" style={{ "--tilt": `${tiltOf(e.key)}deg` } as CSSProperties}>
+                          {e.kind === "item" ? (
+                            <ItemTile item={e.item} no={no} locked={locked} selected={e.key === selectedKey} onClick={() => onSelect(e.key)} />
+                          ) : (
+                            <GearTile gear={e.gear} no={no} locked={locked} selected={e.key === selectedKey} onClick={() => onSelect(e.key)} />
+                          )}
+                        </div>
+                      );
+                    })}
                     {/* Huecos vacíos hasta completar la página, como un álbum sin estrenar. */}
                     {list.length > 0 &&
                       Array.from({ length: PER_PAGE - shown.length }, (_, k) => (
@@ -136,7 +171,9 @@ export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Prop
                           <span className="book-blank" />
                         </div>
                       ))}
-                    {list.length === 0 && <p className="book-empty muted">{all.length ? t("items.emptySection") : t("items.emptyAlmanac")}</p>}
+                    {list.length === 0 && (
+                      <p className="book-empty muted">{almanac === "chest" && items.size === 0 ? t("items.emptyAlmanac") : t("items.emptySection")}</p>
+                    )}
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -152,8 +189,8 @@ export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Prop
           </section>
 
           <section className="book-page is-right">
-            <span className="book-ribbon" style={{ "--rc": ribbon } as React.CSSProperties} />
-            <div className="book-page-body">{side ?? <BookIntro all={all} owned={owned} />}</div>
+            <span className="book-ribbon" style={{ "--rc": meta.color } as CSSProperties} />
+            <div className="book-page-body">{side ?? <BookIntro almanac={almanac} entries={list} owned={isOwned} />}</div>
             <footer className="book-foot">
               <span className="book-arrow-spacer" />
               <span className="book-folio muted">{t("items.book.page", { page: cur + 1, pages })}</span>
@@ -167,30 +204,29 @@ export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Prop
         </div>
       </div>
 
-      {/* Índice de pestañas en el canto del libro: todo, los coleccionables y un tipo por pestaña. */}
+      {/* Índice en el canto del libro: un almanaque por tipo de objeto. */}
       <nav className="book-index">
-        {ALMANAC_SECTIONS.map((r) => {
-          const group = all.filter((i) => inSection(i, r));
-          const label = sectionName(r, t);
+        {ALMANACS.filter((a) => almanacVisible(a, books[a].length)).map((a) => {
+          const label = t(`items.almanacs.${a}`);
           return (
             <button
-              key={r}
+              key={a}
               type="button"
-              className={`book-tab is-${r} ${filter === r ? "on" : ""}`}
-              style={{ "--rc": sectionColor(r) } as React.CSSProperties}
+              className={`book-tab is-${a} ${almanac === a ? "on" : ""}`}
+              style={{ "--rc": ALMANAC_META[a].color } as CSSProperties}
               title={label}
               aria-label={label}
               onClick={() => {
-                if (filter === r) return;
+                if (almanac === a) return;
                 sfx.page();
-                setFilter(r);
+                open(a);
               }}
             >
-              <span className="book-tab-glyph" aria-hidden>
-                {sectionGlyph(r)}
+              <span className="book-tab-glyph">
+                <AlmanacGlyph a={a} />
               </span>
               <span className="num">
-                {group.filter(owned).length}/{group.length}
+                {books[a].filter(isOwned).length}/{books[a].length}
               </span>
             </button>
           );
@@ -200,42 +236,38 @@ export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Prop
   );
 }
 
-/** Portadilla de la página derecha: progreso de la colección por rareza. */
-function BookIntro({ all, owned }: { all: ItemDef[]; owned(i: ItemDef): boolean }) {
+/** Portadilla de la página derecha: el progreso del almanaque abierto, en total y por rareza. */
+function BookIntro({ almanac, entries, owned }: { almanac: Almanac; entries: AlmanacEntry[]; owned(e: AlmanacEntry): boolean }) {
   const { t } = useTranslation();
-  const got = all.filter(owned).length;
-  const pct = all.length ? Math.round((got / all.length) * 100) : 0;
+  const p = almanacProgress(entries, owned);
+  const pct = p.total ? Math.round((p.got / p.total) * 100) : 0;
   return (
     <div className="book-intro">
-      <span className="tag">Almanac</span>
-      <h2 className="book-title">{t("items.book.title")}</h2>
-      <p className="book-sub muted">{t("items.book.subtitle")}</p>
+      <span className="tag">{ALMANAC_META[almanac].tag}</span>
+      <h2 className="book-title">{t(`items.almanacs.${almanac}`)}</h2>
+      <p className="book-sub muted">{t(`items.almanacHint.${almanac}`)}</p>
       <div className="book-orn" aria-hidden>
         <span />
         <i className="gem" />
         <span />
       </div>
       <p className="book-total">
-        <b className="num">{num(got)}</b>
-        <small className="num"> / {num(all.length)}</small>
+        <b className="num">{num(p.got)}</b>
+        <small className="num"> / {num(p.total)}</small>
       </p>
       <p className="book-pct">{t("items.book.progress", { pct })}</p>
       <ul className="book-stats">
-        {[...RARITIES].reverse().map((r) => {
-          const group = all.filter((i) => i.rarity === r);
-          const n = group.filter(owned).length;
-          return (
-            <li key={r} style={{ "--rc": RARITY_META[r].color } as React.CSSProperties}>
-              <span className="book-stat-name">{t(`items.rarity.${r}`)}</span>
-              <span className="book-stat-bar">
-                <i style={{ width: group.length ? `${(n / group.length) * 100}%` : 0 }} />
-              </span>
-              <span className="num">
-                {n}/{group.length}
-              </span>
-            </li>
-          );
-        })}
+        {p.byRarity.map((r) => (
+          <li key={r.rarity} style={{ "--rc": RARITY_META[r.rarity].color } as CSSProperties}>
+            <span className="book-stat-name">{t(`items.rarity.${r.rarity}`)}</span>
+            <span className="book-stat-bar">
+              <i style={{ width: r.total ? `${(r.got / r.total) * 100}%` : 0 }} />
+            </span>
+            <span className="num">
+              {r.got}/{r.total}
+            </span>
+          </li>
+        ))}
       </ul>
       <p className="book-pick muted">{t("items.book.pick")}</p>
     </div>

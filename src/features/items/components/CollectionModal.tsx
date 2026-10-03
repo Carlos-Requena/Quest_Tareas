@@ -10,6 +10,8 @@ import { ItemForm } from "./ItemForm";
 import { ItemDetail } from "./ItemDetail";
 import { DropRates } from "./DropRates";
 import { AlmanacBook } from "./AlmanacBook";
+import { GearAlmanacDetail } from "./GearAlmanacDetail";
+import { itemKey } from "../almanac";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
 
 const TABS: CollectionTab[] = ["inventory", "almanac", "rates"];
@@ -26,18 +28,24 @@ function Modal({ tab }: { tab: CollectionTab }) {
   const setCollection = useGame((s) => s.setCollection);
   const items = useGame((s) => s.state.items);
   const inventory = useGame((s) => s.state.player.inventory);
+  const gear = useGame((s) => s.state.gear);
+  const gearOwned = useGame((s) => s.state.player.owned);
   const { t } = useTranslation();
 
   const [filter, setFilter] = useState<Rarity | "all">("all");
-  const [selectedId, setSelectedId] = useState<string>();
+  /** Cromo elegido: `itemKey(id)` o `gearKey(id)` (features/items/almanac.ts). */
+  const [selectedKey, setSelectedKey] = useState<string>();
   const [mode, setMode] = useState<Mode>({ kind: "view" });
 
   const all = useMemo(() => sortItems(items.values()), [items]);
   const inTab = tab === "inventory" ? all.filter((i) => (inventory[i.id] ?? 0) > 0) : all;
   const visible = filter === "all" ? inTab : inTab.filter((i) => i.rarity === filter);
-  const selected = (selectedId && items.get(selectedId)) || undefined;
+  const selected = selectedKey?.startsWith("item:") ? items.get(selectedKey.slice(5)) : undefined;
+  const selectedGear = selectedKey?.startsWith("gear:") ? gear.get(selectedKey.slice(5)) : undefined;
 
-  const owned = all.filter((i) => (inventory[i.id] ?? 0) > 0).length;
+  // En la cabecera, todo lo que hay en los almanaques: objetos y equipo de Hu Tao.
+  const owned = all.filter((i) => (inventory[i.id] ?? 0) > 0).length + [...gear.keys()].filter((id) => gearOwned[id]).length;
+  const total = all.length + gear.size;
   const units = Object.values(inventory).reduce((a, b) => a + b, 0);
 
   /** «3/5» en el almanaque (conseguidos / existentes); «3» en el inventario. */
@@ -72,9 +80,9 @@ function Modal({ tab }: { tab: CollectionTab }) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const select = (id: string) => {
-    if (id !== selectedId) sfx.move();
-    setSelectedId(id);
+  const select = (key: string) => {
+    if (key !== selectedKey) sfx.move();
+    setSelectedKey(key);
     setMode({ kind: "view" });
   };
 
@@ -86,7 +94,7 @@ function Modal({ tab }: { tab: CollectionTab }) {
         onDone={(id) => {
           setMode({ kind: "view" });
           if (id) {
-            setSelectedId(id);
+            setSelectedKey(itemKey(id));
             if (tab === "inventory") setCollection("almanac");
           }
         }}
@@ -96,6 +104,8 @@ function Modal({ tab }: { tab: CollectionTab }) {
     side = <ItemForm key={mode.id} item={items.get(mode.id)} onDone={() => setMode({ kind: "view" })} />;
   } else if (selected) {
     side = <ItemDetail item={selected} count={inventory[selected.id] ?? 0} onEdit={() => setMode({ kind: "edit", id: selected.id })} />;
+  } else if (selectedGear && tab === "almanac") {
+    side = <GearAlmanacDetail gear={selectedGear} />;
   }
 
   return (
@@ -117,7 +127,7 @@ function Modal({ tab }: { tab: CollectionTab }) {
         <header className="modal-h coll-h">
           <span className="gem" />
           <span className="tag">Collection</span>
-          <span className="sec-sub">{t("items.collected", { got: owned, total: all.length })}</span>
+          <span className="sec-sub">{t("items.collected", { got: owned, total })}</span>
           <div className="tabs coll-tabs" role="tablist">
             {TABS.map((id) => (
               <button key={id} role="tab" aria-selected={tab === id} className={`tab ${tab === id ? "on" : ""}`} onClick={() => goTab(id)}>
@@ -140,9 +150,11 @@ function Modal({ tab }: { tab: CollectionTab }) {
         ) : tab === "almanac" ? (
           <div className="coll-body coll-book">
             <AlmanacBook
-              all={all}
+              items={items}
+              gear={gear}
               inventory={inventory}
-              selectedId={selected?.id}
+              owned={gearOwned}
+              selectedKey={selectedKey}
               onSelect={select}
               side={side}
             />
@@ -171,7 +183,7 @@ function Modal({ tab }: { tab: CollectionTab }) {
                     item={i}
                     count={inventory[i.id]}
                     selected={i.id === selected?.id}
-                    onClick={() => select(i.id)}
+                    onClick={() => select(itemKey(i.id))}
                   />
                 ))}
                 {visible.length === 0 && (

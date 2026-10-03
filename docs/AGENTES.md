@@ -92,7 +92,7 @@ src/
   features/          UNA CARPETA POR FUNCIONALIDAD, cada una con su README.md
     pomodoro/          Pomodoro como tipo de condición (rondas; la última sin descanso)
     music/             Música de fondo (servicio local, sin eventos)
-    items/             Objetos con rareza y tipo fijo: almanaque por secciones, inventario, drops con pity; los de cofre son coleccionables únicos (eventos item_*)
+    items/             Objetos con rareza y tipo fijo: inventario, drops con pity, un almanaque por tipo de objeto (también el equipo); los de cofre son coleccionables únicos (eventos item_*)
     temporal/          Encargos temporales: tablón aparte, calaveras, adjuntos y quests enlazadas (eventos temporal_*)
     complex/           Quests complejas: repetición en cualquier categoría y requisitos (sin eventos propios)
     horizon/           Plazos: clasificación por lo que falta y fecha límite de las quests (sin eventos)
@@ -302,7 +302,7 @@ Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, 
 - **Comprar tiene que costar, pero ser habitual.** Lo que se compra con oro (mercader) tiene precios altos por rareza, rango mínimo y escaparate semanal, pero el oro está calibrado para comprar a menudo: un día bueno da unos 6.500 G y el catálogo de serie entero se compra en un año (features/rewards). No cambies precios, ritmo de oro ni requisitos sin preguntar.
 - **La recompensa la calcula el juego.** XP y oro salen de los objetivos (minutos de pomodoro, cantidad, casillas) y de la categoría; la de un encargo, de sus calaveras y sus quests. Nadie los escribe a mano (features/rewards).
 - **Coleccionables únicos.** Un objeto que sale en los cofres se tiene o no se tiene: un repetido se quema. Si no sale, **se compra a Hu Tao** (es la mercader; el almanaque solo sirve para ver lo que llevas): un coleccionable mítico o superior que no tengas, **uno por semana**, a 1,5 veces el precio del equipo de su rareza y **sin requisito de rango** (features/collectibles).
-- **Almanaque por tipos fijos.** Las secciones son los coleccionables de cofre y un tipo fijo por pestaña (`ITEM_KINDS`); el tipo no se escribe a mano.
+- **Un almanaque por tipo de objeto.** El almanaque abarca todo lo que se puede conseguir: coleccionables, objetos de quest, armaduras, fondos y emblemas (features/items/almanac.ts). Solo sirve para mirar lo que llevas: comprar es cosa de Hu Tao. El tipo de un objeto (`ITEM_KINDS`) es fijo y se ve en su ficha.
 - **La mercancía se añade a mano y sin precio.** El propietario solo pone nombre, tipo, rareza, imagen y descripción; el precio y el rango los calcula el juego.
 - **Precios elevados.** El precio sale de la rareza y lleva un recargo por ranura (`SLOT_PRICE_FACTOR`, nunca por debajo de ×1): de 1.200 G a 160.000 G.
 - **Equipo de serie para todos.** Las piezas que trae la app (features/armory) son para todo el que la instale, inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos, con arte propio (nunca imágenes de las series). Se añaden en el código, no con eventos.

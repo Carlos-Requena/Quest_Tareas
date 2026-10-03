@@ -24,13 +24,13 @@ export const RARITY_META: Record<Rarity, { stars: number; color: string; tag: st
 
 // ───────────── Tipos de objeto ─────────────
 
-/** Tipos fijos: cada uno es una sección del almanaque. El nombre traducido está en `items.kinds.*`. */
+/** Tipos fijos de los objetos (se ven en su ficha). El nombre traducido está en `items.kinds.*`. */
 export const ITEM_KINDS = ["consumable", "material", "accessory", "relic", "tome", "trophy", "treasure", "other"] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 export const isItemKind = (k: unknown): k is ItemKind => ITEM_KINDS.includes(k as ItemKind);
 
-/** Icono de cada tipo en el índice del almanaque. */
+/** Icono de cada tipo. */
 export const KIND_GLYPH: Record<ItemKind, string> = {
   consumable: "⚗",
   material: "◇",
@@ -285,13 +285,6 @@ export function receiveItems(acc: ItemsAcc, guaranteed: string | undefined, drop
     acc.pity = advancePity(acc.pity, d.rarity);
   }
 }
-
-/** Sección del almanaque: los coleccionables de los cofres o un tipo fijo. */
-export type AlmanacSection = "all" | "chest" | ItemKind;
-
-export const ALMANAC_SECTIONS: AlmanacSection[] = ["all", "chest", ...ITEM_KINDS];
-
-export const inSection = (i: ItemDef, s: AlmanacSection) => s === "all" || (s === "chest" ? isCollectible(i) : i.kind === s);
 
 /** Orden del almanaque: de mayor a menor rareza y, dentro, por fecha de creación. */
 export function sortItems(items: Iterable<ItemDef>): ItemDef[] {

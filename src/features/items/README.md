@@ -86,7 +86,7 @@ Los objetos que **salen en los cofres** (`droppable`) son **coleccionables** (`i
 
 ### Tipos fijos
 
-El tipo era un texto libre («Reliquia», «Poción»…). Ahora es uno de 8 tipos fijos (`ITEM_KINDS`), que son las secciones del almanaque: consumible, material, accesorio, reliquia, grimorio, trofeo, tesoro y otros. El nombre se traduce (`items.kinds.*`) y cada tipo tiene un icono (`KIND_GLYPH`).
+El tipo era un texto libre («Reliquia», «Poción»…). Ahora es uno de 8 tipos fijos (`ITEM_KINDS`), que se ven en la ficha del objeto: consumible, material, accesorio, reliquia, grimorio, trofeo, tesoro y otros. El nombre se traduce (`items.kinds.*`) y cada tipo tiene un icono (`KIND_GLYPH`).
 
 Los objetos antiguos se clasifican **al leerlos** (`itemKindOf`, en `registerItem` y en el parche de `item_updated`): se busca el texto entre palabras clave en español, japonés e inglés («Poción» → consumible, «Artefacto» → reliquia, «遺物» → reliquia…). Lo que no encaja va a «otros». Los eventos guardados no cambian.
 
@@ -134,9 +134,19 @@ Reglas:
 La pestaña Almanaque es un libro abierto (`AlmanacBook`) sin salirse del estilo de la interfaz: tapas de cuero con el filete dorado de los marcos, páginas de papel oscuro y la misma tipografía y gemas.
 
 - **Página izquierda:** 12 cromos (4 × 3). Los conseguidos van «pegados», con borde de papel, sombra y una inclinación propia (estable por objeto). Los que faltan dejan el hueco punteado del color de su rareza. Al final de la última página hay huecos vacíos, como un álbum sin estrenar.
-- **Página derecha:** la ficha del objeto elegido o el formulario. Sin nada elegido, una portadilla con el progreso de la colección por rareza.
+- **Página derecha:** la ficha del cromo elegido o el formulario. Sin nada elegido, una portadilla con el progreso del almanaque abierto, en total y por rareza.
 - **Pasar página:** flechas del pie o `←`/`→`. La hoja gira sobre el lomo, hacia delante o hacia atrás, con sonido de papel.
-- **Índice:** las pestañas que asoman por el canto del libro son las **secciones**: todo el almanaque, los **coleccionables de cofre** y una por **tipo fijo**, cada una con su icono y «conseguidos/existentes». La cinta de marcapáginas toma el color de la sección (dorado para todo, el legendario para los coleccionables). La portadilla sigue mostrando el progreso por rareza, y el inventario se sigue filtrando por rareza.
+- **Índice: un almanaque por tipo de objeto del juego** (`almanac.ts`), cada uno con su icono y «conseguidos/existentes»:
+
+  | Almanaque | Qué tiene | Conseguido si… |
+  |---|---|---|
+  | Coleccionables | Los objetos que salen en los cofres | Está en el inventario |
+  | Objetos de quest | Los que solo son recompensa fija (solo sale si hay alguno) | Está en el inventario |
+  | Armaduras | El equipo de Hu Tao para las 8 ranuras del muñeco, también el de serie | Lo compraste |
+  | Fondos | Los fondos del menú | Lo compraste |
+  | Emblemas | Los emblemas de la cabecera | Lo compraste |
+
+  Cada almanaque numera sus cromos (#001…) y tiene su color de cinta. El equipo se pinta con su arte de ranura (`GearTile`) y su ficha (`GearAlmanacDetail`) es solo para mirar: dice cuándo y por cuánto lo compraste, si lo llevas puesto, o lleva a la tienda de Hu Tao. El almanaque no compra ni equipa nada (petición del propietario: «el almanaque solo es una forma de mirar lo que llevas»). El inventario sigue siendo solo de objetos y se filtra por rareza.
 
 ---
 
@@ -230,7 +240,9 @@ Esos objetos se pueden editar (imagen, rareza…) como cualquier otro.
 | `items.css` | Estilos propios |
 | `components/ItemTile.tsx` | Cromo y arte del objeto |
 | `components/CollectionModal.tsx` | Ventana con las pestañas Inventario, Almanaque y Probabilidades |
-| `components/AlmanacBook.tsx` | El almanaque como libro: cromos, páginas, índice y portadilla |
+| `almanac.ts` | Los almanaques por tipo de objeto: qué entra en cada uno, orden y progreso. Puro, pero solo para la interfaz (importa el modelo del mercader) |
+| `components/AlmanacBook.tsx` | El almanaque como libro: cromos, páginas, índice de almanaques y portadilla |
+| `components/GearTile.tsx`, `GearAlmanacDetail.tsx` | Cromo y ficha de una pieza de equipo en el almanaque |
 | `components/ItemDetail.tsx` | Ficha de un objeto (en el inventario y en el libro) |
 | `components/ItemForm.tsx` | Crear y editar objetos |
 | `components/DropRates.tsx` | Tablas de probabilidad y pity actual |
