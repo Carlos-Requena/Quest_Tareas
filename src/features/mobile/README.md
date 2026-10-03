@@ -124,6 +124,7 @@ src/features/mobile/
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim   # una vez
 pnpm tauri ios build --debug --target aarch64-sim           # app para el simulador
 pnpm tauri ios dev                                          # en el simulador o el iPhone, con recarga en caliente
+pnpm tauri ios build --export-method debugging              # release firmada para el iPhone (Quests.ipa)
 ```
 
 Para el diseño, lo más rápido es `pnpm dev` en el navegador con la ventana a **402 × 874** (un iPhone 17): es el mismo CSS. El simulador hace falta para lo nativo (SQLite, el llavero y el inicio de sesión de Google) y para los toques de verdad. Ver «iPhone» en [../../../docs/AGENTES.md](../../../docs/AGENTES.md) para instalarla en el teléfono.
@@ -133,4 +134,5 @@ Para el diseño, lo más rápido es `pnpm dev` en el navegador con la ventana a 
 - **Tests** (`actions.test.ts`): aceptar en el teléfono cierra la hoja y no acepta hasta que ha salido (un error introducido, quitar la espera, lo detecta); en el escritorio acepta en el acto; reportar no cierra la hoja; con otra quest abierta no espera.
 - **Navegador a 402 × 874**, en español: tablón, detalle, aceptar (sello sobre la tarjeta), progreso, reportar con «Quest Clear», «Level Up!» y el cofre (un épico), menú «Más», encargos (formulario, cartel clavado, cartel abierto, encargo cumplido), mercader (elegir pieza), personaje y armario, objetos, almanaque, crónica (deslizar con eventos de puntero) y crear quest. Escritorio a 1.280 × 780: igual que antes.
 - **Simulador de iOS 27 (iPhone 17)**, en japonés: arranca, crea la base de datos y la conserva al reinstalar; tocar una tarjeta abre la hoja; aceptar cierra la hoja y el sello cae sobre la tarjeta; el menú «Más» abre.
-- **Sin probar**: en un iPhone de verdad; el sonido y la música en iOS (el interruptor de silencio del iPhone puede callar los efectos); los PDF adjuntos (iOS puede enseñar solo la primera página en el visor); el teclado de iOS encima de los formularios; el giro a horizontal; el iPad.
+- **iPhone 15 Pro Max de verdad**: la versión release (17 MB, *bundle ID* `com.requenadonacarlos.quests`) compila, se firma con el Apple ID gratuito y se instala. No se ha abierto todavía: falta confiar en el certificado en el iPhone. Las trampas de Xcode 27 que hubo que resolver están en `docs/AGENTES.md`, «iPhone».
+- **Sin probar**: la app abierta en el iPhone; el sonido y la música en iOS (el interruptor de silencio del iPhone puede callar los efectos); los PDF adjuntos (iOS puede enseñar solo la primera página en el visor); el teclado de iOS encima de los formularios; el giro a horizontal; el iPad.
