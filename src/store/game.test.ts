@@ -209,11 +209,12 @@ describe("acciones de quests", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.3);
     await b.actions.primaryAction("q");
     const e = lastEvent();
-    expect(e).toMatchObject({ type: "quest_completed", questId: "q", reward: { xp: 400, gold: 200 } });
+    // La recompensa sale de los objetivos (features/rewards), no de la que traía la quest: contador ×1 en élite (×2).
+    expect(e).toMatchObject({ type: "quest_completed", questId: "q", reward: { xp: 50, gold: 900 } });
     expect((e as Extract<GameEvent, { type: "quest_completed" }>).drops).toHaveLength(2); // élite: dos tiradas
     const clear = b.g().clear!;
     expect(clear.before.xp).toBe(0);
-    expect(clear.after.xp).toBe(400);
+    expect(clear.after.xp).toBe(50);
     expect(clear.drops).toEqual((e as Extract<GameEvent, { type: "quest_completed" }>).drops);
     consistent(b);
   });
@@ -247,7 +248,7 @@ describe("acciones de encargos temporales", () => {
       { key: "1", title: "Pedir cita", target: 1 },
       { key: "2", title: "Llevar análisis", target: 1 },
     ];
-    expect(await b.temporal.createTemporal(draft(b, { newQuests: seeds, chain: true, xp: 300, gold: 50 }))).toBe(true);
+    expect(await b.temporal.createTemporal(draft(b, { newQuests: seeds, chain: true }))).toBe(true);
     const t = [...b.g().state.temporals.values()].find((x) => x.title === "Médico")!;
     const [q1, q2] = t.questIds.map((id) => b.g().state.quests.get(id)!);
     expect([q1.title, q2.title]).toEqual(["Pedir cita", "Llevar análisis"]);
@@ -266,8 +267,29 @@ describe("acciones de encargos temporales", () => {
     }
     const xpBefore = b.g().state.player.xp;
     await b.temporal.completeTemporal(t.id);
-    expect(b.g().state.temporals.get(t.id)).toMatchObject({ status: "done", earned: { xp: 300, gold: 50 } });
-    expect(b.g().state.player.xp).toBe(xpBefore + 300);
+    // 1 calavera (60 XP, 30 G × 45) + 20 % de sus dos quests (25 XP y 450 G cada una), redondeado a 5.
+    expect(b.g().state.temporals.get(t.id)).toMatchObject({ status: "done", earned: { xp: 70, gold: 1530 } });
+    expect(b.g().state.player.xp).toBe(xpBefore + 70);
+    consistent(b);
+  });
+
+  it("las quests completas del formulario se publican al guardar, van antes que las rápidas y suben el valor del encargo", async () => {
+    const b = await boot();
+    const full = questDef("full", {
+      category: "elite",
+      conditions: [{ id: "p", kind: "pomodoro", label: "Estudiar", target: 3, focusMinutes: 50, breakMinutes: 10 }],
+      requires: undefined,
+    });
+    const d = draft(b, { difficulty: 3, fullQuests: [full], newQuests: [{ key: "1", title: "Imprimir", target: 4 }], chain: true });
+    // 3 calaveras (200 XP, 100 G × 45) + 40 % de la élite (300 XP, 5.400 G) y de la rápida (50 XP, 900 G).
+    expect(b.temporal.draftReward(d, b.g().state.quests)).toEqual({ xp: 340, gold: 7020 });
+    expect(await b.temporal.createTemporal(d)).toBe(true);
+    const t = [...b.g().state.temporals.values()].find((x) => x.title === "Médico")!;
+    expect(t.questIds[0]).toBe("full");
+    const [q1, q2] = t.questIds.map((id) => b.g().state.quests.get(id)!);
+    expect(q1.reward).toMatchObject({ xp: 300, gold: 5400 });
+    expect(q2.requires).toEqual(["full"]);
+    expect(t.reward).toEqual({ xp: 340, gold: 7020 });
     consistent(b);
   });
 

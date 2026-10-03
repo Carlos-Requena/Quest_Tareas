@@ -11,6 +11,7 @@ import { attributesJa } from "../../features/attributes/i18n";
 import { armoryJa } from "../../features/armory/i18n";
 import { checklistJa } from "../../features/checklist/i18n";
 import { streaksJa } from "../../features/streaks/i18n";
+import { rewardsJa } from "../../features/rewards/i18n";
 import { chronicleJa } from "../../features/chronicle/i18n";
 import { recoveryJa } from "../../features/recovery/i18n";
 import { syncJa } from "../../features/sync/i18n";
@@ -110,8 +111,6 @@ export const ja: Translation = {
     conditionPhOther: "ほかの条件",
     removeCondition: "条件を削除",
     addCondition: "+ 条件を追加",
-    xp: "経験値",
-    gold: "ゴールド",
     publish: "掲示",
     close: "閉じる",
     cancel: "キャンセル",
@@ -151,6 +150,7 @@ export const ja: Translation = {
   armory: armoryJa,
   checklist: checklistJa,
   streaks: streaksJa,
+  rewards: rewardsJa,
   chronicle: chronicleJa,
   recovery: recoveryJa,
   sync: syncJa,

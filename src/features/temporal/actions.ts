@@ -3,8 +3,9 @@ import { uid } from "../../lib/id";
 import { sfx } from "../../lib/sfx";
 import i18n from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
-import { DEFAULT_REWARD, type QuestDef, type QuestState } from "../../domain/types";
+import type { QuestDef, QuestState } from "../../domain/types";
 import { gearBlobIds } from "../merchant/model";
+import { questReward, questValue, temporalValue, type Reward } from "../rewards/model";
 import {
   TEMPORAL_KINDS,
   TEMPORAL_LIMITS,
@@ -12,7 +13,6 @@ import {
   clampText,
   liveBlobIds,
   pendingLinks,
-  suggestedReward,
   type AttachmentRef,
   type TemporalDef,
   type TemporalKind,
@@ -33,8 +33,6 @@ export interface TemporalDraft {
   time: string;
   place: string;
   notes: string;
-  xp: number;
-  gold: number;
   /** Adjuntos ya guardados (al editar). */
   attachments: AttachmentRef[];
   /** Archivos nuevos elegidos en el formulario. */
@@ -43,6 +41,8 @@ export interface TemporalDraft {
   questIds: string[];
   /** Quests nuevas que se crearán en el Quest Board al guardar. */
   newQuests: QuestSeed[];
+  /** Quests nuevas hechas con el formulario completo del Quest Board: se publican al guardar. */
+  fullQuests: QuestDef[];
   /** En cadena: cada quest nueva requiere la anterior de la lista. */
   chain: boolean;
 }
@@ -78,11 +78,11 @@ export function emptyDraft(now = Date.now()): TemporalDraft {
     time: "10:00",
     place: "",
     notes: "",
-    ...suggestedReward(1),
     attachments: [],
     files: [],
     questIds: [],
     newQuests: [],
+    fullQuests: [],
     chain: false,
   };
 }
@@ -98,14 +98,29 @@ export function draftOf(t: TemporalDef, quests?: Map<string, QuestState>): Tempo
     time: t.allDay ? "" : `${pad(d.getHours())}:${pad(d.getMinutes())}`,
     place: t.place,
     notes: t.notes,
-    xp: t.reward.xp,
-    gold: t.reward.gold,
     attachments: t.attachments,
     files: [],
     questIds: quests ? t.questIds.filter((id) => quests.has(id)) : t.questIds,
     newQuests: [],
+    fullQuests: [],
     chain: false,
   };
+}
+
+/** Quest de un objetivo («título ×N») escrita en el formulario del encargo, sin id ni fecha todavía. */
+const seedConditions = (s: QuestSeed, title: string): QuestDef["conditions"] => [
+  { id: uid(), kind: "count", label: title, target: Math.max(1, Math.min(999, Math.round(s.target) || 1)) },
+];
+
+/**
+ * Lo que valdrá el encargo con las quests del borrador: las ya enlazadas, las
+ * rápidas («título ×N», encargos) y las hechas con el formulario completo (features/rewards).
+ */
+export function draftReward(d: TemporalDraft, quests: Map<string, QuestState>): Reward {
+  const linked = d.questIds.flatMap((id) => quests.get(id)?.reward ?? []);
+  const seeds = usableSeeds(d).map((s) => questValue({ category: "request", conditions: seedConditions(s, s.title) }));
+  const full = d.fullQuests.map(questValue);
+  return temporalValue(d.difficulty, [...linked, ...seeds, ...full]);
 }
 
 /** Valida y normaliza. Sin título o sin fecha no hay encargo. */
@@ -121,7 +136,8 @@ function clean(d: TemporalDraft): Omit<TemporalDef, "id" | "createdAt" | "attach
     allDay: !d.time,
     place: clampText(d.place, TEMPORAL_LIMITS.place),
     notes: clampText(d.notes, TEMPORAL_LIMITS.notes),
-    reward: { xp: Math.max(0, Math.round(d.xp) || 0), gold: Math.max(0, Math.round(d.gold) || 0) },
+    // Calculada (features/rewards): la proyección la recalcula si cambian sus quests.
+    reward: draftReward(d, useGame.getState().state.quests),
   };
 }
 
@@ -155,20 +171,23 @@ function fail(err: unknown) {
   useGame.getState().say(() => i18n.t("temporal.toast.fileError"));
 }
 
+/** Quests rápidas con título, dentro del límite de quests de un encargo. */
 const usableSeeds = (d: TemporalDraft) =>
-  d.newQuests.filter((q) => q.title.trim()).slice(0, Math.max(0, TEMPORAL_LIMITS.quests - d.questIds.length));
+  d.newQuests.filter((q) => q.title.trim()).slice(0, Math.max(0, TEMPORAL_LIMITS.quests - d.questIds.length - d.fullQuests.length));
 
 /**
- * Crea en el Quest Board las quests nuevas del formulario: encargos de un objetivo
- * («título ×N»), con la recompensa propuesta de un encargo. En cadena, cada una
- * requiere la anterior de la lista (`prev` es la última ya enlazada, si la hay).
+ * Crea en el Quest Board las quests nuevas del formulario: primero las hechas con el
+ * formulario completo y después las rápidas («título ×N», encargos de un objetivo).
+ * En cadena, cada una requiere la anterior de la lista (`prev` es la última ya
+ * enlazada, si la hay).
  */
-async function createSeedQuests(seeds: QuestSeed[], event: { title: string; place: string }, chain: boolean, prev?: string): Promise<string[]> {
+async function createDraftQuests(d: TemporalDraft, event: { title: string; place: string }, prev?: string): Promise<string[]> {
   const { dispatch } = useGame.getState();
-  const ids: string[] = [];
-  for (const s of seeds) {
+  const full = d.fullQuests.slice(0, Math.max(0, TEMPORAL_LIMITS.quests - d.questIds.length));
+  const seeds = usableSeeds(d).map((s): QuestDef => {
     const title = s.title.trim().slice(0, TEMPORAL_LIMITS.title);
-    const quest: QuestDef = {
+    const conditions = seedConditions(s, title);
+    return {
       id: uid(),
       title,
       category: "request",
@@ -176,14 +195,17 @@ async function createSeedQuests(seeds: QuestSeed[], event: { title: string; plac
       area: event.place,
       kind: "",
       description: "",
-      conditions: [{ id: uid(), kind: "count", label: title, target: Math.max(1, Math.min(999, Math.round(s.target) || 1)) }],
-      reward: { ...DEFAULT_REWARD.request },
-      requires: chain && prev ? [prev] : undefined,
+      conditions,
+      reward: questReward({ category: "request", conditions }),
       createdAt: Date.now(),
     };
-    await dispatch({ type: "quest_created", quest });
-    ids.push(quest.id);
-    prev = quest.id;
+  });
+  const ids: string[] = [];
+  for (const q of [...full, ...seeds]) {
+    const requires = d.chain && prev ? [...new Set([...(q.requires ?? []), prev])] : q.requires;
+    await dispatch({ type: "quest_created", quest: { ...q, requires, createdAt: Date.now() } });
+    ids.push(q.id);
+    prev = q.id;
   }
   return ids;
 }
@@ -201,7 +223,7 @@ export async function createTemporal(d: TemporalDraft): Promise<boolean> {
   }
   // Primero las quests (así el encargo nace enlazado a ellas) y después el encargo.
   const linked = d.questIds.slice(0, TEMPORAL_LIMITS.quests);
-  const created = await createSeedQuests(usableSeeds(d), fields, d.chain, linked[linked.length - 1]);
+  const created = await createDraftQuests(d, fields, linked[linked.length - 1]);
   const temporal: TemporalDef = { ...fields, id: uid(), attachments, questIds: [...linked, ...created], createdAt: Date.now() };
   const { dispatch, say } = useGame.getState();
   await dispatch({ type: "temporal_created", temporal });
@@ -228,6 +250,8 @@ export async function updateTemporal(id: string, d: TemporalDraft): Promise<bool
 
   const patch: TemporalPatch = {};
   for (const k of Object.keys(fields) as (keyof typeof fields)[]) {
+    // La recompensa es calculada (features/rewards): la proyección la sigue sola.
+    if (k === "reward") continue;
     if (JSON.stringify(fields[k]) !== JSON.stringify(cur[k])) Object.assign(patch, { [k]: fields[k] });
   }
   const keep = new Set(d.attachments.map((a) => a.id));
@@ -250,7 +274,7 @@ export async function updateTemporal(id: string, d: TemporalDraft): Promise<bool
   const keepQuests = new Set(d.questIds);
   for (const q of cur.questIds) if (!keepQuests.has(q)) await dispatch({ type: "temporal_unlinked", temporalId: id, questId: q });
   const linked = d.questIds.filter((q) => !cur.questIds.includes(q));
-  const created = await createSeedQuests(usableSeeds(d), fields, d.chain, d.questIds[d.questIds.length - 1]);
+  const created = await createDraftQuests(d, fields, d.questIds[d.questIds.length - 1]);
   for (const q of [...linked, ...created]) await dispatch({ type: "temporal_linked", temporalId: id, questId: q });
 
   useTemporalUi.getState().setForm(undefined);

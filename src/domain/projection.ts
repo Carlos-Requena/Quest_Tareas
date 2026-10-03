@@ -15,6 +15,7 @@ import { gainAttribute, listAttributes, newAttributesAcc, type AttributesAcc } f
 import { applyCheck, checklistProgress, cleanChecklist, isChecklistCondition } from "../features/checklist/model";
 import { nextStreak } from "../features/streaks/model";
 import { newChronicleAcc, noteStart, record, type ChronicleAcc, type ChronicleFind } from "../features/chronicle/model";
+import { questReward, temporalValue } from "../features/rewards/model";
 
 /**
  * Versión de la lógica de la proyección. Un snapshot guardado con otra versión se
@@ -23,7 +24,7 @@ import { newChronicleAcc, noteStart, record, type ChronicleAcc, type ChronicleFi
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 4;
+export const PROJECTION_VERSION = 5;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -91,13 +92,15 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
         const def = upcastQuestDef(e.quest);
         const { reward, item } = upcastReward(def.reward, e.ts);
         if (item) registerItem(items, item);
+        // Listas con casillas válidas (features/checklist).
+        const conditions = def.conditions.map((c) => (isChecklistCondition(c) ? cleanChecklist(c) : c));
         quests.set(def.id, {
           ...def,
-          // Listas con casillas válidas (features/checklist).
-          conditions: def.conditions.map((c) => (isChecklistCondition(c) ? cleanChecklist(c) : c)),
+          conditions,
           requires: cleanRequires(def),
           dueAt: Number.isFinite(def.dueAt) ? def.dueAt : undefined,
-          reward,
+          // XP y oro salen de los objetivos (features/rewards); lo que trae el evento solo aporta el objeto.
+          reward: questReward({ category: def.category, conditions, reward }),
           status: "available",
           progress: {},
           pomodoros: freshPomodoros(def.conditions),
@@ -289,6 +292,12 @@ export function finishProjection(acc: ProjectionAcc): GameState {
     const temporalId = owners.get(q.id);
     if (temporalId) q.temporalId = temporalId;
     else delete q.temporalId;
+  }
+  // Lo que vale un encargo pendiente depende de sus quests enlazadas (features/rewards).
+  for (const t of temporals.board.values()) {
+    if (t.status !== "pending") continue;
+    const linked = t.questIds.flatMap((id) => quests.get(id)?.reward ?? []);
+    t.reward = temporalValue(t.difficulty, linked);
   }
 
   const lv = levelFromXp(xp);

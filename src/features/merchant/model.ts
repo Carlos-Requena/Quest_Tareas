@@ -62,8 +62,9 @@ export interface Purchase {
 // ───────────── Precios y requisitos (los pone Hu Tao, no el jugador) ─────────────
 
 /**
- * Precio base de cada rareza, en oro. Calibrado para unos 300–500 G al día (las quests
- * de ejemplo dan 40–300 G): lo común cuesta unos días de trabajo; lo legendario, meses.
+ * Precio base de cada rareza, en oro. Con el oro de features/rewards (un día bueno da
+ * unos 6.500 G), lo común se compra en un día, lo raro en uno o dos, y lo legendario en
+ * dos o tres semanas; el catálogo de serie entero, en un año.
  */
 export const PRICES: Record<Rarity, number> = {
   common: 1_200,

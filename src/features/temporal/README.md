@@ -38,15 +38,15 @@ Un encargo temporal no se acepta, no tiene objetivos ni reaparece: tiene una **f
 
 Lo que comparte con las quests es la **recompensa**: cumplir un encargo suma su XP y su oro al jugador, así que cuenta para el nivel. No cuenta en `completedCount` (quests completadas) ni da objetos.
 
-| Calaveras | Nombre (es · ja) | XP sugerida | Oro sugerido |
-|---|---|---|---|
-| 1 | Tranquilo · 安全 | 60 | 30 |
-| 2 | Con cuidado · 注意 | 120 | 60 |
-| 3 | Peligroso · 危険 | 200 | 100 |
-| 4 | Muy peligroso · 高危険 | 320 | 160 |
-| 5 | Mortal · 致命的 | 500 | 250 |
+| Calaveras | Nombre (es · ja) | XP base | Oro base | Bono sobre sus quests |
+|---|---|---|---|---|
+| 1 | Tranquilo · 安全 | 60 | 1.350 | 20 % |
+| 2 | Con cuidado · 注意 | 120 | 2.700 | 30 % |
+| 3 | Peligroso · 危険 | 200 | 4.500 | 40 % |
+| 4 | Muy peligroso · 高危険 | 320 | 7.200 | 50 % |
+| 5 | Mortal · 致命的 | 500 | 11.250 | 60 % |
 
-La recompensa sugerida sigue a las calaveras hasta que se toca a mano (como en el formulario de quests).
+La recompensa **no se escribe a mano**: es la base de sus calaveras más un bono sobre lo que valen sus quests enlazadas, y se recalcula al enlazar o quitar quests. El formulario la enseña en vivo. Detalle en [../rewards/README.md](../rewards/README.md).
 
 ### Tipos de cartel
 
@@ -107,7 +107,8 @@ Un encargo puede llevar quests del Quest Board («Examen final» → «Repasar l
 
 **En el formulario** (sección «Quests del encargo», hasta 12):
 
-- **+ Nueva quest:** un título y cuántas veces hay que hacerla. Al guardar, cada una se crea en el Quest Board como un **encargo** (categoría Encargo) con un objetivo «título ×N», la recompensa propuesta de esa categoría y el encargo como «Encargado por».
+- **+ Quest rápida:** un título y cuántas veces hay que hacerla. Al guardar, cada una se crea en el Quest Board como un **encargo** (categoría Encargo) con un objetivo «título ×N», su recompensa calculada y el encargo como «Encargado por».
+- **+ Quest completa…:** abre el formulario entero del Quest Board (categoría, objetivos de cualquier tipo, objeto garantizado, repetición, requisitos, fecha límite), con el encargo como «Encargado por» y su lugar como área. La quest se crea al guardar el encargo, antes que las rápidas; si se cancela el encargo, no se crea.
 - **+ Enlazar una quest del tablón:** cualquier quest sin terminar que no pertenezca ya a otro encargo pendiente.
 - **En cadena:** cada quest nueva requiere la anterior de la lista (requisitos de [../complex/README.md](../complex/README.md)): primero «Repasar», después «Simulacros».
 - **Quitar** una quest del encargo solo la desenlaza: **sigue en el Quest Board**.
@@ -173,7 +174,7 @@ Durante las animaciones, `Enter`, `Esc`, espacio o un clic saltan al final.
 - Un encargo vencido **se puede cumplir** igual, con su recompensa completa.
 - Los cumplidos **no se ven** en el tablón salvo con «Ver cumplidos»; al cumplir uno, recibe su sello y se descuelga.
 - Clic en un cartel lo elige; un segundo clic (o doble clic) lo abre.
-- Las quests nuevas de un encargo son de la categoría **Encargo**, con un objetivo «título ×N» y la recompensa propuesta de esa categoría (150 XP y 80 de oro). Para algo más elaborado, se crea la quest en el Quest Board y se enlaza.
+- Las quests rápidas de un encargo son de la categoría **Encargo**, con un objetivo «título ×N». Para algo más elaborado está «+ Quest completa…», con el formulario entero.
 - **Retirar un encargo no borra sus quests:** se quedan en el Quest Board, sin encargo ni fecha. El botón de confirmar lo dice («¿Seguro? Sus quests se quedan»).
 - **Quitar una quest del encargo** (al editarlo) tampoco la borra.
 
@@ -376,7 +377,9 @@ Las dos cosas se comprobaron con datos reales de la versión anterior (ver «Ver
 | `domain/types.ts` | `GameState.temporals` |
 | `domain/events.ts` | `TemporalEventBody` en la unión |
 | `domain/projection.ts` | `applyTemporalEvent` con `linkDone` (guarda de quests enlazadas); la recompensa de `temporal_completed` suma XP y oro; `temporalId` de cada quest al final |
-| `domain/types.ts` (quests) | `QuestState.lastCompletedAt` y `temporalId`; `DEFAULT_REWARD` para las quests nuevas |
+| `domain/types.ts` (quests) | `QuestState.lastCompletedAt` y `temporalId` |
+| `components/CreateQuestModal.tsx` | `QuestFormModal` con `onCreate`: el formulario completo de quest desde el encargo |
+| `features/rewards` | La recompensa del encargo (`temporalValue`, en `finishProjection`) y la vista previa del formulario |
 | `storage/eventStore.ts` | Conexión SQLite compartida (`sqliteDb()`) y `isTauri` exportado |
 | `storage/blobStore.ts` | **Nuevo**: almacén de binarios (SQLite `blobs` / IndexedDB) |
 | `store/game.ts` | `section` y `setSection` |

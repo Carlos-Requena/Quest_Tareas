@@ -931,10 +931,6 @@
   margin: 0;
   font-size: 11px;
 }
-.tf-reward-hint {
-  align-self: end;
-  padding-bottom: 10px;
-}
 .tf-err {
   flex-basis: 100%;
   margin: 0;
@@ -2121,13 +2117,14 @@
   .pv-file-x {
     opacity: 1;
   }
-  /* Formulario: «Nueva quest» en una línea y el desplegable debajo, a lo ancho. */
+  /* Formulario: «Quest rápida» y «Quest completa» en una línea y el desplegable debajo, a lo ancho. */
   .tq-tools {
     flex-wrap: wrap;
     gap: 8px 18px;
   }
   .tq-tools .add-cond {
     white-space: nowrap;
+    min-height: 40px;
   }
   .field .tq-pick {
     flex-basis: 100%;

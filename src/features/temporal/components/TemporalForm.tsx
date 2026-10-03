@@ -4,9 +4,11 @@ import { useTranslation } from "react-i18next";
 import { useGame } from "../../../store/game";
 import { sfx } from "../../../lib/sfx";
 import { LANGS, currentLang } from "../../../i18n";
-import { KIND_META, MAX_SKULLS, TEMPORAL_KINDS, TEMPORAL_LIMITS, suggestedReward, type TemporalKind } from "../model";
+import { KIND_META, MAX_SKULLS, TEMPORAL_KINDS, TEMPORAL_LIMITS, type TemporalKind } from "../model";
 import { ACCEPT, formatSize, prepareFile, type FileError, type PreparedFile } from "../files";
-import { createTemporal, draftOf, emptyDraft, isValidDraft, updateTemporal, type TemporalDraft } from "../actions";
+import { createTemporal, draftOf, draftReward, emptyDraft, isValidDraft, updateTemporal, type TemporalDraft } from "../actions";
+import { RewardPreview } from "../../rewards/components/RewardPreview";
+import { temporalBonusRate } from "../../rewards/model";
 import { useTemporalUi } from "../ui";
 import { Skull } from "./Skull";
 import { ClipIcon } from "./Poster";
@@ -52,7 +54,7 @@ function Modal({ editId }: { editId?: string }) {
   const editing = useGame((s) => (editId ? s.state.temporals.get(editId) : undefined));
   const { t } = useTranslation();
   const [d, setD] = useState<TemporalDraft>(() => (editing ? draftOf(editing, useGame.getState().state.quests) : emptyDraft()));
-  const [rewardTouched, setRewardTouched] = useState(!!editing);
+  const quests = useGame((s) => s.state.quests);
   const [hoverSkull, setHoverSkull] = useState<number>();
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -91,7 +93,7 @@ function Modal({ editId }: { editId?: string }) {
 
   const pickSkulls = (n: number) => {
     sfx.skullStamp(n - 1);
-    set(rewardTouched ? { difficulty: n } : { difficulty: n, ...suggestedReward(n) });
+    set({ difficulty: n });
   };
 
   const shown = hoverSkull ?? d.difficulty;
@@ -272,17 +274,7 @@ function Modal({ editId }: { editId?: string }) {
             </div>
           </div>
 
-          <div className="row3">
-            <label className="field">
-              <span className="lbl">{t("temporal.form.xp")}</span>
-              <input type="number" min={0} step={10} value={d.xp} onChange={(e) => (set({ xp: Number(e.target.value) }), setRewardTouched(true))} />
-            </label>
-            <label className="field">
-              <span className="lbl">{t("temporal.form.gold")}</span>
-              <input type="number" min={0} step={10} value={d.gold} onChange={(e) => (set({ gold: Number(e.target.value) }), setRewardTouched(true))} />
-            </label>
-            <p className="tf-hint muted tf-reward-hint">{t("temporal.form.rewardHint")}</p>
-          </div>
+          <RewardPreview reward={draftReward(d, quests)} hint={t("rewards.temporal", { pct: Math.round(temporalBonusRate(d.difficulty) * 100) })} />
         </div>
 
         <footer className="modal-f">

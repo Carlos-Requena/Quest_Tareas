@@ -833,7 +833,7 @@ Sigue el patrón de `QuestCard`: guarda el valor anterior en un `useRef`, compar
 
 - Curva de XP y rangos: `src/domain/leveling.ts`.
 - Probabilidades de drop, tiradas por quest y pity: `DROP_TABLES` y `PITY_RULES` en `src/features/items/model.ts`.
-- Recompensas sugeridas por categoría: `DEFAULT_REWARD` en `src/components/CreateQuestModal.tsx`.
+- XP y oro de cada tipo de objetivo, peso de cada categoría y recompensa de los encargos: `REWARD_RATES`, `CATEGORY_FACTOR` y `TEMPORAL_GOLD_FACTOR` en `src/features/rewards/model.ts`. Si cambias la fórmula, sube `PROJECTION_VERSION` (lo ya ganado no cambia: va copiado en los eventos).
 - Tiempos de reaparición disponibles: `COOLDOWNS` en el mismo archivo.
 
 ---

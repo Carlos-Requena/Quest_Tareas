@@ -11,6 +11,7 @@ import { attributesEs } from "../../features/attributes/i18n";
 import { armoryEs } from "../../features/armory/i18n";
 import { checklistEs } from "../../features/checklist/i18n";
 import { streaksEs } from "../../features/streaks/i18n";
+import { rewardsEs } from "../../features/rewards/i18n";
 import { chronicleEs } from "../../features/chronicle/i18n";
 import { recoveryEs } from "../../features/recovery/i18n";
 import { syncEs } from "../../features/sync/i18n";
@@ -108,8 +109,6 @@ export const es = {
     conditionPhOther: "Otro objetivo",
     removeCondition: "Quitar objetivo",
     addCondition: "+ Añadir objetivo",
-    xp: "Experiencia",
-    gold: "Oro",
     publish: "publicar",
     close: "cerrar",
     cancel: "Cancelar",
@@ -150,6 +149,7 @@ export const es = {
   armory: armoryEs,
   checklist: checklistEs,
   streaks: streaksEs,
+  rewards: rewardsEs,
   chronicle: chronicleEs,
   recovery: recoveryEs,
   sync: syncEs,

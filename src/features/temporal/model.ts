@@ -35,7 +35,7 @@ export interface TemporalReward {
   gold: number;
 }
 
-/** Recompensa sugerida por número de calaveras (1 … 5). Se puede cambiar en el formulario. */
+/** Base de la recompensa por número de calaveras (1 … 5); el bono de las quests enlazadas, en features/rewards. */
 export const REWARD_BY_SKULLS: TemporalReward[] = [
   { xp: 60, gold: 30 },
   { xp: 120, gold: 60 },

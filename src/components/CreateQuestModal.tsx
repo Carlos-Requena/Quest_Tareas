@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { Category, ConditionDef, QuestDef } from "../domain/types";
-import { CATEGORY_META, DEFAULT_REWARD } from "../domain/types";
+import { CATEGORY_META } from "../domain/types";
 import { useGame } from "../store/game";
 import { uid } from "../lib/id";
 import { sfx } from "../lib/sfx";
@@ -14,6 +14,7 @@ import { DeadlineField, useHorizonUi } from "../features/horizon";
 import { areaSuggestions } from "../features/attributes";
 import { ChecklistInputs, cleanChecklist, type ChecklistItem } from "../features/checklist";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../lib/motion";
+import { RewardPreview, questReward } from "../features/rewards";
 
 /** Espera por defecto de una repetible: 20 h (diaria con margen). */
 const DEFAULT_COOLDOWN = 20 * 60;
@@ -65,11 +66,24 @@ function toCondition(c: CondDraft): ConditionDef {
 
 export function CreateQuestModal() {
   const open = useGame((s) => s.creating);
-  return <AnimatePresence>{open && <Modal />}</AnimatePresence>;
+  const setCreating = useGame((s) => s.setCreating);
+  return <AnimatePresence>{open && <QuestFormModal onClose={() => setCreating(false)} />}</AnimatePresence>;
 }
 
-function Modal() {
-  const setCreating = useGame((s) => s.setCreating);
+/**
+ * Formulario completo de una quest. Sin `onCreate`, la publica en el Quest Board.
+ * Con `onCreate` (desde un encargo temporal), la devuelve sin publicarla: el encargo
+ * la crea al guardarse. `preset` rellena cliente y área.
+ */
+export function QuestFormModal({
+  onClose,
+  onCreate,
+  preset,
+}: {
+  onClose(): void;
+  onCreate?(quest: QuestDef): void;
+  preset?: { client?: string; area?: string };
+}) {
   const dispatch = useGame((s) => s.dispatch);
   const select = useGame((s) => s.select);
   const setTab = useGame((s) => s.setTab);
@@ -79,14 +93,11 @@ function Modal() {
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<Category>("request");
-  const [client, setClient] = useState("");
-  const [area, setArea] = useState("");
+  const [client, setClient] = useState(preset?.client ?? "");
+  const [area, setArea] = useState(preset?.area ?? "");
   const [kind, setKind] = useState("");
   const [description, setDescription] = useState("");
   const [conds, setConds] = useState<CondDraft[]>([newCond("count")]);
-  const [xp, setXp] = useState(DEFAULT_REWARD.request.xp);
-  const [gold, setGold] = useState(DEFAULT_REWARD.request.gold);
-  const [rewardTouched, setRewardTouched] = useState(false);
   const [itemId, setItemId] = useState("");
   // Repetición (cualquier categoría), requisitos y fecha límite: features/complex y features/horizon.
   const [cooldown, setCooldown] = useState<number | undefined>(undefined);
@@ -98,9 +109,12 @@ function Modal() {
 
   useEffect(() => titleRef.current?.focus(), []);
 
-  const close = () => setCreating(false);
+  const close = onClose;
 
   const valid = title.trim() && conds.some(isUsable);
+  // XP y oro salen de los objetivos y la categoría (features/rewards): no se escriben a mano.
+  const conditions = conds.filter(isUsable).map(toCondition);
+  const reward = questReward({ category, conditions });
   const updateCond = (id: string, patch: Partial<CondDraft>) =>
     setConds(conds.map((x) => (x.id === id ? { ...x, ...patch } : x)));
 
@@ -114,14 +128,20 @@ function Modal() {
       area: area.trim(),
       kind: kind.trim(),
       description: description.trim(),
-      conditions: conds.filter(isUsable).map(toCondition),
-      reward: { xp: Math.max(0, xp), gold: Math.max(0, gold), itemId: itemId || undefined },
+      conditions,
+      reward: { ...reward, itemId: itemId || undefined },
       cooldownMinutes: category === "repeat" ? cooldown ?? DEFAULT_COOLDOWN : cooldown,
       requires: requires.length ? requires : undefined,
       // Las que se repiten no tienen fecha límite: tras la primera vuelta quedaría vencida.
       dueAt: recurring ? undefined : dueAt,
       createdAt: Date.now(),
     };
+    if (onCreate) {
+      onCreate(quest);
+      sfx.tick();
+      close();
+      return;
+    }
     await dispatch({ type: "quest_created", quest });
     sfx.tick();
     setTab("all");
@@ -143,10 +163,6 @@ function Modal() {
     // La repetición sigue a la categoría hasta que se toca; una repetible siempre vuelve.
     if (!cooldownTouched) setCooldown(c === "repeat" ? DEFAULT_COOLDOWN : undefined);
     else if (c === "repeat" && cooldown === undefined) setCooldown(DEFAULT_COOLDOWN);
-    if (!rewardTouched) {
-      setXp(DEFAULT_REWARD[c].xp);
-      setGold(DEFAULT_REWARD[c].gold);
-    }
   };
 
   return (
@@ -167,6 +183,8 @@ function Modal() {
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
         onSubmit={(e) => {
           e.preventDefault();
+          // Dentro de un encargo va en un portal: que el envío no llegue al formulario del encargo.
+          e.stopPropagation();
           submit();
         }}
       >
@@ -306,15 +324,8 @@ function Modal() {
             </div>
           </div>
 
-          <div className="row3">
-            <label className="field">
-              <span className="lbl">{t("modal.xp")}</span>
-              <input type="number" min={0} step={10} value={xp} onChange={(e) => (setXp(Number(e.target.value)), setRewardTouched(true))} />
-            </label>
-            <label className="field">
-              <span className="lbl">{t("modal.gold")}</span>
-              <input type="number" min={0} step={10} value={gold} onChange={(e) => (setGold(Number(e.target.value)), setRewardTouched(true))} />
-            </label>
+          <div className="row-reward">
+            <RewardPreview reward={reward} hint={t("rewards.quest")} />
             <label className="field">
               <span className="lbl">{t("items.quest.guaranteed")}</span>
               <GuaranteedItemSelect value={itemId} onChange={setItemId} />

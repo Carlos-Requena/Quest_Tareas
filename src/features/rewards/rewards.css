@@ -1,0 +1,36 @@
+/* Recompensa calculada en los formularios (features/rewards). */
+
+/* Recompensa + objeto garantizado en el formulario de quest. */
+.row-reward {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.rw-preview {
+  align-items: stretch;
+}
+.rw-preview .reward {
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.rw-preview .reward b {
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+}
+.rw-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .row-reward {
+    grid-template-columns: 1fr;
+  }
+  .rw-preview .reward {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}

@@ -28,16 +28,16 @@ Sigue la convención del proyecto: **una carpeta por implementación** (`src/fea
 
 ### El precio y el rango los pone Hu Tao
 
-| Rareza | Precio | Rango (nivel) | A unos 400 G al día |
+| Rareza | Precio | Rango (nivel) | A unos 6.500 G al día |
 |---|---|---|---|
-| Común | 1.200 G | F (1) | 3 días |
-| Poco común | 3.000 G | E (3) | 1 semana |
-| Raro | 8.000 G | D (5) | 3 semanas |
-| Épico | 20.000 G | C (8) | 7 semanas |
-| Mítico | 45.000 G | B (12) | 4 meses |
-| Legendario | 100.000 G | A (17) | 8 meses |
+| Común | 1.200 G | F (1) | menos de 1 día |
+| Poco común | 3.000 G | E (3) | medio día |
+| Raro | 8.000 G | D (5) | 1–2 días |
+| Épico | 20.000 G | C (8) | 3 días |
+| Mítico | 45.000 G | B (12) | 1 semana |
+| Legendario | 100.000 G | A (17) | 2 semanas |
 
-Calibrado con las recompensas de las quests de ejemplo (40–300 G) y las que propone el formulario (50, 80 y 200 G): unas 4–6 quests al día dan 300–500 G. El rango es el primer nivel de cada letra (`rankFor` de `domain/leveling.ts`), así que lo legendario exige rango A además del oro.
+Calibrado con el oro de la recompensa calculada ([../rewards/README.md](../rewards/README.md)): un día bueno (4–5 h de concentración) da unos 6.500 G, y con días así el catálogo de serie entero (2.357.300 G con el recargo por ranura) se compra en un año. Al principio frena más el rango que el oro: rango A pide unos 35.000 XP (unos 3 meses a 400 XP al día). El rango es el primer nivel de cada letra (`rankFor` de `domain/leveling.ts`), así que lo legendario exige rango A además del oro.
 
 **Recargo por ranura** (`SLOT_PRICE_FACTOR`, desde el 2026-10-02, a petición del propietario: «pricing elevado»): lo que más se ve cuesta más, y ninguna ranura baja del precio base. El resultado se redondea a precio de tienda (centenas por debajo de 10.000 G y millares por encima).
 

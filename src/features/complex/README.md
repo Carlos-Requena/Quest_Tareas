@@ -134,7 +134,7 @@ No tiene `events.ts`, `legacy.ts` ni `actions.ts`: no añade eventos ni cambia d
 
 | Archivo | Cambio |
 |---|---|
-| `src/domain/types.ts` | `QuestDef.requires`, comentario de `cooldownMinutes`; `QuestState.lastCompletedAt`; `DEFAULT_REWARD` (antes en el formulario) |
+| `src/domain/types.ts` | `QuestDef.requires`, comentario de `cooldownMinutes`; `QuestState.lastCompletedAt` |
 | `src/domain/projection.ts` | `cleanRequires` al crear; guarda de requisitos en `quest_accepted`; `recurs(q)` y `lastCompletedAt` en `quest_completed` |
 | `src/store/actions.ts` | `acceptQuest` avisa si está bloqueada; `reportQuest` avisa de lo que desbloquea |
 | `src/components/CreateQuestModal.tsx` | `<RecurrenceField>` (sustituye al selector de espera) y `<RequiresField>` |

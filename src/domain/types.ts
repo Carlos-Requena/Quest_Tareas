@@ -125,13 +125,6 @@ export interface GameState {
   player: PlayerState;
 }
 
-/** Recompensa propuesta para una quest nueva de cada categoría (formulario y quests de un encargo). */
-export const DEFAULT_REWARD: Record<Category, { xp: number; gold: number }> = {
-  elite: { xp: 400, gold: 200 },
-  repeat: { xp: 100, gold: 50 },
-  request: { xp: 150, gold: 80 },
-};
-
 /** Presentación de cada categoría. El nombre traducido está en el diccionario (`category.*`). */
 export const CATEGORY_META: Record<Category, { tag: string; color: string }> = {
   elite: { tag: "ELITE", color: "var(--elite)" },
