@@ -73,6 +73,9 @@ targets:
         LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+        # El script de Tauri lee .tauri/ y lanza cargo: con el sandbox de scripts de Xcode 27
+        # («Operation not permitted») no puede.
+        ENABLE_USER_SCRIPT_SANDBOXING: false
       groups: [app]
     dependencies:
       - framework: libapp.a
@@ -86,6 +89,8 @@ targets:
       - sdk: WebKit.framework
     preBuildScripts:
       - script: |
+          # El Rust de rustup delante: swift-rs necesita su llvm-objcopy (el de Homebrew no lo trae).
+          export PATH="$HOME/.cargo/bin:$PATH"
           pnpm tauri ios xcode-script -v --platform "${PLATFORM_DISPLAY_NAME:?}" --sdk-root "${SDKROOT:?}" --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration "${CONFIGURATION:?}" ${FORCE_COLOR} ${ARCHS:?}
         name: Build Rust Code
         basedOnDependencyAnalysis: false

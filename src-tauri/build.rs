@@ -23,6 +23,7 @@ fn main() {
         if let Some(id) = ios_client_id() {
             println!("cargo:rustc-env=QUESTS_GOOGLE_CLIENT_ID={id}");
         }
+        swift_rs_globals();
     } else if let Some((id, secret)) = desktop_client() {
         println!("cargo:rustc-env=QUESTS_GOOGLE_CLIENT_ID={id}");
         println!("cargo:rustc-env=QUESTS_GOOGLE_CLIENT_SECRET={secret}");
@@ -64,4 +65,85 @@ fn ios_client_id() -> Option<String> {
 
 fn env(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.trim().is_empty())
+}
+
+/// Arreglo para iOS con Xcode 27 (solo en release, que es donde pasa).
+///
+/// El SwiftPM de Xcode 27 deja «locales» las funciones `@_cdecl` de las librerías estáticas.
+/// swift-rs 1.0.8 las vuelve a hacer globales con llvm-objcopy, pero solo las del módulo de cada
+/// paquete (Tauri, nuestro plugin), no las de su propio módulo `SwiftRs` (retain_object,
+/// release_object, string_from_bytes, data_from_bytes): cada archivo lleva una copia local y el
+/// enlace falla con «Undefined symbols». Aquí se saca `SwiftRs.o` del archivo de Tauri, se hacen
+/// globales esas cuatro funciones y se enlaza como una librería más. Si ya son globales (debug,
+/// otra versión de Xcode o de swift-rs), no hace nada.
+///
+/// Corre después del build script de `tauri` (este crate depende de él y tauri tiene `links`).
+fn swift_rs_globals() {
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    const SYMS: [&str; 4] = ["_retain_object", "_release_object", "_string_from_bytes", "_data_from_bytes"];
+    let Ok(out_dir) = std::env::var("OUT_DIR").map(PathBuf::from) else { return };
+    // OUT_DIR = target/<triple>/<perfil>/build/quests-<hash>/out → la carpeta build.
+    let Some(build_dir) = out_dir.parent().and_then(Path::parent) else { return };
+
+    // El libTauri.a más reciente del build script de tauri (target/…/build/tauri-<hash>/out/…).
+    let mut archive: Option<(std::time::SystemTime, PathBuf)> = None;
+    for entry in std::fs::read_dir(build_dir).into_iter().flatten().flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        let Some(hash) = name.strip_prefix("tauri-") else { continue };
+        if !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            continue;
+        }
+        let swift = entry.path().join("out/swift-rs/Tauri");
+        for config in std::fs::read_dir(&swift).into_iter().flatten().flatten() {
+            let lib = config.path().join("libTauri.a");
+            if let Ok(time) = lib.metadata().and_then(|m| m.modified()) {
+                if archive.as_ref().map_or(true, |(t, _)| time > *t) {
+                    archive = Some((time, lib));
+                }
+            }
+        }
+    }
+    let Some((_, archive)) = archive else { return };
+    println!("cargo:rerun-if-changed={}", archive.display());
+
+    let work = out_dir.join("swift-rs-globals");
+    let _ = std::fs::remove_dir_all(&work);
+    if std::fs::create_dir_all(&work).is_err() {
+        return;
+    }
+    let ok = |c: &mut Command| c.status().map(|s| s.success()).unwrap_or(false);
+    if !ok(Command::new("ar").current_dir(&work).arg("x").arg(&archive).arg("SwiftRs.o")) {
+        return;
+    }
+    let object = work.join("SwiftRs.o");
+    let Ok(nm) = Command::new("nm").arg(&object).output() else { return };
+    let local: Vec<&str> = SYMS
+        .iter()
+        .copied()
+        .filter(|s| String::from_utf8_lossy(&nm.stdout).lines().any(|l| l.ends_with(&format!(" t {s}"))))
+        .collect();
+    if local.is_empty() {
+        return; // ya son globales: no hace falta
+    }
+
+    // llvm-objcopy de rustup (componente llvm-tools), junto al rustc con el que compila cargo.
+    let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
+    let host = std::env::var("HOST").unwrap_or_else(|_| "aarch64-apple-darwin".into());
+    let Some(sysroot) = Command::new(&rustc).args(["--print", "sysroot"]).output().ok() else { return };
+    let objcopy = PathBuf::from(String::from_utf8_lossy(&sysroot.stdout).trim()).join(format!("lib/rustlib/{host}/bin/llvm-objcopy"));
+    if !objcopy.exists() {
+        println!("cargo:warning=Falta llvm-objcopy: ejecuta `rustup component add llvm-tools` (el enlace para iOS fallará)");
+        return;
+    }
+    let mut cmd = Command::new(objcopy);
+    for s in &local {
+        cmd.arg(format!("--globalize-symbol={s}"));
+    }
+    if !ok(cmd.arg(&object)) || !ok(Command::new("ar").current_dir(&work).args(["rcs", "libswiftrs_globals.a", "SwiftRs.o"])) {
+        return;
+    }
+    println!("cargo:rustc-link-search=native={}", work.display());
+    println!("cargo:rustc-link-lib=static=swiftrs_globals");
 }
