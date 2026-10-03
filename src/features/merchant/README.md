@@ -2,6 +2,8 @@
 
 El oro por fin sirve para algo. **Hu Tao**, directora de la Funeraria Wangsheng, vende **equipo para el muñeco del personaje** (cabeza, cuerpo, manos, pies, arma, escudo, capa y amuleto) y **decoración del menú** (el fondo de la app y el emblema de la cabecera). Comprar tiene que costar: los precios los pone ella según la rareza, lo bueno pide rango y cada semana solo saca unas pocas piezas a su escaparate.
 
+Además, cada semana vende **un coleccionable del almanaque** (mítico o legendario, de los que salen en los cofres y aún no tienes), en su propia pestaña: [src/features/collectibles/README.md](../collectibles/README.md).
+
 Las piezas se añaden a mano desde la propia tienda (nombre, tipo, rareza, imagen y descripción). El precio no se elige. Lo que se compra se lleva puesto desde la ficha del personaje: [src/features/equipment/README.md](../equipment/README.md).
 
 Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
@@ -192,9 +194,9 @@ Las partículas y sacudidas usan `src/lib/fx.ts` y respetan «reducir movimiento
 | Tecla | Acción |
 |---|---|
 | `C` | Abrir (desde los tablones) o cerrar |
-| `Q` / `E` / `Tab` | Escaparate ↔ Catálogo |
+| `Q` / `E` / `Tab` | Escaparate → Coleccionable → Catálogo |
 | `↑` / `↓` | Elegir pieza |
-| `Enter` | Comprar (dos veces: armar y confirmar) |
+| `Enter` | Comprar (dos veces: armar y confirmar); en la pestaña del coleccionable, el de la semana |
 | `N` | Nueva mercancía |
 | `Esc` | Cancelar el formulario o la compra armada; si no, cerrar |
 
@@ -211,7 +213,7 @@ Las partículas y sacudidas usan `src/lib/fx.ts` y respetan «reducir movimiento
 | `ui.ts` | Estado de la ventana (abierta, pestaña) |
 | `i18n.ts` | Textos es + ja, con los diálogos de Hu Tao |
 | `merchant.css` | Estilos propios |
-| `components/MerchantModal.tsx` | La ventana: escenario, pestañas, lista, ficha y formulario |
+| `components/MerchantModal.tsx` | La ventana: escenario, pestañas (escaparate, coleccionable de la semana y catálogo), lista, ficha y formulario |
 | `components/HuTaoStage.tsx` | El vídeo de Hu Tao y su cuadro de diálogo |
 | `components/GearDetail.tsx` | Ficha de una pieza: precio, requisitos, escaparate y botones |
 | `components/GearForm.tsx` | Añadir y editar mercancía |

@@ -810,6 +810,22 @@
   color: var(--rc);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.8);
 }
+/* Coleccionable repetido: se ve apagado y con su aviso (GSAP anima la opacidad del contenedor, no la de esto). */
+.chest-item.is-burned .itile {
+  filter: grayscale(0.75) brightness(0.65);
+}
+.chest-burned {
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--f-tag);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--skull-hi);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
 .chest-item .iart-mono {
   font-size: 34px;
 }
@@ -1154,7 +1170,7 @@
   overflow-y: auto;
   padding-right: 4px;
 }
-/* Cinta de marcapáginas con el color de la rareza elegida en el índice. */
+/* Cinta de marcapáginas con el color de la sección elegida en el índice. */
 .book-ribbon {
   position: absolute;
   top: -12px;
@@ -1167,14 +1183,14 @@
   z-index: 5;
   transition: background 0.3s;
 }
-/* Índice: pestañas que asoman por el canto del libro. */
+/* Índice: pestañas que asoman por el canto del libro (todo, coleccionables y un tipo por pestaña). */
 .book-index {
   position: absolute;
-  top: 30px;
+  top: 18px;
   right: -48px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   z-index: 0;
 }
 .book-tab {
@@ -1182,9 +1198,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 3px;
   width: 50px;
-  padding: 10px 0 9px 10px;
+  padding: 6px 0 5px 10px;
   border: 1px solid color-mix(in srgb, var(--rc) 40%, transparent);
   border-left: none;
   border-radius: 0 7px 7px 0;
@@ -1201,6 +1217,15 @@
 }
 .book-tab .num {
   font-size: 12px;
+}
+/* Icono de la sección (coleccionables o un tipo fijo). */
+.book-tab-glyph {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--rc);
+}
+.book-tab.is-chest .book-tab-glyph {
+  text-shadow: 0 0 8px var(--rc);
 }
 .book-tab:hover {
   transform: translateX(-4px);

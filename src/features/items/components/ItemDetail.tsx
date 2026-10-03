@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../../../store/game";
 import { LANGS, currentLang, num } from "../../../i18n";
-import { RARITY_META, type ItemDef } from "../model";
+import { KIND_GLYPH, RARITY_META, isCollectible, type ItemDef } from "../model";
 import { deleteItem } from "../actions";
 import { ItemArt, rarityStyle } from "./ItemTile";
 
@@ -42,13 +42,17 @@ export function ItemDetail({ item, count, onEdit }: { item: ItemDef; count: numb
           <span className="sec-sub">{t(`items.rarity.${item.rarity}`)}</span>
         </div>
         <h2 className="idetail-name">{item.name}</h2>
-        {item.kind && <p className="idetail-kind muted">{item.kind}</p>}
+        <p className="idetail-kind muted">
+          {KIND_GLYPH[item.kind]} {t(`items.kinds.${item.kind}`)}
+        </p>
         {item.description && <p className="desc idetail-desc">{item.description}</p>}
 
         <ul className="idetail-facts">
-          <li className={count ? "is-owned" : ""}>{count ? t("items.detail.owned", { n: num(count) }) : t("items.detail.notOwned")}</li>
+          <li className={count ? "is-owned" : ""}>
+            {!count ? t("items.detail.notOwned") : isCollectible(item) ? t("items.detail.collected") : t("items.detail.owned", { n: num(count) })}
+          </li>
           {date && <li>{t("items.detail.firstAt", { date })}</li>}
-          <li>{item.droppable ? t("items.detail.droppable") : t("items.detail.notDroppable")}</li>
+          <li>{isCollectible(item) ? t("items.detail.collectible") : t("items.detail.notDroppable")}</li>
         </ul>
 
         <div className="idetail-actions">

@@ -22,6 +22,51 @@ export const RARITY_META: Record<Rarity, { stars: number; color: string; tag: st
   legendary: { stars: 6, color: "var(--r-legendary)", tag: "LEGENDARY" },
 };
 
+// ───────────── Tipos de objeto ─────────────
+
+/** Tipos fijos: cada uno es una sección del almanaque. El nombre traducido está en `items.kinds.*`. */
+export const ITEM_KINDS = ["consumable", "material", "accessory", "relic", "tome", "trophy", "treasure", "other"] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
+
+export const isItemKind = (k: unknown): k is ItemKind => ITEM_KINDS.includes(k as ItemKind);
+
+/** Icono de cada tipo en el índice del almanaque. */
+export const KIND_GLYPH: Record<ItemKind, string> = {
+  consumable: "⚗",
+  material: "◇",
+  accessory: "◎",
+  relic: "✠",
+  tome: "❦",
+  trophy: "♛",
+  treasure: "✦",
+  other: "·",
+};
+
+/**
+ * Palabras con las que se escribía el tipo cuando era texto libre (es, ja, en).
+ * Los objetos antiguos se clasifican al leerlos; lo que no encaja va a «other».
+ */
+const KIND_WORDS: [ItemKind, string[]][] = [
+  ["consumable", ["consumible", "pocion", "elixir", "comida", "bebida", "消耗品", "ポーション", "薬", "consumable", "potion", "food"]],
+  ["material", ["material", "mineral", "gema", "cristal", "pluma", "escama", "素材", "鉱石", "gem", "crystal", "ore"]],
+  ["accessory", ["accesorio", "anillo", "amuleto", "colgante", "joya", "装飾品", "指輪", "アクセサリー", "accessory", "ring", "amulet", "jewel"]],
+  ["relic", ["reliquia", "artefacto", "sello", "reloj", "遺物", "アーティファクト", "relic", "artifact"]],
+  ["tome", ["grimorio", "libro", "tomo", "pergamino", "mapa", "魔導書", "書", "巻物", "grimoire", "book", "tome", "scroll"]],
+  ["trophy", ["trofeo", "medalla", "insignia", "戦利品", "トロフィー", "勲章", "trophy", "medal", "badge"]],
+  ["treasure", ["tesoro", "corona", "oro", "財宝", "宝", "treasure", "crown"]],
+];
+
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+/** Tipo fijo de un objeto: el que trae o, si es un texto libre antiguo, el que mejor encaja. */
+export function itemKindOf(raw: unknown): ItemKind {
+  if (isItemKind(raw)) return raw;
+  const text = typeof raw === "string" ? fold(raw) : "";
+  if (!text) return "other";
+  for (const [kind, words] of KIND_WORDS) if (words.some((w) => text.includes(fold(w)))) return kind;
+  return "other";
+}
+
 // ───────────── Objeto ─────────────
 
 /** Definición de un objeto del almanaque (lo que se crea desde la app). */
@@ -29,12 +74,15 @@ export interface ItemDef {
   id: string;
   name: string;
   rarity: Rarity;
-  /** Tipo libre: «Poción», «Reliquia»… */
-  kind: string;
+  /** Tipo fijo (sección del almanaque). Los objetos antiguos traían texto libre: ver itemKindOf. */
+  kind: ItemKind;
   description: string;
   /** Imagen reducida como data URL (ver image.ts). Sin imagen se pinta un monograma. */
   image?: string;
-  /** Si puede salir en los drops aleatorios. Si no, solo como recompensa fija de una quest. */
+  /**
+   * Si puede salir en los cofres. Los que salen son **coleccionables**: se tienen o no
+   * se tienen (un repetido se quema). Los que no, solo como recompensa fija de una quest.
+   */
   droppable: boolean;
   createdAt: number;
 }
@@ -42,7 +90,10 @@ export interface ItemDef {
 /** Campos editables de un objeto. */
 export type ItemPatch = Partial<Omit<ItemDef, "id" | "createdAt">>;
 
-export const ITEM_LIMITS = { name: 40, kind: 24, description: 240 } as const;
+export const ITEM_LIMITS = { name: 40, description: 240 } as const;
+
+/** Coleccionable: un objeto que sale en los cofres. Solo se puede tener uno. */
+export const isCollectible = (i: Pick<ItemDef, "droppable">) => i.droppable;
 
 /** Un objeto obtenido en un drop. La rareza se copia: el pity no cambia si luego se edita el objeto. */
 export interface Drop {
@@ -170,6 +221,8 @@ export interface ItemsAcc {
   /** Primera vez que se obtuvo cada objeto (ms). */
   discovered: Record<string, number>;
   pity: Pity;
+  /** Coleccionables comprados a Hu Tao: cuándo (ms), por id (features/collectibles). */
+  bought: Record<string, number>;
 }
 
 export const newItemsAcc = (): ItemsAcc => ({
@@ -178,11 +231,12 @@ export const newItemsAcc = (): ItemsAcc => ({
   inventory: {},
   discovered: {},
   pity: newPity(),
+  bought: {},
 });
 
-/** Añade un objeto al almanaque si no existe ni fue retirado. */
+/** Añade un objeto al almanaque si no existe ni fue retirado. El tipo se pasa a uno fijo. */
 export function registerItem(acc: ItemsAcc, def: ItemDef) {
-  if (!acc.catalog.has(def.id) && !acc.deleted.has(def.id)) acc.catalog.set(def.id, def);
+  if (!acc.catalog.has(def.id) && !acc.deleted.has(def.id)) acc.catalog.set(def.id, { ...def, kind: itemKindOf(def.kind) });
 }
 
 /** Aplica un evento de objeto. Las guardas ignoran los imposibles, igual que project(). */
@@ -194,7 +248,12 @@ export function applyItemEvent(acc: ItemsAcc, e: ItemEventBody) {
     case "item_updated": {
       const cur = acc.catalog.get(e.itemId);
       // Parche por campos: dos dispositivos que editan campos distintos no se pisan.
-      if (cur) acc.catalog.set(cur.id, { ...cur, ...e.patch, id: cur.id, createdAt: cur.createdAt });
+      if (!cur) break;
+      const next = { ...cur, ...e.patch, id: cur.id, createdAt: cur.createdAt };
+      if (e.patch.kind !== undefined) next.kind = itemKindOf(e.patch.kind);
+      acc.catalog.set(cur.id, next);
+      // Si pasa a salir en los cofres, es coleccionable: los repetidos se queman.
+      if (isCollectible(next) && (acc.inventory[cur.id] ?? 0) > 1) acc.inventory[cur.id] = 1;
       break;
     }
     case "item_deleted":
@@ -202,15 +261,21 @@ export function applyItemEvent(acc: ItemsAcc, e: ItemEventBody) {
         acc.deleted.add(e.itemId);
         delete acc.inventory[e.itemId];
         delete acc.discovered[e.itemId];
+        delete acc.bought[e.itemId];
       }
       break;
   }
 }
 
-/** Suma objetos al inventario (los retirados se ignoran) y avanza el pity con los drops. */
+/**
+ * Suma objetos al inventario (los retirados se ignoran) y avanza el pity con los drops.
+ * Un coleccionable que ya tienes se quema: no suma, pero la tirada cuenta para el pity.
+ */
 export function receiveItems(acc: ItemsAcc, guaranteed: string | undefined, drops: Drop[], ts: number) {
   const add = (id: string) => {
-    if (!acc.catalog.has(id)) return;
+    const def = acc.catalog.get(id);
+    if (!def) return;
+    if (isCollectible(def) && (acc.inventory[id] ?? 0) > 0) return;
     acc.inventory[id] = (acc.inventory[id] ?? 0) + 1;
     acc.discovered[id] ??= ts;
   };
@@ -220,6 +285,13 @@ export function receiveItems(acc: ItemsAcc, guaranteed: string | undefined, drop
     acc.pity = advancePity(acc.pity, d.rarity);
   }
 }
+
+/** Sección del almanaque: los coleccionables de los cofres o un tipo fijo. */
+export type AlmanacSection = "all" | "chest" | ItemKind;
+
+export const ALMANAC_SECTIONS: AlmanacSection[] = ["all", "chest", ...ITEM_KINDS];
+
+export const inSection = (i: ItemDef, s: AlmanacSection) => s === "all" || (s === "chest" ? isCollectible(i) : i.kind === s);
 
 /** Orden del almanaque: de mayor a menor rareza y, dentro, por fecha de creación. */
 export function sortItems(items: Iterable<ItemDef>): ItemDef[] {

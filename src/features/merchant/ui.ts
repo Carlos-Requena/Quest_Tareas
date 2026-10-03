@@ -3,7 +3,7 @@
 
 import { create } from "zustand";
 
-export type MerchantTab = "showcase" | "catalog";
+export type MerchantTab = "showcase" | "collectible" | "catalog";
 
 interface MerchantUi {
   open: boolean;

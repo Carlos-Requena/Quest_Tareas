@@ -141,8 +141,6 @@ function Modal({ tab }: { tab: CollectionTab }) {
           <div className="coll-body coll-book">
             <AlmanacBook
               all={all}
-              filter={filter}
-              setFilter={setFilter}
               inventory={inventory}
               selectedId={selected?.id}
               onSelect={select}

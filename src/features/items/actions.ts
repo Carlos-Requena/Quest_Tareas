@@ -2,19 +2,19 @@ import { useGame } from "../../store/game";
 import { uid } from "../../lib/id";
 import { sfx } from "../../lib/sfx";
 import i18n from "../../i18n";
-import { ITEM_LIMITS, RARITIES, clampText, type ItemDef, type ItemPatch, type Rarity } from "./model";
+import { ITEM_LIMITS, RARITIES, clampText, itemKindOf, type ItemDef, type ItemKind, type ItemPatch, type Rarity } from "./model";
 
 /** Lo que rellena el formulario de objeto. */
 export interface ItemDraft {
   name: string;
   rarity: Rarity;
-  kind: string;
+  kind: ItemKind;
   description: string;
   image?: string;
   droppable: boolean;
 }
 
-export const emptyItemDraft = (): ItemDraft => ({ name: "", rarity: "common", kind: "", description: "", droppable: true });
+export const emptyItemDraft = (): ItemDraft => ({ name: "", rarity: "common", kind: "other", description: "", droppable: true });
 
 /** Valida y normaliza un borrador. Sin nombre no hay objeto. */
 function clean(d: ItemDraft): Omit<ItemDef, "id" | "createdAt"> | undefined {
@@ -23,7 +23,7 @@ function clean(d: ItemDraft): Omit<ItemDef, "id" | "createdAt"> | undefined {
   return {
     name,
     rarity: d.rarity,
-    kind: clampText(d.kind, ITEM_LIMITS.kind),
+    kind: itemKindOf(d.kind),
     description: clampText(d.description, ITEM_LIMITS.description),
     image: d.image || undefined,
     droppable: d.droppable,

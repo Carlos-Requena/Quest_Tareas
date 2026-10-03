@@ -5,7 +5,7 @@ import gsap from "gsap";
 import { useGame, type ClearResult } from "../../../store/game";
 import { sfx } from "../../../lib/sfx";
 import { burst, calm, centerIn, implode, quake, tremble, twinkle } from "../../../lib/fx";
-import { RARITIES, RARITY_META, rarityTier, type ItemDef, type Rarity } from "../model";
+import { RARITIES, RARITY_META, isCollectible, rarityTier, type ItemDef, type Rarity } from "../model";
 import { ItemTile, rarityStyle } from "./ItemTile";
 import { useIsPhone } from "../../mobile";
 
@@ -23,21 +23,28 @@ interface Content {
   item: ItemDef;
   rarity: Rarity;
   isNew: boolean;
+  /** Coleccionable que ya tenías (o repetido en este cofre): se quema. */
+  burned: boolean;
 }
 
 /**
  * Contenido del cofre: el objeto garantizado y después los drops.
- * NEW marca la primera unidad de lo que no estaba en el inventario antes de reportar.
+ * NEW marca la primera unidad de lo que no estaba en el inventario antes de reportar;
+ * un coleccionable que ya estaba (o que sale dos veces) se quema, como en la proyección.
  */
 export function chestContents(clear: ClearResult, items: Map<string, ItemDef>): Content[] {
   const seen = new Set(Object.keys(clear.before.inventory).filter((id) => clear.before.inventory[id] > 0));
-  const isNew = (id: string) => (seen.has(id) ? false : (seen.add(id), true));
+  const content = (item: ItemDef, rarity: Rarity): Content => {
+    const had = seen.has(item.id);
+    seen.add(item.id);
+    return { item, rarity, isNew: !had, burned: had && isCollectible(item) };
+  };
   const out: Content[] = [];
   const g = clear.guaranteed ? items.get(clear.guaranteed) : undefined;
-  if (g) out.push({ item: g, rarity: g.rarity, isNew: isNew(g.id) });
+  if (g) out.push(content(g, g.rarity));
   for (const d of clear.drops) {
     const item = items.get(d.itemId);
-    if (item) out.push({ item, rarity: d.rarity, isNew: isNew(d.itemId) });
+    if (item) out.push(content(item, d.rarity));
   }
   return out;
 }
@@ -414,11 +421,12 @@ export function LootChest({ clear, onOpened, ref }: { clear: ClearResult; onOpen
 
       <div className="chest-items">
         {contents.map((c, i) => (
-          <div key={i} className={`chest-item is-${c.rarity}`} style={rarityStyle(c.item)}>
+          <div key={i} className={`chest-item is-${c.rarity} ${c.burned ? "is-burned" : ""}`} style={rarityStyle(c.item)}>
             {rarityTier(c.rarity) >= EPIC && <span className="chest-rays" />}
             <span className="chest-item-glow" />
             <span className="chest-item-ring" />
             <ItemTile item={c.item} isNew={c.isNew} />
+            {c.burned && <span className="chest-burned">{t("items.clear.burned")}</span>}
             <span className="chest-item-flash" />
           </div>
         ))}

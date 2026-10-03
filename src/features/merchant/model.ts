@@ -93,7 +93,7 @@ export const SLOT_PRICE_FACTOR: Record<GearSlot, number> = {
 };
 
 /** Redondeo «de tienda»: a la centena por debajo de 10.000 y al millar por encima. */
-const shopRound = (n: number) => (n < 10_000 ? Math.round(n / 100) * 100 : Math.round(n / 1000) * 1000);
+export const shopRound = (n: number) => (n < 10_000 ? Math.round(n / 100) * 100 : Math.round(n / 1000) * 1000);
 
 /** Nivel mínimo para comprar cada rareza: el primero de cada rango (F, E, D, C, B y A). */
 export const LEVEL_REQUIRED: Record<Rarity, number> = {
@@ -131,7 +131,7 @@ export function nextWeekStart(now: number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7).getTime();
 }
 
-const weekKey = (ws: number) => {
+export const weekKey = (ws: number) => {
   const d = new Date(ws);
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 };

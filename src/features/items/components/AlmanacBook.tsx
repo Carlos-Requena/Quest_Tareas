@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { sfx } from "../../../lib/sfx";
 import { seededRandom } from "../../../lib/id";
 import { num } from "../../../i18n";
-import { RARITIES, RARITY_META, type ItemDef, type Rarity } from "../model";
+import { ALMANAC_SECTIONS, KIND_GLYPH, RARITIES, RARITY_META, inSection, type AlmanacSection, type ItemDef } from "../model";
 import { ItemTile } from "./ItemTile";
 import { useSwipe } from "../../mobile";
 
@@ -30,8 +31,6 @@ const tiltOf = (id: string) => (seededRandom(id)() - 0.5) * 5;
 interface Props {
   /** Todos los objetos, ya ordenados. */
   all: ItemDef[];
-  filter: Rarity | "all";
-  setFilter(f: Rarity | "all"): void;
   inventory: Record<string, number>;
   selectedId?: string;
   onSelect(id: string): void;
@@ -39,10 +38,21 @@ interface Props {
   side?: ReactNode;
 }
 
-/** El almanaque como un libro abierto: cromos a la izquierda, ficha a la derecha e índice por rareza. */
-export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onSelect, side }: Props) {
+/** Color de la cinta y de la pestaña de cada sección. */
+const sectionColor = (s: AlmanacSection) => (s === "all" ? "var(--gold)" : s === "chest" ? "var(--r-legendary)" : "var(--gold-lo)");
+/** Icono de cada sección en el índice. */
+const sectionGlyph = (s: AlmanacSection) => (s === "all" ? "◆" : s === "chest" ? "❖" : KIND_GLYPH[s]);
+const sectionName = (s: AlmanacSection, t: TFunction) =>
+  s === "all" || s === "chest" ? t(`items.sections.${s}`) : t(`items.kinds.${s}`);
+
+/**
+ * El almanaque como un libro abierto: cromos a la izquierda, ficha a la derecha e
+ * índice por secciones (los coleccionables de los cofres y un tipo fijo por pestaña).
+ */
+export function AlmanacBook({ all, inventory, selectedId, onSelect, side }: Props) {
   const { t } = useTranslation();
-  const list = filter === "all" ? all : all.filter((i) => i.rarity === filter);
+  const [filter, setFilter] = useState<AlmanacSection>("all");
+  const list = all.filter((i) => inSection(i, filter));
   const numberOf = new Map(all.map((i, n) => [i.id, n + 1]));
   const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
   const [{ page, dir }, setPage] = useState({ page: 0, dir: 1 });
@@ -58,7 +68,7 @@ export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onS
   };
   const swipe = useSwipe(turn);
 
-  // Al cambiar de rareza se vuelve a la primera página.
+  // Al cambiar de sección se vuelve a la primera página.
   useEffect(() => setPage({ page: 0, dir: 1 }), [filter]);
 
   // Si se elige un objeto de otra página (p. ej. uno recién creado), el libro se abre por ella.
@@ -81,7 +91,7 @@ export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onS
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const ribbon = filter === "all" ? "var(--gold)" : RARITY_META[filter].color;
+  const ribbon = sectionColor(filter);
 
   return (
     <div className="book-wrap">
@@ -102,9 +112,9 @@ export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onS
                   <h3 className="sec-h book-head">
                     <span className="gem" style={{ color: ribbon }} />
                     <span className="tag" style={{ color: ribbon }}>
-                      {filter === "all" ? "Almanac" : RARITY_META[filter].tag}
+                      {filter === "all" ? "Almanac" : filter === "chest" ? "Collection" : sectionGlyph(filter)}
                     </span>
-                    <span className="sec-sub">{filter === "all" ? t("items.book.subtitle") : t(`items.rarity.${filter}`)}</span>
+                    <span className="sec-sub">{filter === "all" ? t("items.book.subtitle") : sectionName(filter, t)}</span>
                     <span className="sec-line" />
                   </h3>
                   <div className="book-grid">
@@ -126,7 +136,7 @@ export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onS
                           <span className="book-blank" />
                         </div>
                       ))}
-                    {list.length === 0 && <p className="book-empty muted">{all.length ? t("items.emptyFilter") : t("items.emptyAlmanac")}</p>}
+                    {list.length === 0 && <p className="book-empty muted">{all.length ? t("items.emptySection") : t("items.emptyAlmanac")}</p>}
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -157,17 +167,17 @@ export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onS
         </div>
       </div>
 
-      {/* Índice de pestañas en el canto del libro: una por rareza. */}
+      {/* Índice de pestañas en el canto del libro: todo, los coleccionables y un tipo por pestaña. */}
       <nav className="book-index">
-        {(["all", ...[...RARITIES].reverse()] as const).map((r) => {
-          const group = r === "all" ? all : all.filter((i) => i.rarity === r);
-          const label = r === "all" ? t("items.all") : t(`items.rarity.${r}`);
+        {ALMANAC_SECTIONS.map((r) => {
+          const group = all.filter((i) => inSection(i, r));
+          const label = sectionName(r, t);
           return (
             <button
               key={r}
               type="button"
-              className={`book-tab ${filter === r ? "on" : ""}`}
-              style={{ "--rc": r === "all" ? "var(--gold)" : RARITY_META[r].color } as React.CSSProperties}
+              className={`book-tab is-${r} ${filter === r ? "on" : ""}`}
+              style={{ "--rc": sectionColor(r) } as React.CSSProperties}
               title={label}
               aria-label={label}
               onClick={() => {
@@ -176,7 +186,9 @@ export function AlmanacBook({ all, filter, setFilter, inventory, selectedId, onS
                 setFilter(r);
               }}
             >
-              <span className="gem" />
+              <span className="book-tab-glyph" aria-hidden>
+                {sectionGlyph(r)}
+              </span>
               <span className="num">
                 {group.filter(owned).length}/{group.length}
               </span>

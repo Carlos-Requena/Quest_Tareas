@@ -4,6 +4,7 @@ import {
   DROP_TABLES,
   dropTableFor,
   epicGuaranteed,
+  itemKindOf,
   legendaryChance,
   newPity,
   pickItem,
@@ -133,9 +134,51 @@ describe("objetos en la proyección", () => {
         { type: "quest_completed", questId: "q", reward: { xp: 1, gold: 1, itemId: "i1" }, drops: [{ itemId: "i1", rarity: "common" }, { itemId: "i2", rarity: "epic" }] },
       ]),
     );
-    expect(st.player.inventory).toEqual({ i1: 2, i2: 1 });
+    // i1 sale en los cofres: es coleccionable y el repetido se quema, pero su tirada cuenta para el pity.
+    expect(st.player.inventory).toEqual({ i1: 1, i2: 1 });
     expect(st.player.pity).toEqual({ sinceLegendary: 2, sinceEpic: 0 });
     expect(Object.keys(st.player.discovered).sort()).toEqual(["i1", "i2"]);
+  });
+
+  it("los que no salen en cofres se acumulan; los coleccionables, no", () => {
+    const st = project(
+      withMeta([
+        { type: "item_created", item: itemDef("fixed", { droppable: false }) },
+        { type: "item_created", item: itemDef("chest") },
+        ...accepted("q"),
+        { type: "quest_completed", questId: "q", reward: { xp: 1, gold: 1, itemId: "fixed" }, drops: [{ itemId: "chest", rarity: "common" }] },
+        ...accepted("q2"),
+        { type: "quest_completed", questId: "q2", reward: { xp: 1, gold: 1, itemId: "fixed" }, drops: [{ itemId: "chest", rarity: "common" }] },
+      ]),
+    );
+    expect(st.player.inventory).toEqual({ fixed: 2, chest: 1 });
+  });
+
+  it("si un objeto pasa a salir en los cofres, sus repetidos desaparecen", () => {
+    const st = project(
+      withMeta([
+        { type: "item_created", item: itemDef("i", { droppable: false }) },
+        ...accepted("q"),
+        { type: "quest_completed", questId: "q", reward: { xp: 1, gold: 1, itemId: "i" } },
+        ...accepted("q2"),
+        { type: "quest_completed", questId: "q2", reward: { xp: 1, gold: 1, itemId: "i" } },
+        { type: "item_updated", itemId: "i", patch: { droppable: true } },
+      ]),
+    );
+    expect(st.player.inventory).toEqual({ i: 1 });
+  });
+
+  it("el tipo antiguo en texto libre se pasa a un tipo fijo al leerlo", () => {
+    expect(["Poción", "Reliquia", "Artefacto", "Grimorio", "Trofeo", "Tesoro", "Material", "Accesorio", "遺物", "ポーション", "", "Cosa rara"].map(itemKindOf)).toEqual([
+      "consumable", "relic", "relic", "tome", "trophy", "treasure", "material", "accessory", "relic", "consumable", "other", "other",
+    ]);
+    const st = project(
+      withMeta([
+        { type: "item_created", item: { ...itemDef("old"), kind: "Pluma mágica" as never } },
+        { type: "item_updated", itemId: "old", patch: { kind: "Trofeo" as never } },
+      ]),
+    );
+    expect(st.items.get("old")?.kind).toBe("trophy");
   });
 
   it("un objeto retirado sale del inventario y no vuelve aunque se cree otra vez", () => {

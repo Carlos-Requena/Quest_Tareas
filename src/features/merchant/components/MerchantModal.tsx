@@ -22,6 +22,10 @@ import {
 } from "../model";
 import { useMerchantUi, type MerchantTab } from "../ui";
 import { HuTaoStage } from "./HuTaoStage";
+import { OfferPanel } from "../../collectibles/components/OfferPanel";
+import { collectibleOffer, collectiblePrice } from "../../collectibles/model";
+import { buyCollectible } from "../../collectibles/actions";
+import type { ItemDef } from "../../items/model";
 import { gearName } from "../../armory/labels";
 import { GearArt, gearStyle } from "./GearArt";
 import { GearDetail } from "./GearDetail";
@@ -30,13 +34,13 @@ import { SoldSeal, type Sale } from "./SoldSeal";
 import "../merchant.css";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
 
-const TABS: MerchantTab[] = ["showcase", "catalog"];
+const TABS: MerchantTab[] = ["showcase", "collectible", "catalog"];
 type Group = "all" | "armor" | "decor";
 const GROUPS: Group[] = ["all", "armor", "decor"];
 type Mode = { kind: "view" } | { kind: "create" } | { kind: "edit"; id: string };
 
 /** Lo que dice Hu Tao: el tipo de frase, cuál de la lista y sus datos. Se traduce al pintar. */
-type LineKind = "welcome" | "empty" | "catalog" | "ok" | "gold" | "rank" | "away" | "owned" | "bought";
+type LineKind = "welcome" | "empty" | "catalog" | "ok" | "gold" | "rank" | "away" | "owned" | "bought" | "rare" | "soldOut" | "noRare";
 interface Line {
   kind: LineKind;
   n: number;
@@ -49,7 +53,7 @@ function lineText(t: TFunction, l: Line): string {
   return Array.isArray(all) && all.length ? all[l.n % all.length] : "";
 }
 
-/** Ventana del mercader: Hu Tao, su escaparate de la semana y el catálogo completo. */
+/** Ventana del mercader: Hu Tao, su escaparate de la semana, el coleccionable de la semana (features/collectibles) y el catálogo completo. */
 export function MerchantModal() {
   const open = useMerchantUi((s) => s.open);
   return <AnimatePresence>{open && <Modal />}</AnimatePresence>;
@@ -59,6 +63,7 @@ function Modal() {
   const { t } = useTranslation();
   const tab = useMerchantUi((s) => s.tab);
   const gear = useGame((s) => s.state.gear);
+  const items = useGame((s) => s.state.items);
   const player = useGame((s) => s.state.player);
   const now = useNow(30_000);
 
@@ -71,13 +76,21 @@ function Modal() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const sc = useMemo(() => showcase(gear.values(), player.owned, now), [gear, player.owned, now]);
+  const offer = useMemo(
+    () => collectibleOffer(items.values(), player.inventory, player.collectiblesBought, now),
+    [items, player.inventory, player.collectiblesBought, now],
+  );
   const all = useMemo(() => sortGear(gear.values()), [gear]);
   const inTab = tab === "showcase" ? all.filter((g) => sc.ids.has(g.id)) : all;
   const visible = group === "all" ? inTab : inTab.filter((g) => (group === "decor") === isDecorSlot(g.slot));
   const selected = selectedId ? gear.get(selectedId) : undefined;
 
   const greeting = (forTab: MerchantTab) =>
-    forTab === "catalog" ? line(all.length ? "catalog" : "empty") : line(sc.ids.size ? "welcome" : "empty");
+    forTab === "catalog"
+      ? line(all.length ? "catalog" : "empty")
+      : forTab === "collectible"
+        ? line(!offer.item ? "noRare" : offer.sold ? "soldOut" : "rare")
+        : line(sc.ids.size ? "welcome" : "empty");
   const [say, setSay] = useState<Line>(() => greeting(tab));
 
   const close = () => useMerchantUi.getState().setOpen(false);
@@ -140,6 +153,23 @@ function Modal() {
     } else setSay(lineFor(g, r));
   };
 
+  /** Comprar el coleccionable de la semana: también pide confirmación. */
+  const buyOffer = async (item: ItemDef) => {
+    if (armed !== item.id) {
+      sfx.move();
+      setArmed(item.id);
+      return;
+    }
+    setArmed(undefined);
+    const r = await buyCollectible(item.id);
+    if (r === "ok") {
+      setSale({ key: Date.now(), tier: rarityTier(item.rarity) });
+      setSay(line("bought"));
+    } else if (r === "gold") setSay(line("gold", { gold: num(Math.max(0, collectiblePrice(item.rarity) - player.gold)) }));
+    else if (r === "soldOut") setSay(line("soldOut"));
+    else setSay(greeting("collectible"));
+  };
+
   // Teclado de la ventana (el del tablón espera mientras está abierta).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -152,6 +182,12 @@ function Modal() {
         return;
       }
       if (typing || mode.kind !== "view" || e.metaKey || e.ctrlKey) return;
+      // En la pestaña del coleccionable no hay lista: Enter compra el de la semana.
+      if (tab === "collectible" && (e.key === "Enter" || e.key.startsWith("Arrow"))) {
+        if (e.key === "Enter" && offer.item && !offer.sold) buyOffer(offer.item);
+        e.preventDefault();
+        return;
+      }
       const idx = visible.findIndex((g) => g.id === selectedId);
       switch (e.key) {
         case "c":
@@ -255,13 +291,19 @@ function Modal() {
             <p className="mshop-clock muted">
               <span className="mshop-clock-dot" aria-hidden />
               {t("merchant.changesIn", { time: formatRemaining(sc.endsAt - now) })}
-              <span className="mshop-clock-sep">·</span>
-              {t("merchant.forSale", { count: sc.ids.size })}
+              {tab !== "collectible" && (
+                <>
+                  <span className="mshop-clock-sep">·</span>
+                  {t("merchant.forSale", { count: sc.ids.size })}
+                </>
+              )}
             </p>
           </section>
 
           <section className="mshop-goods">
-            {side ?? (
+            {side ?? (tab === "collectible" ? (
+              <OfferPanel offer={offer} armed={!!offer.item && armed === offer.item.id} onBuy={() => offer.item && buyOffer(offer.item)} />
+            ) : (
               <>
                 <div className="mshop-filter">
                   {GROUPS.map((g) => (
@@ -307,7 +349,7 @@ function Modal() {
                   )}
                 </div>
               </>
-            )}
+            ))}
           </section>
         </div>
 

@@ -309,6 +309,32 @@ describe("acciones de encargos temporales", () => {
   });
 });
 
+describe("acciones de coleccionables", () => {
+  it("solo se compra el de la semana, sin rango, y queda vendido hasta el lunes", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const b = await boot();
+    const { currentOffer, buyCollectible } = await import("../features/collectibles/actions");
+    const offer = currentOffer().item!;
+    expect(offer).toBeDefined();
+    const other = [...b.g().state.items.values()].find((i) => i.droppable && i.id !== offer.id && ["mythic", "legendary"].includes(i.rarity));
+    if (other) expect(await buyCollectible(other.id)).toBe("away");
+    expect(await buyCollectible(offer.id)).toBe("gold");
+
+    // Solo oro: el nivel no importa.
+    await addQuest(b, "rich", { conditions: [] });
+    await b.g().dispatch({ type: "quest_accepted", questId: "rich" });
+    await b.g().dispatch({ type: "quest_completed", questId: "rich", reward: { xp: 0, gold: 400_000 } });
+    expect(b.g().state.player.level).toBe(1);
+    const n = stored().length;
+    expect(await buyCollectible(offer.id)).toBe("ok");
+    expect(stored().slice(n).map((e) => e.type)).toEqual(["collectible_purchased"]);
+    expect(b.g().state.player.inventory[offer.id]).toBe(1);
+    expect(currentOffer()).toMatchObject({ sold: true, item: { id: offer.id } });
+    if (other) expect(await buyCollectible(other.id)).toBe("soldOut");
+    consistent(b);
+  });
+});
+
 describe("acciones de objetos y pomodoro", () => {
   it("objetos: sin nombre no se crea; editar sin cambios no emite nada", async () => {
     const b = await boot();

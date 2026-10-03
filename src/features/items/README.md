@@ -74,9 +74,25 @@ Sin imagen se pinta un **monograma** (la inicial del nombre) sobre el fondo de l
 - `item_updated` lleva solo los campos que cambian (`patch`). Dos dispositivos que editan campos distintos no se pisan (es la idea de los deltas de la norma 5.1).
 - `item_deleted` quita el objeto del almanaque y del inventario. El id queda marcado como retirado: un `item_created` repetido o un nombre antiguo no lo resucitan. Las quests que lo daban como garantizado dejan de darlo.
 
+### Coleccionables: se tienen o no se tienen
+
+Los objetos que **salen en los cofres** (`droppable`) son **coleccionables** (`isCollectible`). Desde la versión 6 de la proyección:
+
+- Solo se puede tener **uno**. Si sale repetido (en un cofre o como objeto garantizado), **se quema**: no suma al inventario, pero la tirada cuenta para el pity. En el cofre se ve apagado, con la marca «Repetido · se quema».
+- Los repetidos que ya había **desaparecen**: la proyección vuelve a reproducirlo todo con la regla nueva (el propietario lo quiso así).
+- Si un objeto pasa a salir en los cofres (`item_updated` con `droppable: true`), sus repetidos desaparecen en ese momento.
+- Los que **no** salen en cofres (solo recompensa fija de una quest) se siguen acumulando.
+- Si uno no te sale, Hu Tao vende uno cada semana: ver [../collectibles/README.md](../collectibles/README.md).
+
+### Tipos fijos
+
+El tipo era un texto libre («Reliquia», «Poción»…). Ahora es uno de 8 tipos fijos (`ITEM_KINDS`), que son las secciones del almanaque: consumible, material, accesorio, reliquia, grimorio, trofeo, tesoro y otros. El nombre se traduce (`items.kinds.*`) y cada tipo tiene un icono (`KIND_GLYPH`).
+
+Los objetos antiguos se clasifican **al leerlos** (`itemKindOf`, en `registerItem` y en el parche de `item_updated`): se busca el texto entre palabras clave en español, japonés e inglés («Poción» → consumible, «Artefacto» → reliquia, «遺物» → reliquia…). Lo que no encaja va a «otros». Los eventos guardados no cambian.
+
 ### Reglas que he fijado (ajustables)
 
-- Los objetos de ejemplo y los creados desde la app **salen en drops** por defecto (casilla «Puede salir en drops aleatorios»).
+- Los objetos de ejemplo y los creados desde la app **salen en los cofres** por defecto (casilla «Coleccionable: sale en los cofres»).
 - Los objetos convertidos desde datos antiguos (ver abajo) **no salen en drops**, porque eran recompensas fijas; se puede cambiar editándolos.
 - La numeración del almanaque (#001…) sigue el orden de la vista (rareza y fecha de creación), no es fija.
 - NEW marca la primera unidad de un objeto que no estaba en el inventario antes de reportar.
@@ -120,7 +136,7 @@ La pestaña Almanaque es un libro abierto (`AlmanacBook`) sin salirse del estilo
 - **Página izquierda:** 12 cromos (4 × 3). Los conseguidos van «pegados», con borde de papel, sombra y una inclinación propia (estable por objeto). Los que faltan dejan el hueco punteado del color de su rareza. Al final de la última página hay huecos vacíos, como un álbum sin estrenar.
 - **Página derecha:** la ficha del objeto elegido o el formulario. Sin nada elegido, una portadilla con el progreso de la colección por rareza.
 - **Pasar página:** flechas del pie o `←`/`→`. La hoja gira sobre el lomo, hacia delante o hacia atrás, con sonido de papel.
-- **Índice:** una pestaña por rareza asoma por el canto del libro, con «conseguidos/existentes». La cinta de marcapáginas toma el color de la rareza elegida.
+- **Índice:** las pestañas que asoman por el canto del libro son las **secciones**: todo el almanaque, los **coleccionables de cofre** y una por **tipo fijo**, cada una con su icono y «conseguidos/existentes». La cinta de marcapáginas toma el color de la sección (dorado para todo, el legendario para los coleccionables). La portadilla sigue mostrando el progreso por rareza, y el inventario se sigue filtrando por rareza.
 
 ---
 
@@ -133,10 +149,10 @@ classDiagram
         id: string
         name: string
         rarity: Rarity
-        kind: string
+        kind: ItemKind
         description: string
         image?: data URL
-        droppable: boolean
+        droppable: boolean (coleccionable)
         createdAt: number
     }
     class Rarity {
@@ -184,10 +200,10 @@ classDiagram
 
 | Evento | Datos | Efecto en la proyección | Guarda |
 |---|---|---|---|
-| `item_created` | `item: ItemDef` | Añade el objeto al almanaque | Se ignora si el id existe o fue retirado |
-| `item_updated` | `itemId`, `patch` (campos que cambian) | Mezcla el parche | Solo si el objeto existe |
+| `item_created` | `item: ItemDef` | Añade el objeto al almanaque, con su tipo pasado a uno fijo | Se ignora si el id existe o fue retirado |
+| `item_updated` | `itemId`, `patch` (campos que cambian) | Mezcla el parche; si pasa a coleccionable, deja una unidad | Solo si el objeto existe |
 | `item_deleted` | `itemId` | Lo quita del almanaque y del inventario | Solo si existe; el id queda retirado |
-| `quest_completed` (ampliado) | `reward.itemId?`, `drops?: Drop[]` | Suma el garantizado y los drops al inventario y avanza el pity | La de siempre: solo si la quest está activa |
+| `quest_completed` (ampliado) | `reward.itemId?`, `drops?: Drop[]` | Suma el garantizado y los drops al inventario (un coleccionable que ya tienes se quema) y avanza el pity | La de siempre: solo si la quest está activa |
 
 ### Compatibilidad con datos antiguos (`legacy.ts`)
 
@@ -229,7 +245,8 @@ Esos objetos se pueden editar (imagen, rareza…) como cualquier otro.
 | `domain/types.ts` | `RewardDef.itemId` (sustituye a `item`); `PlayerState.inventory`, `discovered`, `pity` (sustituyen a `items`); `GameState.items` |
 | `domain/events.ts` | `ItemEventBody` en la unión; `quest_completed.drops?` |
 | `domain/projection.ts` | `upcastReward` al leer; `applyItemEvent`; `receiveItems` en `quest_completed` |
-| `domain/seed.ts` | Almanaque inicial (10 objetos) y objeto garantizado de las quests de ejemplo |
+| `domain/seed.ts` | Almanaque inicial (10 objetos, con su tipo fijo vía `itemKindOf`) y objeto garantizado de las quests de ejemplo |
+| `domain/projection.ts` (versión 7) | Coleccionables únicos y tipos fijos, y `ItemsAcc.bought` (features/collectibles): `PROJECTION_VERSION` 5 → 7 |
 | `store/game.ts` | `ClearResult.drops` y `guaranteed`; estado de UI `collection` |
 | `store/actions.ts` | `reportQuest` tira los drops con `rollDrops` |
 | `i18n/locales/{es,ja}.ts` | Montan `items`; se quitan `modal.item`, `modal.itemPh` y el `item` de las quests de ejemplo |

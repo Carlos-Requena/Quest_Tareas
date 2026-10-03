@@ -1,7 +1,7 @@
 import type { EventBody } from "./events";
 import type { Category, ConditionDef, RewardDef } from "./types";
 import type { PomodoroConfig } from "../features/pomodoro/model";
-import type { ItemDef, Rarity } from "../features/items/model";
+import { itemKindOf, type ItemDef, type Rarity } from "../features/items/model";
 import { currentLang, locales } from "../i18n";
 
 type SeedKey = keyof (typeof locales)["es"]["seed"];
@@ -55,7 +55,7 @@ export function seedEvents(): EventBody[] {
   const items = new Map<ItemKey, ItemDef>(
     SEED_ITEMS.map((it, i) => {
       const tx = lang.items.seed[it.key];
-      return [it.key, { id: seedItemId(it.key), name: tx.name, rarity: it.rarity, kind: tx.kind, description: tx.description, droppable: true, createdAt: now + i }];
+      return [it.key, { id: seedItemId(it.key), name: tx.name, rarity: it.rarity, kind: itemKindOf(tx.kind), description: tx.description, droppable: true, createdAt: now + i }];
     }),
   );
   const itemEvents: EventBody[] = [...items.values()].map((item) => ({ type: "item_created", item }));

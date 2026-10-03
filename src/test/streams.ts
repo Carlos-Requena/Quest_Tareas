@@ -28,7 +28,7 @@ export function questDef(id: string, extra: Partial<QuestDef> = {}): QuestDef {
 }
 
 export function itemDef(id: string, extra: Partial<ItemDef> = {}): ItemDef {
-  return { id, name: `Item ${id}`, rarity: "common", kind: "", description: "", droppable: true, createdAt: T0, ...extra };
+  return { id, name: `Item ${id}`, rarity: "common", kind: "other", description: "", droppable: true, createdAt: T0, ...extra };
 }
 
 export function gearDef(id: string, extra: Partial<GearDef> = {}): GearDef {
@@ -140,7 +140,9 @@ export function randomStream(seed: string, n: number): GameEvent[] {
     }
     if (r < 0.75) return { type: "item_created", item: itemDef(pick(I), { rarity: pick(RARITIES) }) };
     if (r < 0.77) return { type: "item_updated", itemId: pick(I), patch: { name: "Renombrado", rarity: pick(RARITIES) } };
-    if (r < 0.78) return { type: "item_deleted", itemId: pick(I) };
+    if (r < 0.775) return { type: "item_deleted", itemId: pick(I) };
+    // Coleccionables (features/collectibles): unas compras llegan y otras no, según el oro y lo que ya tengas.
+    if (r < 0.78) return { type: "collectible_purchased", itemId: pick(I), price: Math.floor(rnd() * 80) };
     const t = pick(TT);
     if (r < 0.83)
       return { type: "temporal_created", temporal: temporalDef(t, { kind: pick(TEMPORAL_KINDS), questIds: rnd() < 0.5 ? [pick(Q)] : [] }) };

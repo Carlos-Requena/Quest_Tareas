@@ -21,7 +21,7 @@ App de escritorio (macOS y Windows) y de **iPhone** que convierte tareas en *que
 | 1 | Esta guía | Normas y mapa del proyecto |
 | 2 | [INFORME-TECNICO.md](INFORME-TECNICO.md) | Arquitectura, diagramas, eventos, escalabilidad, deuda, decisiones (ADR) y hoja de ruta |
 | 3 | [COMO-FUNCIONA.md](COMO-FUNCIONA.md) | Mecanismos por dentro: Tauri, proyección, niveles, animaciones, sonido, i18n, fallos ya resueltos |
-| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle`, `recovery`, `sync`, `mobile` y `rewards`) |
+| 4 | `src/features/<nombre>/README.md` | Diseño de cada funcionalidad (`pomodoro`, `music`, `items`, `temporal`, `complex`, `horizon`, `snapshot`, `merchant`, `armory`, `equipment`, `attributes`, `streaks`, `checklist`, `chronicle`, `recovery`, `sync`, `mobile`, `rewards` y `collectibles`) |
 | 5 | [README.md](../README.md) | Comandos y estructura resumida |
 
 ---
@@ -92,7 +92,7 @@ src/
   features/          UNA CARPETA POR FUNCIONALIDAD, cada una con su README.md
     pomodoro/          Pomodoro como tipo de condición (rondas; la última sin descanso)
     music/             Música de fondo (servicio local, sin eventos)
-    items/             Objetos con rareza: almanaque, inventario, drops con pity (eventos item_*)
+    items/             Objetos con rareza y tipo fijo: almanaque por secciones, inventario, drops con pity; los de cofre son coleccionables únicos (eventos item_*)
     temporal/          Encargos temporales: tablón aparte, calaveras, adjuntos y quests enlazadas (eventos temporal_*)
     complex/           Quests complejas: repetición en cualquier categoría y requisitos (sin eventos propios)
     horizon/           Plazos: clasificación por lo que falta y fecha límite de las quests (sin eventos)
@@ -108,6 +108,7 @@ src/
     sync/              Sincronización con Google Drive: un JSONL por equipo y los binarios por SHA-256 (sin eventos; la parte nativa en src-tauri/src/sync)
     mobile/            Interfaz de teléfono (iPhone): barra de abajo, menú «Más», detalle a pantalla completa, deslizar para pasar página (sin eventos)
     rewards/           Recompensa calculada: XP y oro según los objetivos y la categoría, y la de los encargos según sus quests (sin eventos; la aplica la proyección)
+    collectibles/      Coleccionable de la semana en la ventana de Hu Tao: un objeto de cofre mítico o superior que no tienes, uno por semana (collectible_purchased)
   i18n/              i18next: index.ts, locales/es.ts (referencia), locales/ja.ts, tipos
   test/              Utilidades de los tests (historiales aleatorios con semilla)
   lib/               sfx (Web Audio + silencio general), fx (partículas con física y sacudidas), motion (salida de las ventanas), useMuted, id/PRNG, time (useNow, formatRemaining)
@@ -300,6 +301,8 @@ Si tu tarea toca alguno de estos puntos, aprovecha para resolverlo o, al menos, 
 - Las preferencias del propietario que surjan en el trabajo (como «una carpeta por implementación») se añaden a esta guía.
 - **Comprar tiene que costar, pero ser habitual.** Lo que se compra con oro (mercader) tiene precios altos por rareza, rango mínimo y escaparate semanal, pero el oro está calibrado para comprar a menudo: un día bueno da unos 6.500 G y el catálogo de serie entero se compra en un año (features/rewards). No cambies precios, ritmo de oro ni requisitos sin preguntar.
 - **La recompensa la calcula el juego.** XP y oro salen de los objetivos (minutos de pomodoro, cantidad, casillas) y de la categoría; la de un encargo, de sus calaveras y sus quests. Nadie los escribe a mano (features/rewards).
+- **Coleccionables únicos.** Un objeto que sale en los cofres se tiene o no se tiene: un repetido se quema. Si no sale, **se compra a Hu Tao** (es la mercader; el almanaque solo sirve para ver lo que llevas): un coleccionable mítico o superior que no tengas, **uno por semana**, a 1,5 veces el precio del equipo de su rareza y **sin requisito de rango** (features/collectibles).
+- **Almanaque por tipos fijos.** Las secciones son los coleccionables de cofre y un tipo fijo por pestaña (`ITEM_KINDS`); el tipo no se escribe a mano.
 - **La mercancía se añade a mano y sin precio.** El propietario solo pone nombre, tipo, rareza, imagen y descripción; el precio y el rango los calcula el juego.
 - **Precios elevados.** El precio sale de la rareza y lleva un recargo por ranura (`SLOT_PRICE_FACTOR`, nunca por debajo de ×1): de 1.200 G a 160.000 G.
 - **Equipo de serie para todos.** Las piezas que trae la app (features/armory) son para todo el que la instale, inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos, con arte propio (nunca imágenes de las series). Se añaden en el código, no con eventos.

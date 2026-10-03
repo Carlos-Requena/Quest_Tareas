@@ -16,6 +16,7 @@ import { applyCheck, checklistProgress, cleanChecklist, isChecklistCondition } f
 import { nextStreak } from "../features/streaks/model";
 import { newChronicleAcc, noteStart, record, type ChronicleAcc, type ChronicleFind } from "../features/chronicle/model";
 import { questReward, temporalValue } from "../features/rewards/model";
+import { applyCollectibleEvent } from "../features/collectibles/model";
 
 /**
  * Versión de la lógica de la proyección. Un snapshot guardado con otra versión se
@@ -24,7 +25,7 @@ import { questReward, temporalValue } from "../features/rewards/model";
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 5;
+export const PROJECTION_VERSION = 7;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -276,6 +277,16 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
     case "gear_unequipped":
       applyEquipmentEvent(acc.equipment, acc.merchant, e);
       break;
+
+    case "collectible_purchased": {
+      // Comprar un coleccionable gasta oro, solo si llega y aún no lo tienes (features/collectibles).
+      const spent = applyCollectibleEvent(items, e, e.ts, acc.gold);
+      const it = items.catalog.get(e.itemId);
+      if (spent === undefined || !it) break;
+      acc.gold -= spent;
+      record(acc.chronicle, { k: "purchase", ts: e.ts, xpAfter: acc.xp, gearId: it.id, collectible: true, name: it.name, rarity: it.rarity, price: spent });
+      break;
+    }
   }
 }
 
@@ -315,6 +326,7 @@ export function finishProjection(acc: ProjectionAcc): GameState {
       inventory: items.inventory,
       discovered: items.discovered,
       pity: items.pity,
+      collectiblesBought: items.bought,
       completedCount,
       owned: merchant.owned,
       equipped: equipment.equipped,

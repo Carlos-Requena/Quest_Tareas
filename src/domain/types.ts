@@ -104,6 +104,8 @@ export interface PlayerState {
   /** Tiradas desde el último legendario y desde el último épico o superior. */
   pity: Pity;
   completedCount: number;
+  /** Coleccionables comprados a Hu Tao: cuándo (ms), por id de objeto (features/collectibles). */
+  collectiblesBought: Record<string, number>;
   /** Equipo y decoración comprados al mercader, por id de pieza (features/merchant). */
   owned: Record<string, Purchase>;
   /** Lo que lleva puesto el muñeco y la decoración del menú, por ranura (features/equipment). */

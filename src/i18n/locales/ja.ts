@@ -12,6 +12,7 @@ import { armoryJa } from "../../features/armory/i18n";
 import { checklistJa } from "../../features/checklist/i18n";
 import { streaksJa } from "../../features/streaks/i18n";
 import { rewardsJa } from "../../features/rewards/i18n";
+import { collectiblesJa } from "../../features/collectibles/i18n";
 import { chronicleJa } from "../../features/chronicle/i18n";
 import { recoveryJa } from "../../features/recovery/i18n";
 import { syncJa } from "../../features/sync/i18n";
@@ -151,6 +152,7 @@ export const ja: Translation = {
   checklist: checklistJa,
   streaks: streaksJa,
   rewards: rewardsJa,
+  collectibles: collectiblesJa,
   chronicle: chronicleJa,
   recovery: recoveryJa,
   sync: syncJa,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../../../store/game";
 import i18n from "../../../i18n";
-import { ITEM_LIMITS, RARITIES, RARITY_META, type ItemDef } from "../model";
+import { ITEM_KINDS, ITEM_LIMITS, KIND_GLYPH, RARITIES, RARITY_META, type ItemDef, type ItemKind } from "../model";
 import { createItem, draftOf, emptyItemDraft, isValidItemDraft, updateItem, type ItemDraft } from "../actions";
 import { fileToIcon } from "../image";
 import { ItemArt } from "./ItemTile";
@@ -127,7 +127,13 @@ export function ItemForm({ item, onDone }: { item?: ItemDef; onDone(id?: string)
 
       <label className="field">
         <span className="lbl">{t("items.form.kind")}</span>
-        <input value={d.kind} maxLength={ITEM_LIMITS.kind} placeholder={t("items.form.kindPh")} onChange={(e) => set({ kind: e.target.value })} />
+        <select value={d.kind} onChange={(e) => set({ kind: e.target.value as ItemKind })}>
+          {ITEM_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {KIND_GLYPH[k]} {t(`items.kinds.${k}`)}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label className="field">

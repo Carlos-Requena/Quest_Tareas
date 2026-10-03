@@ -8,6 +8,7 @@ export const merchantEs = {
   shop: "Funeraria Wangsheng",
   tabs: {
     showcase: "Escaparate",
+    collectible: "Coleccionable",
     catalog: "Catálogo",
   },
   slot: {
@@ -148,6 +149,19 @@ export const merchantEs = {
       "¡Vendido! Llévalo con orgullo. Y si un día te lo llevas a la tumba, ya sabes a quién llamar.",
       "¡Hecho! Con esto vas a ser la envidia de todo el gremio.",
     ],
+    rare: [
+      "Esta semana tengo algo que no sale en tus cofres… Me ha costado sacarlo de donde estaba, no preguntes.",
+      "Una rareza para tu colección. Solo una por semana, ¡que no soy una fábrica!",
+      "¿Te falta esta en el almanaque? Pues mira qué casualidad… Eso sí, barata no es.",
+    ],
+    soldOut: [
+      "Ya te llevaste la rareza de esta semana. ¡Vuelve el lunes y te enseño otra!",
+      "Una por semana, ¿eh? Las rarezas no crecen en los árboles… bueno, alguna sí, pero en los del cementerio.",
+    ],
+    noRare: [
+      "No me queda ninguna rareza que te falte. ¡Tu colección da miedo, y eso que yo me dedico a esto!",
+      "Sin rarezas que ofrecerte… Añade coleccionables míticos o legendarios al almanaque y ya veré de dónde los saco.",
+    ],
   },
 };
 
@@ -158,6 +172,7 @@ export const merchantJa: typeof merchantEs = {
   shop: "往生堂",
   tabs: {
     showcase: "店先",
+    collectible: "コレクション",
     catalog: "品目録",
   },
   slot: {
@@ -297,6 +312,19 @@ export const merchantJa: typeof merchantEs = {
       "毎度あり！また来てね…でも、あんまり早くは来なくていいよ？",
       "お買い上げ！大事に使ってね。もしお墓まで持っていくなら、往生堂にお任せあれ！",
       "取引成立！これでギルドのみんなに羨ましがられちゃうね。",
+    ],
+    rare: [
+      "今週は宝箱からは出ない品があるよ…どこから持ってきたかは聞かないでね。",
+      "コレクションにぴったりの稀少品！一週間にひとつだけ。工場じゃないからね！",
+      "図鑑にこれが足りないんじゃない？偶然だねぇ…ただし、安くはないよ。",
+    ],
+    soldOut: [
+      "今週の稀少品はもう君のものだよ。月曜日にまた来てね、次を見せてあげる！",
+      "一週間にひとつだけ、ね？稀少品は木に生るものじゃないの…まあ、墓地の木には生るかもだけど。",
+    ],
+    noRare: [
+      "君に足りない稀少品はもう残ってないよ。そのコレクション、本職のわたしでも怖いくらい！",
+      "売れる稀少品がないなぁ…。神話級か伝説級のコレクションを図鑑に加えてくれたら、どこかから仕入れてくるね。",
     ],
   },
 };

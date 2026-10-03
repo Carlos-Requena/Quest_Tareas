@@ -12,6 +12,7 @@ import { armoryEs } from "../../features/armory/i18n";
 import { checklistEs } from "../../features/checklist/i18n";
 import { streaksEs } from "../../features/streaks/i18n";
 import { rewardsEs } from "../../features/rewards/i18n";
+import { collectiblesEs } from "../../features/collectibles/i18n";
 import { chronicleEs } from "../../features/chronicle/i18n";
 import { recoveryEs } from "../../features/recovery/i18n";
 import { syncEs } from "../../features/sync/i18n";
@@ -150,6 +151,7 @@ export const es = {
   checklist: checklistEs,
   streaks: streaksEs,
   rewards: rewardsEs,
+  collectibles: collectiblesEs,
   chronicle: chronicleEs,
   recovery: recoveryEs,
   sync: syncEs,

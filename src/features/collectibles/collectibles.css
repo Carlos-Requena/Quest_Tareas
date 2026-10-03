@@ -1,0 +1,189 @@
+/* Coleccionable de la semana: pestaña de la ventana de Hu Tao (features/collectibles). */
+
+.offer {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 6px;
+}
+.offer-h {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.offer-h .tag {
+  color: var(--r-legendary);
+}
+.offer-foot {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.offer-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--rc) 55%, transparent);
+  background:
+    radial-gradient(120% 90% at 18% 30%, color-mix(in srgb, var(--rc) 16%, transparent), transparent 70%),
+    var(--panel-solid);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--rc) 18%, transparent) inset,
+    0 18px 50px -24px color-mix(in srgb, var(--rc) 70%, transparent);
+  overflow: hidden;
+}
+/* Brillo que recorre la tarjeta, como un cromo raro. */
+.offer-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, color-mix(in srgb, var(--rc) 22%, transparent) 50%, transparent 65%);
+  background-size: 250% 100%;
+  animation: offer-sheen 4.5s ease-in-out infinite;
+}
+.offer-card.is-sold .offer-glow {
+  animation: none;
+  opacity: 0;
+}
+@keyframes offer-sheen {
+  0% {
+    background-position: 120% 0;
+  }
+  60%,
+  100% {
+    background-position: -120% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .offer-glow {
+    animation: none;
+  }
+}
+
+.offer-art {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  align-self: start;
+}
+.offer-art .iart {
+  width: 100%;
+  height: 100%;
+  box-shadow: 0 0 34px -6px var(--rc);
+}
+.offer-card.is-sold .offer-art .iart {
+  filter: saturate(0.5) brightness(0.7);
+}
+/* Sello de vendido: el mismo trazo doble que el de Hu Tao. */
+.offer-seal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-9deg);
+  padding: 6px 12px;
+  color: var(--merchant);
+  border: 4px double var(--merchant);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  font-family: var(--f-tag);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.offer-info {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.offer-rarity {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.offer-rarity .tag {
+  color: var(--rc);
+}
+.offer-name {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.15;
+  color: var(--text);
+}
+.offer-kind,
+.offer-desc,
+.offer-soldnote {
+  margin: 0;
+}
+.offer-soldnote {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--text-2);
+}
+.offer-buy {
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  border-top: 1px solid var(--line);
+}
+.offer-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.offer-price b {
+  font-size: 22px;
+  color: var(--gold-hi);
+}
+.offer-funds {
+  font-size: 12px;
+}
+.offer-funds.is-ok {
+  color: var(--request);
+}
+.offer-funds.is-bad {
+  color: var(--skull-hi);
+}
+.offer-buy .btn {
+  flex-basis: 100%;
+}
+.offer-none {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .offer {
+    overflow: visible;
+  }
+  .offer-card {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px;
+  }
+  .offer-art {
+    width: min(200px, 70%);
+    margin: 0 auto;
+  }
+  .offer-name {
+    font-size: 21px;
+  }
+  .offer-buy .btn {
+    min-height: 44px;
+  }
+}

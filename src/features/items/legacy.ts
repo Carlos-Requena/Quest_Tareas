@@ -20,7 +20,7 @@ export const legacyItem = (name: string, ts: number): ItemDef => ({
   id: legacyItemId(name),
   name,
   rarity: "common",
-  kind: "",
+  kind: "other",
   description: "",
   droppable: false,
   createdAt: ts,

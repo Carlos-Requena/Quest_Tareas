@@ -73,8 +73,8 @@
   color: var(--merchant-hi);
 }
 .mshop-tabs {
-  grid-template-columns: repeat(2, 1fr);
-  width: 260px;
+  grid-template-columns: repeat(3, 1fr);
+  width: 390px;
   margin-left: auto;
 }
 .mshop-gold {

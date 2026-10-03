@@ -49,10 +49,13 @@ export interface TemporalEntry extends Base {
   gold: number;
 }
 
-/** Una compra al mercader. */
+/** Una compra al mercader, o de un coleccionable (features/collectibles). */
 export interface PurchaseEntry extends Base {
   k: "purchase";
+  /** La pieza comprada; si es un coleccionable, el id del objeto. */
   gearId: string;
+  /** Un coleccionable del almanaque en vez de una pieza de equipo. */
+  collectible?: true;
   /** Nombre en el momento de comprarla (las de serie se traducen al pintar). */
   name: string;
   rarity: Rarity;
