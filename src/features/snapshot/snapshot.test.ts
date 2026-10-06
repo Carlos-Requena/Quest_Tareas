@@ -15,6 +15,7 @@ import {
   SNAPSHOT_FORMAT,
   type Projected,
 } from "./model";
+import { hasUndo } from "../undo/model";
 
 const SEEDS = Array.from({ length: 25 }, (_, i) => `s${i}`);
 const full = (events: GameEvent[]) => canonical(project(events));
@@ -25,6 +26,8 @@ function viaSnapshot(events: GameEvent[], k: number): string {
   const saved = makeSnapshot(head, 0);
   if (!saved) return canonical(finishProjection(applyAll(emptyProjected(), events).acc));
   const snap = decodeSnapshot(encodeSnapshot(saved))!;
+  // Como restore(): un deshacer en la cola obliga a reproducirlo todo (features/undo).
+  if (hasUndo(events.slice(k))) return canonical(finishProjection(applyAll(emptyProjected(), events).acc));
   const p = applyAll({ acc: snap.acc, last: snap.upTo, count: snap.count }, events.slice(k));
   return canonical(finishProjection(p.acc));
 }
@@ -49,7 +52,8 @@ describe("snapshot + cola = reproducirlo todo", () => {
   it.each(SEEDS)("semilla %s: aplicar evento a evento sobre copias (como dispatch) da el mismo estado", (seed) => {
     const ev = randomStream(seed, 300);
     let p: Projected = emptyProjected();
-    for (const e of ev) p = applyAll({ ...p, acc: cloneAcc(p.acc) }, [e]);
+    // Como dispatch(): un deshacer recalcula todo desde el principio (features/undo).
+    ev.forEach((e, i) => (p = e.type === "event_undone" ? applyAll(emptyProjected(), ev.slice(0, i + 1)) : applyAll({ ...p, acc: cloneAcc(p.acc) }, [e])));
     expect(canonical(finishProjection(p.acc))).toBe(full(ev));
     expect(p.count).toBe(300);
     expect(p.last).toEqual({ ts: ev[299].ts, id: ev[299].id });

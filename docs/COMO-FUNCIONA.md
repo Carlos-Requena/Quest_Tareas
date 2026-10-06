@@ -103,6 +103,7 @@ El lado Rust de Quests es pequeño: registra el plugin y los comandos propios de
 tauri::Builder::default()
     .plugin(tauri_plugin_sql::Builder::default().build())
     .plugin(tauri_plugin_opener::init()) // contactos: tel:, mailto:, https:
+    .plugin(tauri_plugin_notification::init()) // avisos del sistema (features/notifications)
     .manage(sync::SyncState::default())
     .invoke_handler(tauri::generate_handler![sync::sync_sign_in, sync::drive_list, /* … */])
     .run(tauri::generate_context!())
@@ -117,11 +118,13 @@ Tauri 2 deniega todo por defecto. El WebView solo puede llamar a lo que se decla
 ```json
 "permissions": [
   "core:default", "sql:default", "sql:allow-execute", "core:window:allow-destroy",
+  "notification:allow-is-permission-granted", "notification:allow-request-permission",
+  "notification:allow-notify", "notification:allow-cancel", "notification:allow-get-pending",
   { "identifier": "opener:allow-open-url", "allow": [{ "url": "tel:*" }, { "url": "mailto:*" }, { "url": "https://*" }] }
 ]
 ```
 
-`sql:default` permite abrir la base de datos y hacer `SELECT`; `sql:allow-execute` permite escribir. `opener:allow-open-url` abre los contactos de las quests con la app del sistema (Teléfono, Mail, el navegador, WhatsApp o Mapas), **solo** con esos tres esquemas: nada de `file:` ni de otros programas, y sin `revealItemInDir`, que trae `opener:default`. Si mañana la app cargara contenido malicioso, no podría, por ejemplo, leer archivos arbitrarios del disco.
+`sql:default` permite abrir la base de datos y hacer `SELECT`; `sql:allow-execute` permite escribir. `opener:allow-open-url` abre los contactos de las quests con la app del sistema (Teléfono, Mail, el navegador, WhatsApp o Mapas), **solo** con esos tres esquemas: nada de `file:` ni de otros programas, y sin `revealItemInDir`, que trae `opener:default`. Si mañana la app cargara contenido malicioso, no podría, por ejemplo, leer archivos arbitrarios del disco. Los permisos de `notification:` son los justos para pedir permiso, avisar y, en iOS, programar y cancelar avisos (features/notifications); no se usan los canales ni las acciones.
 
 ### Content Security Policy (CSP)
 
@@ -437,18 +440,22 @@ El token nunca llega al JavaScript y la CSP no cambia: toda conexión con Google
 
 ```ts
 async dispatch(body) {
-  const e = { ...body, id: uid(), deviceId: store.deviceId, ts: Date.now() };
-  if (!goesAfter(projected, e)) { await store.append(e); return rebuild(); } // reloj atrasado
+  const e = { ...body, id: uid(), deviceId: store.deviceId, ts: nextTs(Date.now(), projected.last) };
+  // Reloj atrasado o deshacer (features/undo): cambia el pasado, se recalcula todo.
+  if (!goesAfter(projected, e) || e.type === "event_undone") { await store.append(e); await rebuild(); return e; }
   const next = applyAll({ ...projected, acc: cloneAcc(projected.acc) }, [e]);
   set({ projected: next, state: finishProjection(next.acc) }); // 1. la UI se actualiza ya
   await store.append(e);                                        // 2. se guarda después
   maybeSnapshot(next);                                          // 3. cada 100 eventos
+  return e;                                                     // 4. para ofrecer «Deshacer»
 }
 ```
 
 Primero se actualiza la memoria y **después** se escribe en disco (actualización *optimista*): la animación arranca sin esperar a SQLite.
 
 Solo se aplica **el evento nuevo**, sobre una copia del acumulador (`structuredClone`): el estado anterior no cambia y React ve objetos nuevos. Hasta octubre de 2026 se reproducían todos los eventos en cada clic. Si el reloj del equipo va atrasado y el evento cae en medio del historial, se recalcula todo (`rebuild()`).
+
+**Deshacer** (features/undo) no borra nada: es otro evento, `event_undone`, y `project()` / `applyAll` saltan el evento deshecho (`undoneIn`) al reproducirlo todo. Como cambia el pasado, deshacer siempre recalcula todo, y el arranque también si la cola tras el snapshot trae un deshacer. `dispatch` devuelve el evento guardado y `say(texto, acción?)` pinta el aviso con un botón («Deshacer»).
 
 ### Snapshot: arrancar sin reproducirlo todo
 
@@ -599,6 +606,14 @@ Tres detalles técnicos:
 
 El diseño completo, fase a fase y comparado con los vídeos, está en el [README de los encargos temporales](../src/features/temporal/README.md).
 
+### 9.7 bis Los fallos: la tarjeta que se rompe y el cartel que arde
+
+**Archivos:** `src/features/failure/components/FailureOverlay.tsx`, `failure.css`
+
+- **Los pedazos** son 24 copias de la cara de la tarjeta, cada una recortada con un `clip-path: polygon(…)`: una rejilla de 4 × 3 con los vértices interiores movidos (con la semilla del id) y cada celda partida en dos triángulos. Al romperse, la tarjeta entera se oculta y los pedazos ocupan su sitio y caen con `power2.in`, girando y alejándose del centro según dónde estaba cada uno.
+- **El fuego** es una sola variable CSS, `--burn` (de −6 % a 110 %), que anima GSAP: la máscara del cartel (`mask-image: linear-gradient(to top, transparent var(--burn), #000 …)`) borra lo quemado, una capa con `mix-blend-mode: multiply` oscurece lo que está a punto de arder y la línea de la brasa (`bottom: var(--burn)`) sube con ellas. Las ascuas salen cada 0,14 s de la altura actual de la línea (`burst` con gravedad negativa).
+- **Una vez en cada equipo:** la marca `quests.failSeen` dice hasta cuándo se han enseñado; nunca retrocede. Saltar (`Enter` o clic) mata la línea de tiempo (`tl.kill()`) y fija el final con `gsap.set`.
+
 ### 9.8 El mercader y el personaje
 
 **Archivos:** `src/features/merchant/components/HuTaoStage.tsx`, `SoldSeal.tsx` y `src/features/equipment/components/Doll.tsx`
@@ -637,6 +652,8 @@ No hay archivos de audio: cada sonido se fabrica con la **Web Audio API** a part
 | Level Up | Arpegio más largo de 6 notas |
 | Encargo clavado | Silbido que sube (ruido filtrado en barrido), golpe grave con palmada de papel y acorde de orquesta en do mayor, destello agudo y una calavera que «sella» por cada una |
 | Encargo cumplido | Estallido brillante con crepitar, tic-tic de tragaperras, campanilla en do7 y la melodía re-fa-mi-fa-sol-mi-fa |
+| Quest fracturada | Grieta: chasquido agudo (`hiss` paso alto) y golpe a 140 Hz; al romperse, ruido, golpe a 70 Hz y un acorde de la menor que cae (`stab` y `sweep`) |
+| Cartel quemado | Soplo del fuego que crece, crepitar (18 chasquidos al azar) y un acorde grave sostenido |
 
 Para los encargos temporales se añadieron cuatro piezas más: `hiss` (ruido con filtro que barre y envolvente propia), `stab` (acorde de sierras con un filtro que se cierra, el «golpe de orquesta»), `celesta` y `chime` (campana con parciales inarmónicos). Las recetas se sacaron midiendo el audio de los vídeos de referencia con un espectrograma; el detalle está en el README de la funcionalidad.
 

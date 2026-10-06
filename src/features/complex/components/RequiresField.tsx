@@ -6,11 +6,14 @@ import { sfx } from "../../../lib/sfx";
 import { MAX_REQUIRES, requirementCandidates } from "../model";
 import "../complex.css";
 
-/** Requisitos de una quest nueva: quests del tablón que hay que completar antes de aceptarla. */
-export function RequiresField({ value, onChange }: { value: string[]; onChange(v: string[]): void }) {
+/**
+ * Requisitos de una quest: quests del tablón que hay que completar antes de aceptarla.
+ * `forQuest`: la quest que se edita (sin ella misma ni las que ya dependen de ella).
+ */
+export function RequiresField({ value, onChange, forQuest }: { value: string[]; onChange(v: string[]): void; forQuest?: string }) {
   const quests = useGame((s) => s.state.quests);
   const { t } = useTranslation();
-  const candidates = requirementCandidates(quests.values()).filter((q) => !value.includes(q.id));
+  const candidates = requirementCandidates(quests.values(), forQuest).filter((q) => !value.includes(q.id));
   const chosen = value.map((id) => quests.get(id)).filter((q) => !!q);
 
   return (

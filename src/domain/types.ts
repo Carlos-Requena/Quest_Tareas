@@ -62,6 +62,11 @@ export interface QuestDef {
    * repetibles siempre vuelven; las demás, solo si lo tienen (features/complex).
    */
   cooldownMinutes?: number;
+  /**
+   * Repetición por días de la semana (0 = domingo … 6 = sábado): vuelve a medianoche del
+   * siguiente de esos días. Si está, manda sobre `cooldownMinutes` (features/complex).
+   */
+  repeatDays?: number[];
   /** Requisitos: quests que hay que completar antes de poder aceptar esta (features/complex). */
   requires?: string[];
   /** Fecha límite opcional, todo el día: medianoche local de ese día (features/horizon). */
@@ -95,6 +100,11 @@ export interface QuestState extends QuestDef {
   reserved?: boolean;
   /** Racha de las quests que se repiten: veces seguidas a tiempo (features/streaks). */
   streak?: Streak;
+  /**
+   * Fallida: se acabó el día de su fecha límite sin completarla (o se quemó su encargo).
+   * Va con `status: "done"`, así que sale del tablón como una terminada (features/failure).
+   */
+  failedAt?: number;
 }
 
 export interface PlayerState {

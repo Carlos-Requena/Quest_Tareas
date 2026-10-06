@@ -115,3 +115,48 @@ describe("requisitos", () => {
     expect(requirementCandidates(after.values()).map((q) => q.id)).toEqual(["b", "c", "x"]);
   });
 });
+
+describe("repetición por días de la semana", () => {
+  // Lunes 5 de octubre de 2026, en la hora local (Europe/Madrid en los tests).
+  const MON = new Date(2026, 9, 5, 18).getTime();
+  const days = [1, 3, 5]; // lunes, miércoles y viernes
+
+  it("limpia los días: de 0 a 6, sin repetir y en orden", async () => {
+    const { cleanRepeatDays } = await import("./model");
+    expect(cleanRepeatDays([5, 1, 9, 1, -1, 2.5])).toEqual([1, 5]);
+    expect(cleanRepeatDays([])).toBeUndefined();
+    expect(cleanRepeatDays("lunes")).toBeUndefined();
+  });
+
+  it("vuelve a medianoche del siguiente día que toca y la racha dura hasta que acaba ese día", async () => {
+    const { nextRepeatDay, returnsAt, streakUntil } = await import("./model");
+    expect(nextRepeatDay(MON, days)).toBe(new Date(2026, 9, 7).getTime());
+    // Viernes → lunes siguiente.
+    expect(nextRepeatDay(new Date(2026, 9, 9, 22).getTime(), days)).toBe(new Date(2026, 9, 12).getTime());
+    // Solo un día: la semana siguiente.
+    expect(nextRepeatDay(MON, [1])).toBe(new Date(2026, 9, 12).getTime());
+    expect(returnsAt({ repeatDays: days, cooldownMinutes: 60 }, MON)).toBe(new Date(2026, 9, 7).getTime());
+    expect(returnsAt({ cooldownMinutes: 60 }, MON)).toBe(MON + HOUR);
+    expect(streakUntil({ repeatDays: days }, MON)).toBe(new Date(2026, 9, 8).getTime());
+    expect(streakUntil({}, MON)).toBeUndefined();
+    expect(recurs({ category: "request", repeatDays: [2] })).toBe(true);
+  });
+
+  it("en la proyección: completada el lunes, en espera hasta el miércoles y con racha", () => {
+    const evs = [
+      at(MON - HOUR, { type: "quest_created", quest: questDef("g", { repeatDays: [3, 1, 5, 8] }) }),
+      at(MON, { type: "quest_accepted", questId: "g" }),
+      at(MON + 1, { type: "quest_completed", questId: "g", reward: { xp: 10, gold: 1 } }),
+      at(new Date(2026, 9, 7, 9).getTime(), { type: "quest_accepted", questId: "g" }),
+      at(new Date(2026, 9, 7, 10).getTime(), { type: "quest_completed", questId: "g", reward: { xp: 10, gold: 1 } }),
+    ];
+    const g1 = project(evs.slice(0, 3)).quests.get("g")!;
+    expect(g1.repeatDays).toEqual([1, 3, 5]);
+    expect(g1.status).toBe("cooldown");
+    expect(g1.availableAt).toBe(new Date(2026, 9, 7).getTime());
+    expect(effectiveStatus(g1, new Date(2026, 9, 6, 23).getTime())).toBe("cooldown");
+    const g2 = project(evs).quests.get("g")!;
+    expect(g2.streak?.count).toBe(2);
+    expect(g2.availableAt).toBe(new Date(2026, 9, 9).getTime());
+  });
+});

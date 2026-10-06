@@ -13,6 +13,10 @@ export const complexEs = {
       weeks: "semanas",
     },
     hint: "Al completarla vuelve al tablón pasado ese tiempo, aunque no sea de la categoría Repetible.",
+    weekdays: "Ciertos días de la semana…",
+    onDays: "Vuelve los {{days}}",
+    weekdaysHint: "Vuelve al tablón a medianoche de cada día marcado y sale esos días en el calendario.",
+    locked: "En curso no se cambia: abandónala o espera a que vuelva al tablón.",
   },
   requires: {
     label: "Requisitos",
@@ -54,6 +58,10 @@ export const complexJa: typeof complexEs = {
       weeks: "週間",
     },
     hint: "達成すると、この時間のあとで掲示板に戻ります（繰り返しカテゴリ以外でも）。",
+    weekdays: "曜日を指定…",
+    onDays: "毎週{{days}}に再掲",
+    weekdaysHint: "選んだ曜日の0時に掲示板へ戻り、カレンダーにもその日に載ります。",
+    locked: "受注中は変更できません。取りやめるか、掲示板に戻るまで待ってください。",
   },
   requires: {
     label: "前提クエスト",

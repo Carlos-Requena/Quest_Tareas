@@ -29,6 +29,9 @@ export const chronicleEs = {
     quest: ["Completé «{{title}}».", "Hoy cayó «{{title}}».", "Terminé «{{title}}». Una menos.", "Por fin, «{{title}}»."],
     elite: ["Vencí a «{{title}}». No fue fácil.", "«{{title}}»: hecho. Me tiemblan las manos.", "Cayó «{{title}}». Esto sí que cuenta."],
     temporal: ["Cumplí el encargo «{{title}}».", "Llegué a tiempo a «{{title}}».", "Encargo «{{title}}»: cumplido."],
+    // Lo que falló (features/failure).
+    failedQuest: ["Se me pasó el día de «{{title}}»: se hizo pedazos.", "«{{title}}» se fracturó. No llegué.", "Perdí «{{title}}». Otra vez será."],
+    failedTemporal: ["El cartel de «{{title}}» ardió: no llegué a tiempo.", "Se quemó «{{title}}». Solo quedó ceniza.", "«{{title}}» se me escapó. El papel se hizo humo."],
     collectible: ["Por fin tengo «{{name}}» en mi colección: {{price}} G.", "No salía en ningún cofre, así que compré «{{name}}» por {{price}} G.", "«{{name}}» ya está en el almanaque. {{price}} G bien gastados."],
     purchase: ["Le compré «{{name}}» a Hu Tao por {{price}} G.", "Hu Tao me vendió «{{name}}». {{price}} G… pero merece la pena.", "Me di un capricho: «{{name}}», {{price}} G."],
   },
@@ -74,6 +77,8 @@ export const chronicleJa: typeof chronicleEs = {
     quest: ["「{{title}}」を達成した。", "今日は「{{title}}」を片付けた。", "「{{title}}」完了。一つ減った。", "ようやく「{{title}}」。"],
     elite: ["「{{title}}」を討ち取った。楽ではなかった。", "「{{title}}」、やり遂げた。まだ手が震える。", "「{{title}}」を倒した。これは大きい。"],
     temporal: ["依頼「{{title}}」を果たした。", "「{{title}}」に間に合った。", "依頼「{{title}}」、完了。"],
+    failedQuest: ["「{{title}}」の期限が過ぎ、砕け散った。", "「{{title}}」に間に合わなかった。", "「{{title}}」を失った。次こそは。"],
+    failedTemporal: ["「{{title}}」の貼り紙が燃え尽きた。間に合わなかった。", "「{{title}}」は灰になった。", "「{{title}}」を逃した。紙は煙と消えた。"],
     collectible: ["ついに「{{name}}」をコレクションに加えた。{{price}} G。", "宝箱からは出なかったので、「{{name}}」を {{price}} G で買った。", "「{{name}}」が図鑑に載った。{{price}} G の価値はある。"],
     purchase: ["胡桃から「{{name}}」を {{price}} G で買った。", "胡桃に「{{name}}」を売ってもらった。{{price}} G…でも価値はある。", "ご褒美に「{{name}}」、{{price}} G。"],
   },

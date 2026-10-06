@@ -4,6 +4,7 @@ import type { EventStore } from "../../storage/eventStore";
 import { finishProjection } from "../../domain/projection";
 import { applyAll, canonical, emptyProjected, isCurrent, makeSnapshot, type Projected } from "./model";
 import { readSnapshot, writeSnapshot } from "./storage";
+import { hasUndo } from "../undo/model";
 
 export interface Restored extends Projected {
   /** Eventos que había en el snapshot usado (0 si se recalculó todo). */
@@ -18,6 +19,8 @@ export async function restore(store: EventStore): Promise<Restored> {
   const snap = await readSnapshot();
   if (snap && isCurrent(snap) && (await store.countUpTo(snap.upTo)) === snap.count) {
     const tail = await store.since(snap.upTo);
+    // Un deshacer en la cola puede referirse a un evento que ya está dentro del snapshot.
+    if (hasUndo(tail)) return rebuild(store);
     const p = applyAll({ acc: snap.acc, last: snap.upTo, count: snap.count }, tail);
     return { ...p, snapCount: snap.count };
   }

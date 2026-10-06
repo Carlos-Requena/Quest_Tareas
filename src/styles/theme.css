@@ -64,6 +64,13 @@
   --streak-core: #ffd27a;
   --streak-blue: #6ec8ff;
 
+  /* Fallos (src/features/failure): el fuego que quema un cartel y la ceniza que deja */
+  --fire: #ff6a1f;
+  --fire-core: #ffd98a;
+  --ember: #ff3d12;
+  --char: #1a0d05;
+  --ash: #77706a;
+
   /* Crónica del aventurero (src/features/chronicle): cuero gastado, papel viejo y tinta */
   --diary-leather: #4a2a18;
   --diary-leather-lo: #22120a;

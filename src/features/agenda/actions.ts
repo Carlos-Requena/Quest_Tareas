@@ -6,6 +6,7 @@ import { sfx } from "../../lib/sfx";
 import i18n from "../../i18n";
 import { AGENDA_COLORS, AGENDA_LIMITS, formatClock, isDateKey, normalizeAgenda, parseClock, weekday, type AgendaColor, type AgendaDef, type AgendaPatch, type AgendaState } from "./model";
 import { useAgendaUi } from "./ui";
+import { offerUndo } from "../undo/actions";
 
 /** Lo que rellena el formulario de un bloque. */
 export interface AgendaDraft {
@@ -78,7 +79,7 @@ function fieldsOf(d: AgendaDraft): Omit<AgendaDef, "id" | "createdAt"> | undefin
 /** Crea o edita un bloque. Al editar, el parche lleva solo lo que cambia. */
 export async function saveAgenda(d: AgendaDraft, editId?: string): Promise<boolean> {
   const fields = fieldsOf(d);
-  const { state, dispatch, say } = useGame.getState();
+  const { state, dispatch } = useGame.getState();
   if (!fields) return false;
   if (editId) {
     const cur = state.agenda.get(editId);
@@ -89,11 +90,11 @@ export async function saveAgenda(d: AgendaDraft, editId?: string): Promise<boole
     }
     // Quitar la repetición: `repeat` vacío no sobrevive al JSON, así que va como días vacíos.
     if (cur.repeat && !fields.repeat) patch.repeat = { days: [] };
-    if (Object.keys(patch).length) await dispatch({ type: "agenda_updated", entryId: editId, patch });
-    say(() => i18n.t("agenda.toast.updated", { title: fields.title }));
+    const e = Object.keys(patch).length ? await dispatch({ type: "agenda_updated", entryId: editId, patch }) : undefined;
+    offerUndo(e, () => i18n.t("agenda.toast.updated", { title: fields.title }));
   } else {
-    await dispatch({ type: "agenda_created", entry: { ...fields, id: uid(), createdAt: Date.now() } });
-    say(() => i18n.t("agenda.toast.created", { title: fields.title }));
+    const e = await dispatch({ type: "agenda_created", entry: { ...fields, id: uid(), createdAt: Date.now() } });
+    offerUndo(e, () => i18n.t("agenda.toast.created", { title: fields.title }));
   }
   sfx.tick();
   useAgendaUi.getState().setForm(undefined);
@@ -102,23 +103,23 @@ export async function saveAgenda(d: AgendaDraft, editId?: string): Promise<boole
 
 /** Quita un bloque entero (todos sus días). */
 export async function deleteAgenda(id: string) {
-  const { state, dispatch, say } = useGame.getState();
+  const { state, dispatch } = useGame.getState();
   const e = state.agenda.get(id);
   if (!e) return;
   sfx.paperRip(0.6);
-  await dispatch({ type: "agenda_deleted", entryId: id });
+  const ev = await dispatch({ type: "agenda_deleted", entryId: id });
   useAgendaUi.getState().setForm(undefined);
-  say(() => i18n.t("agenda.toast.deleted", { title: e.title }));
+  offerUndo(ev, () => i18n.t("agenda.toast.deleted", { title: e.title }));
 }
 
 /** Quita un solo día de un bloque que se repite; si no se repite, lo quita entero. */
 export async function skipAgendaDay(id: string, date: string, label: string) {
-  const { state, dispatch, say } = useGame.getState();
+  const { state, dispatch } = useGame.getState();
   const e = state.agenda.get(id);
   if (!e) return;
   if (!e.repeat) return deleteAgenda(id);
   sfx.paperRip(0.4);
-  await dispatch({ type: "agenda_skipped", entryId: id, date });
+  const ev = await dispatch({ type: "agenda_skipped", entryId: id, date });
   useAgendaUi.getState().setForm(undefined);
-  say(() => i18n.t("agenda.toast.skipped", { title: e.title, date: label }));
+  offerUndo(ev, () => i18n.t("agenda.toast.skipped", { title: e.title, date: label }));
 }

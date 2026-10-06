@@ -27,6 +27,7 @@ Tras completarla, la quest vuelve al tablón cuando acaba su espera y hay que vo
 | Sin espera | 0 | 24 h |
 | Cada 3 días | 3 días | 6 días |
 | Semanal | 7 días | 14 días |
+| Por días de la semana (lunes y jueves), hecha el lunes | Hasta el jueves | El final del jueves (`streakUntil`, features/complex) |
 
 Se calcula con el `ts` del evento (`nextStreak`) y se guarda el plazo (`until`). **Romperse no es un evento**: `liveStreak(s, now)` devuelve 0 si ya pasó el plazo, como el fin de la espera de una repetible.
 
@@ -42,6 +43,8 @@ Se calcula con el `ts` del evento (`nextStreak`) y se guarda el plazo (`until`).
 - **Detalle**: sección «Racha» con las veces seguidas, la mejor y el día y la hora límite, o «¡Se rompe en 3 h!». Rota: «Rota. La mejor fue de 9».
 - **Aviso** al completar con una racha de 3, 7, 14, 30, 50, 100, 200 o 365.
 - **Crónica**: cada entrada de una quest que se repite guarda su racha («Van 5 seguidas»).
+
+En las que se repiten por días, quien llama a `nextStreak` pasa el plazo (`until`): se rompe si se salta un día que tocaba.
 
 ## Archivos
 

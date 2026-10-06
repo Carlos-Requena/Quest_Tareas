@@ -5,16 +5,20 @@ import { create } from "zustand";
 import { dateKey } from "../agenda/model";
 import { agendaBusy } from "../agenda/ui";
 
-export type CalendarView = "week" | "day";
+/** «Mi día» (features/today), la semana o el día por horas. */
+export type CalendarView = "today" | "week" | "day";
+export const CALENDAR_VIEWS: readonly CalendarView[] = ["today", "week", "day"];
 
 /** La vista se recuerda en cada equipo (como el idioma): no es un dato del juego. */
 const VIEW_KEY = "quests.calendarView";
 
+/** La primera vez, «Mi día»: el calendario es donde se planifica (features/today). */
 function loadView(): CalendarView {
   try {
-    return localStorage.getItem(VIEW_KEY) === "day" ? "day" : "week";
+    const v = localStorage.getItem(VIEW_KEY);
+    return CALENDAR_VIEWS.find((x) => x === v) ?? "today";
   } catch {
-    return "week";
+    return "today";
   }
 }
 

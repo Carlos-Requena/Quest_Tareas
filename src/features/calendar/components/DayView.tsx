@@ -23,7 +23,7 @@ export function DayView({ today, now }: { today: string; now: number }) {
   const temporals = useGame((s) => s.state.temporals);
   const agenda = useGame((s) => s.state.agenda);
   const scroll = useRef<HTMLDivElement>(null);
-  const data = useMemo(() => calendarDay(day, { quests: quests.values(), temporals: temporals.values(), agenda: agenda.values() }), [day, quests, temporals, agenda]);
+  const data = useMemo(() => calendarDay(day, { quests: quests.values(), temporals: temporals.values(), agenda: agenda.values(), today }), [day, quests, temporals, agenda, today]);
   const slots = useMemo(() => layoutDay(data.timed.map((i) => ({ key: `${i.kind}:${i.id}`, start: i.start, end: i.end }))), [data]);
   const isToday = day === today;
 

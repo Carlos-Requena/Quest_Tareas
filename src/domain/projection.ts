@@ -8,7 +8,7 @@ import { upcastQuestDef } from "../features/pomodoro/legacy";
 import { applyItemEvent, newItemsAcc, receiveItems, registerItem, type ItemsAcc } from "../features/items/model";
 import { upcastReward } from "../features/items/legacy";
 import { applyTemporalEvent, inReserve, isAccepted, linkedQuestDone, newTemporalAcc, questOwners, type TemporalAcc } from "../features/temporal/model";
-import { cleanRequires, prerequisitesMet, recurs } from "../features/complex/model";
+import { cleanRepeatDays, cleanRequires, prerequisitesMet, recurs, returnsAt, streakUntil } from "../features/complex/model";
 import { applyMerchantEvent, fullCatalog, gearOf, newMerchantAcc, type MerchantAcc } from "../features/merchant/model";
 import { applyEquipmentEvent, newEquipmentAcc, pruneEquipment, type EquipmentAcc } from "../features/equipment/model";
 import { gainAttribute, listAttributes, newAttributesAcc, type AttributesAcc } from "../features/attributes/model";
@@ -19,6 +19,9 @@ import { questReward, temporalValue } from "../features/rewards/model";
 import { applyCollectibleEvent } from "../features/collectibles/model";
 import { cleanContacts } from "../features/contacts/model";
 import { applyAgendaEvent, newAgendaAcc, type AgendaAcc } from "../features/agenda/model";
+import { isEditable, patchQuest } from "../features/editing/model";
+import { questFailsBy, temporalFailsBy } from "../features/failure/model";
+import { undoneIn } from "../features/undo/model";
 
 /**
  * Versión de la lógica de la proyección. Un snapshot guardado con otra versión se
@@ -27,7 +30,7 @@ import { applyAgendaEvent, newAgendaAcc, type AgendaAcc } from "../features/agen
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 9;
+export const PROJECTION_VERSION = 10;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -65,10 +68,14 @@ export const newProjectionAcc = (): ProjectionAcc => ({
   completedCount: 0,
 });
 
-/** Reproduce los eventos (ya ordenados) y devuelve el estado actual del juego. */
+/**
+ * Reproduce los eventos (ya ordenados) y devuelve el estado actual del juego. Los que
+ * otro evento deshizo (features/undo) se saltan, como si no hubieran pasado.
+ */
 export function project(events: GameEvent[]): GameState {
   const acc = newProjectionAcc();
-  for (const e of events) applyEvent(acc, e);
+  const undone = undoneIn(events);
+  for (const e of events) if (!undone.has(e.id)) applyEvent(acc, e);
   return finishProjection(acc);
 }
 
@@ -106,6 +113,7 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
           ...def,
           conditions,
           requires: cleanRequires(def),
+          repeatDays: cleanRepeatDays(def.repeatDays),
           dueAt: Number.isFinite(def.dueAt) ? def.dueAt : undefined,
           contacts: contacts.length ? contacts : undefined,
           // XP y oro salen de los objetivos (features/rewards); lo que trae el evento solo aporta el objeto.
@@ -201,9 +209,10 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
         // Las repetibles, y cualquier quest con repetición, vuelven tras su espera.
         if (recurs(q)) {
           q.status = "cooldown";
-          q.availableAt = e.ts + (q.cooldownMinutes ?? 0) * 60_000;
+          // Tras su espera, o el siguiente día de la semana que toca (features/complex).
+          q.availableAt = returnsAt(q, e.ts);
           // Racha: veces seguidas a tiempo (features/streaks).
-          q.streak = nextStreak(q.streak, e.ts, q.cooldownMinutes);
+          q.streak = nextStreak(q.streak, e.ts, q.cooldownMinutes, streakUntil(q, e.ts));
         } else {
           q.status = "done";
         }
@@ -222,6 +231,46 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
           streak: q.streak && recurs(q) ? q.streak.count : undefined,
         });
       }
+      break;
+
+    case "quest_updated":
+      // Editar (features/editing): las terminadas no; en curso, sin tocar los objetivos ni la repetición.
+      if (q && isEditable(q)) {
+        const def = patchQuest(q, e.patch, q.status === "active", quests);
+        // Objetivos nuevos: sus pomodoros empiezan de cero (en curso no pueden cambiar).
+        const fresh = def.conditions !== q.conditions ? { progress: {}, checked: {}, pomodoros: freshPomodoros(def.conditions) } : {};
+        quests.set(q.id, { ...q, ...def, ...fresh });
+      }
+      break;
+
+    case "quest_failed":
+      // Se fractura al acabar el día de su fecha límite sin completarla (features/failure).
+      if (q && questFailsBy(q, e.ts)) {
+        failQuest(q, e.ts);
+        record(acc.chronicle, { k: "failed", target: "quest", ts: e.ts, xpAfter: acc.xp, id: q.id, title: q.title, category: q.category });
+      }
+      break;
+
+    case "temporal_failed": {
+      // El cartel se quema al acabar su día sin cumplirlo; sus quests sin terminar fallan con él.
+      const t = temporals.board.get(e.temporalId);
+      if (!t || !temporalFailsBy(t, e.ts)) break;
+      let lost = 0;
+      for (const id of t.questIds) {
+        const lq = quests.get(id);
+        // Las que se repiten siguen en el tablón: son costumbres, no parte del encargo.
+        if (lq && lq.status !== "done" && !recurs(lq)) {
+          failQuest(lq, e.ts);
+          lost++;
+        }
+      }
+      temporals.board.set(t.id, { ...t, status: "done", failedAt: e.ts });
+      record(acc.chronicle, { k: "failed", target: "temporal", ts: e.ts, xpAfter: acc.xp, id: t.id, title: t.title, skulls: t.difficulty, quests: lost || undefined });
+      break;
+    }
+
+    case "event_undone":
+      // No hace nada aquí: project() y features/snapshot saltan el evento deshecho al reproducirlo todo.
       break;
 
     case "pomodoro_started":
@@ -364,6 +413,16 @@ export function finishProjection(acc: ProjectionAcc): GameState {
 export function effectiveStatus(q: QuestState, now: number) {
   if (q.status === "cooldown" && now >= (q.availableAt ?? 0)) return "available";
   return q.status;
+}
+
+/** La quest se fractura: termina sin recompensa y sale del tablón (features/failure). */
+function failQuest(q: QuestState, ts: number) {
+  q.status = "done";
+  q.failedAt = ts;
+  q.progress = {};
+  q.checked = {};
+  q.acceptedAt = undefined;
+  q.pomodoros = freshPomodoros(q.conditions);
 }
 
 /** Un pomodoro nuevo por cada condición de pomodoro. */

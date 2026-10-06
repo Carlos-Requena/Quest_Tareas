@@ -22,7 +22,7 @@ Sigue la convención del proyecto: **una carpeta por implementación** (`src/fea
 
 ### Se apunta en la proyección, cuando el evento cuenta
 
-No hay eventos propios. La proyección añade una entrada (`record`) **solo cuando un evento pasa sus guardas**: un `quest_completed` válido, un `temporal_completed` que da su recompensa o un `gear_purchased` con oro suficiente. Así la crónica no dice nada que no pasó, aunque lleguen eventos repetidos de otro dispositivo.
+No hay eventos propios. La proyección añade una entrada (`record`) **solo cuando un evento pasa sus guardas**: un `quest_completed` válido, un `temporal_completed` que da su recompensa, un `gear_purchased` con oro suficiente o un fallo (`quest_failed`, `temporal_failed`: entrada `failed`, en tinta roja y sin XP ni oro, features/failure). Lo deshecho (features/undo) nunca se apunta: la proyección lo salta. Así la crónica no dice nada que no pasó, aunque lleguen eventos repetidos de otro dispositivo.
 
 | Alternativa | Por qué no |
 |---|---|

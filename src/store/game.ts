@@ -51,11 +51,15 @@ interface GameStore {
   creating: boolean;
   clear?: ClearResult;
   collection?: CollectionTab;
-  /** El texto es una función para traducirlo al pintar: así sigue al idioma activo. */
-  toast?: { text: () => string; key: number };
+  /**
+   * El texto es una función para traducirlo al pintar: así sigue al idioma activo.
+   * `action`: un botón en el aviso (por ejemplo, «Deshacer», features/undo).
+   */
+  toast?: { text: () => string; key: number; action?: ToastAction };
 
   init(): Promise<void>;
-  dispatch(body: EventBody): Promise<void>;
+  /** Guarda el evento y lo aplica. Devuelve el evento guardado (con su id), o nada si aún no hay almacén. */
+  dispatch(body: EventBody): Promise<GameEvent | undefined>;
   /** Recalcula todo desde los eventos (tras fusionar eventos de otro dispositivo, por ejemplo). */
   rebuild(): Promise<void>;
   setSection(section: Section): void;
@@ -64,7 +68,13 @@ interface GameStore {
   setCreating(v: boolean): void;
   setClear(c?: ClearResult): void;
   setCollection(tab?: CollectionTab): void;
-  say(text: () => string): void;
+  say(text: () => string, action?: ToastAction): void;
+}
+
+/** Botón de un aviso: su texto (traducido al pintar) y lo que hace. */
+export interface ToastAction {
+  label: () => string;
+  run(): void;
 }
 
 let initOnce: Promise<void> | undefined;
@@ -133,15 +143,18 @@ export const useGame = create<GameStore>((set, get) => {
       if (!store) return;
       const e = newEvent(store, body, projected.last);
       // Reloj del equipo más de MAX_DRIFT_MS por detrás de lo aplicado: el evento cae en medio del historial y hay que recalcular.
-      if (!goesAfter(projected, e)) {
+      // Deshacer (features/undo) cambia el pasado: también se recalcula todo.
+      if (!goesAfter(projected, e) || e.type === "event_undone") {
         await store.append(e);
-        return get().rebuild();
+        await get().rebuild();
+        return e;
       }
       // Solo el evento nuevo, sobre una copia: el estado anterior no cambia.
       const next = applyAll({ ...projected, acc: cloneAcc(projected.acc) }, [e]);
       set({ projected: next, state: finishProjection(next.acc) });
       await store.append(e);
       maybeSnapshot(next);
+      return e;
     },
 
     rebuild() {
@@ -163,10 +176,11 @@ export const useGame = create<GameStore>((set, get) => {
     setCreating: (creating) => set({ creating }),
     setClear: (clear) => set({ clear }),
     setCollection: (collection) => set({ collection }),
-    say: (text) => {
-      const key = Date.now();
-      set({ toast: { text, key } });
-      setTimeout(() => get().toast?.key === key && set({ toast: undefined }), 4500);
+    say: (text, action) => {
+      const key = Date.now() + Math.random();
+      set({ toast: { text, key, action } });
+      // Con un botón, un poco más: da tiempo a leerlo y pulsarlo.
+      setTimeout(() => get().toast?.key === key && set({ toast: undefined }), action ? 7000 : 4500);
     },
   };
 });

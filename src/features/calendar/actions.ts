@@ -8,7 +8,7 @@ import { useAgendaUi } from "../agenda/ui";
 import { goToQuest, goToTemporal } from "../temporal/actions";
 import { useTemporalUi } from "../temporal/ui";
 import type { CalendarItem } from "./model";
-import { useCalendarUi, type CalendarView } from "./ui";
+import { CALENDAR_VIEWS, useCalendarUi, type CalendarView } from "./ui";
 
 /** Abre el calendario (tecla S o el selector de la cabecera); desde él, vuelve al Quest Board. */
 export function toggleCalendar() {
@@ -17,12 +17,23 @@ export function toggleCalendar() {
   g.setSection(g.section === "calendar" ? "board" : "calendar");
 }
 
-/** Semana o día anterior / siguiente. */
+/** Semana o día anterior / siguiente. Desde «Mi día», al día de antes o de después, por horas. */
 export function moveCalendar(step: 1 | -1) {
   const ui = useCalendarUi.getState();
   sfx.move();
   ui.setAdding(undefined);
+  if (ui.view === "today") {
+    ui.setDay(addDays(dateKey(Date.now()), step));
+    ui.setView("day");
+    return;
+  }
   ui.setDay(addDays(ui.day, ui.view === "week" ? 7 * step : step));
+}
+
+/** Tecla V: Mi día → semana → día → Mi día. */
+export function cycleCalendarView() {
+  const { view } = useCalendarUi.getState();
+  setCalendarView(CALENDAR_VIEWS[(CALENDAR_VIEWS.indexOf(view) + 1) % CALENDAR_VIEWS.length]);
 }
 
 export function goToday() {

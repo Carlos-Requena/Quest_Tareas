@@ -1,0 +1,147 @@
+/* ───────────── Búsqueda (src/features/search) ───────────── */
+
+.sr-bg {
+  align-items: flex-start;
+  padding-top: 12vh;
+}
+.sr {
+  width: min(620px, 92vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-solid);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+.sr-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.sr-icon {
+  flex: none;
+  color: var(--gold);
+}
+.sr-input {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  padding: 0;
+  font: inherit;
+  font-size: 17px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+.sr-input::-webkit-search-cancel-button {
+  display: none;
+}
+.sr-close {
+  width: 36px;
+  height: 36px;
+  color: var(--muted);
+}
+.sr-close:hover {
+  color: var(--text);
+}
+.sr-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+}
+.sr-empty {
+  margin: 0;
+  padding: 18px 12px;
+  font-size: 13px;
+}
+.sr-hit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  text-align: left;
+  color: var(--text);
+}
+.sr-hit.on {
+  background: var(--panel-hi);
+  box-shadow: inset 2px 0 0 var(--gold);
+}
+.sr-ico {
+  flex: none;
+  width: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+}
+.sr-ico .skull {
+  width: 18px;
+  height: 18px;
+}
+.sr-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sr-title,
+.sr-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sr-title {
+  font-size: 14px;
+}
+.sr-snippet {
+  font-size: 12px;
+}
+.sr-kind {
+  flex: none;
+  font-size: 11px;
+}
+.sr-hit.is-done .sr-title,
+.sr-hit.is-failed .sr-title {
+  color: var(--text-2);
+}
+.sr-hit.is-failed .sr-title {
+  text-decoration: line-through;
+  text-decoration-color: var(--elite);
+}
+.sr-foot {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 11px;
+  border-top: 1px solid var(--line);
+}
+
+/* Teléfono (features/mobile): a pantalla completa arriba, sin las teclas. */
+@media (max-width: 760px) {
+  .sr-bg {
+    padding-top: env(safe-area-inset-top);
+  }
+  .sr {
+    width: 100%;
+    max-height: none;
+    height: 100%;
+    border: 0;
+  }
+  .sr-input {
+    font-size: 16px;
+  }
+  .sr-close {
+    width: 44px;
+    height: 44px;
+  }
+  .sr-hit {
+    min-height: 52px;
+  }
+  .sr-foot {
+    display: none;
+  }
+}

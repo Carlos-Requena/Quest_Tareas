@@ -28,8 +28,11 @@ export interface TemporalClear {
   reward: TemporalReward;
 }
 
-/** `date` (AAAA-MM-DD): el día en que se clava, si se crea desde el calendario. */
-export type TemporalForm = { mode: "create"; date?: string } | { mode: "edit"; id: string };
+/**
+ * `date` (AAAA-MM-DD): el día en que se clava, si se crea desde el calendario.
+ * `from`: un encargo quemado del que se clava una copia (features/failure).
+ */
+export type TemporalForm = { mode: "create"; date?: string; from?: string } | { mode: "edit"; id: string };
 
 /** Rectángulo de pantalla desde el que se abre un cartel (para que «salga» del tablón). */
 export interface Origin {

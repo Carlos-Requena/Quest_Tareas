@@ -1,0 +1,248 @@
+/* ───────────── Mi día (src/features/today), dentro del calendario ───────────── */
+
+.td {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+  gap: 22px;
+  padding: 4px 2px 16px;
+  overflow-y: auto;
+}
+.td-main,
+.td-side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.td-block .sec-h {
+  margin-bottom: 8px;
+}
+.td-block.is-danger .sec-h .tag,
+.td-block.is-danger .sec-h .gem {
+  color: var(--elite);
+}
+.td-block.is-fire .sec-h .tag,
+.td-block.is-fire .sec-h .gem {
+  color: var(--streak);
+}
+.td-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.td-hint,
+.td-empty {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+.td-quiet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 18px 20px;
+  font-family: var(--f-display);
+  font-size: 20px;
+  color: var(--text-2);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+/* Una quest o un encargo: se abre al pulsar; las que tocan hoy, con «Aceptar» al lado. */
+.td-row {
+  --c: var(--gold);
+  display: flex;
+  align-items: stretch;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--c);
+  transition: border-color 0.15s, background 0.15s;
+}
+.td-row:hover {
+  background: var(--panel-hi);
+  border-color: var(--line-strong);
+  border-left-color: var(--c);
+}
+.td-row.is-active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
+}
+.td-row.is-temporal {
+  --c: var(--skull);
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--parchment-hi), var(--parchment));
+}
+.td-row.is-temporal:hover {
+  background: var(--parchment-hi);
+}
+.td-row.is-temporal .td-row-meta {
+  color: var(--ink-red);
+}
+.td-row.is-temporal.is-planned {
+  color: var(--parchment);
+  background: transparent;
+  outline: 1px dashed color-mix(in srgb, var(--parchment) 45%, transparent);
+  outline-offset: -1px;
+}
+.td-row.is-temporal.is-planned .td-row-meta {
+  color: var(--parchment-lo);
+}
+.td-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  color: inherit;
+}
+.td-row-main .gem {
+  color: var(--c);
+}
+.td-row-main .skull {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.td-row-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.td-row-meta {
+  flex: none;
+  font-size: 12px;
+}
+.td-accept {
+  flex: none;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gold-hi);
+  border-left: 1px solid var(--line);
+  transition: background 0.15s;
+}
+.td-accept:hover {
+  background: rgba(214, 178, 94, 0.12);
+}
+
+/* Agenda de hoy: una línea por hora; lo que ya pasó, apagado; lo de ahora, marcado. */
+.td-slot {
+  --c: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  text-align: left;
+  color: var(--text);
+  border-left: 3px solid var(--c);
+  background: rgba(255, 255, 255, 0.02);
+}
+.td-slot:hover {
+  background: var(--panel-hi);
+}
+.td-slot.is-past {
+  opacity: 0.45;
+}
+.td-slot.is-now {
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+.td-slot-time {
+  flex: none;
+  width: 88px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.td-slot-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.td-now {
+  flex: none;
+  font-family: var(--f-tag);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--c);
+}
+
+/* Próximos días y lo hecho hoy. */
+.td-next {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 10px;
+  text-align: left;
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+.td-next:hover .td-next-day {
+  color: var(--gold-hi);
+}
+.td-next-day {
+  flex: none;
+  min-width: 110px;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.td-next-counts {
+  font-size: 12px;
+}
+.td-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+.td-xp {
+  color: var(--stamp);
+}
+.td-gold {
+  color: var(--gold);
+}
+.td-failed {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--elite);
+}
+
+/* Ventana estrecha: una sola columna. */
+@media (max-width: 1100px) {
+  .td {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Teléfono (features/mobile): filas de 44 px y «Aceptar» que se puede tocar. */
+@media (max-width: 760px) {
+  .td {
+    gap: 16px;
+    padding-bottom: 24px;
+  }
+  .td-row-main,
+  .td-slot,
+  .td-next {
+    min-height: 44px;
+  }
+  .td-row-title {
+    font-size: 15px;
+  }
+  .td-accept {
+    min-width: 76px;
+  }
+  .td-slot-time {
+    width: 80px;
+  }
+}

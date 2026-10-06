@@ -121,6 +121,11 @@ export interface TemporalState extends Omit<TemporalDef, "planned"> {
   completedAt?: number;
   /** Recompensa ganada: copia del evento, no cambia si se edita después. */
   earned?: TemporalReward;
+  /**
+   * Quemado: se acabó el día de su fecha sin cumplirlo. Va con `status: "done"` (sale de
+   * los pendientes como uno cumplido), sin `completedAt` ni `earned` (features/failure).
+   */
+  failedAt?: number;
   /** Cuándo se enlazó cada quest (ts del evento): una repetible cuenta si se completa después. */
   linkedAt: Record<string, number>;
 }
@@ -174,7 +179,7 @@ export const isAccepted = (t: Pick<TemporalState, "acceptedAt">) => t.acceptedAt
 export function sortTemporals(list: Iterable<TemporalState>): TemporalState[] {
   return [...list].sort((a, b) => {
     if (a.status !== b.status) return a.status === "pending" ? -1 : 1;
-    if (a.status === "done") return (b.completedAt ?? 0) - (a.completedAt ?? 0);
+    if (a.status === "done") return finishedAt(b) - finishedAt(a);
     if (isAccepted(a) !== isAccepted(b)) return isAccepted(a) ? -1 : 1;
     return a.dueAt - b.dueAt || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1);
   });
@@ -221,8 +226,14 @@ export function remindersDue(list: Iterable<TemporalState>, now: number, windowM
  * Una quest enlazada está terminada si se completó del todo (`done`) o, si es de las
  * que vuelven, si se ha completado después de enlazarla: una vuelta anterior no cuenta.
  */
-export const linkedQuestDone = (q: Pick<QuestState, "status" | "lastCompletedAt">, since: number): boolean =>
-  q.status === "done" || (q.lastCompletedAt ?? -Infinity) >= since;
+export const linkedQuestDone = (q: Pick<QuestState, "status" | "lastCompletedAt" | "failedAt">, since: number): boolean =>
+  (q.status === "done" && q.failedAt === undefined) || (q.lastCompletedAt ?? -Infinity) >= since;
+
+/** Cuándo terminó: cumplido o quemado (features/failure). */
+export const finishedAt = (t: Pick<TemporalState, "completedAt" | "failedAt">) => t.completedAt ?? t.failedAt ?? 0;
+
+/** Se quemó: pasó su día sin cumplirlo (features/failure). */
+export const isBurned = (t: Pick<TemporalState, "failedAt">) => t.failedAt !== undefined;
 
 /** Quests enlazadas que siguen en el tablón de quests (las retiradas ya no cuentan), en su orden. */
 export function linkedQuests(t: Pick<TemporalState, "questIds">, quests: Pick<Map<string, QuestState>, "get">): QuestState[] {
@@ -334,7 +345,7 @@ export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: n
       if (t?.status !== "pending") return;
       // Solo los campos editables: la identidad, los adjuntos, las quests y el estado no se tocan con un parche.
       const patch: Partial<TemporalState> = { ...e.patch };
-      for (const k of ["id", "createdAt", "attachments", "questIds", "linkedAt", "status", "acceptedAt", "completedAt", "earned"] as const) delete patch[k];
+      for (const k of ["id", "createdAt", "attachments", "questIds", "linkedAt", "status", "acceptedAt", "completedAt", "earned", "failedAt"] as const) delete patch[k];
       delete (patch as { planned?: boolean }).planned;
       acc.board.set(t.id, { ...t, ...normalize({ ...t, ...patch }), status: t.status });
       return;

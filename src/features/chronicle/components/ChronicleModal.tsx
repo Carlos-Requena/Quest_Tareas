@@ -293,7 +293,7 @@ function Cover({ rank, level, startedAt, totals, empty }: CoverProps) {
 }
 
 /** Frase de una entrada: una de la lista, elegida con su `ts` (siempre la misma). */
-function phrase(t: TFunction, kind: "quest" | "elite" | "temporal" | "purchase" | "collectible", ts: number, vars: Record<string, string>): string {
+function phrase(t: TFunction, kind: "quest" | "elite" | "temporal" | "purchase" | "collectible" | "failedQuest" | "failedTemporal", ts: number, vars: Record<string, string>): string {
   const all = t(`chronicle.lines.${kind}`, { returnObjects: true, ...vars }) as unknown as string[];
   if (!Array.isArray(all) || !all.length) return "";
   return all[Math.floor(seededRandom(`${kind}-${ts}`)() * all.length)];
@@ -337,6 +337,11 @@ function entryTexts(line: ChronicleLine, t: TFunction, gearOf: GearLookup) {
     text = phrase(t, "temporal", e.ts, { title: e.title });
     reward = t("chronicle.reward", { xp: num(e.xp), gold: num(e.gold) });
     mark = "☠".repeat(Math.max(1, Math.min(5, e.skulls)));
+  } else if (e.k === "failed") {
+    // Lo que falló (features/failure): sin recompensa, en tinta roja.
+    text = phrase(t, e.target === "quest" ? "failedQuest" : "failedTemporal", e.ts, { title: e.title });
+    if (e.quests) reward = t("failure.chronicle.lost", { count: e.quests });
+    mark = e.target === "quest" ? "✗" : "♨";
   } else if (e.collectible) {
     text = phrase(t, "collectible", e.ts, { name: e.name, price: num(e.price) });
     mark = "✦";

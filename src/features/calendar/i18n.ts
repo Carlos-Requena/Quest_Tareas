@@ -3,7 +3,8 @@
 export const calendarEs = {
   title: "Calendario",
   view: {
-    switch: "Semana o día",
+    switch: "Mi día, semana o día por horas",
+    today: "Mi día",
     week: "Semana",
     day: "Día",
   },
@@ -26,6 +27,9 @@ export const calendarEs = {
     planned: "Sin aceptar",
     done: "Cumplido",
     repeats: "Se repite",
+    failed: "Se fracturó",
+    doneToday: "Hecha ese día",
+    repeatsToday: "Toca este día",
   },
   footer: {
     move: "Semana / día",
@@ -39,7 +43,8 @@ export const calendarEs = {
 export const calendarJa: typeof calendarEs = {
   title: "カレンダー",
   view: {
-    switch: "週・日",
+    switch: "今日の予定・週・日",
+    today: "今日の予定",
     week: "週",
     day: "日",
   },
@@ -62,6 +67,9 @@ export const calendarJa: typeof calendarEs = {
     planned: "未受注",
     done: "達成",
     repeats: "繰り返し",
+    failed: "砕け散った",
+    doneToday: "この日に達成",
+    repeatsToday: "この日に受注",
   },
   footer: {
     move: "週・日",

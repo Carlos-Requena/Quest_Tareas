@@ -11,6 +11,8 @@ import { DiaryIcon, openChronicle } from "../../chronicle";
 import { MusicControl } from "../../music";
 import { SyncControl } from "../../sync";
 import { useMobileUi } from "../ui";
+import { SearchIcon, openSearch } from "../../search";
+import { NotifyMenuToggle } from "../../notifications";
 
 /**
  * Menú «Más» del teléfono: lo que en el escritorio está en la cabecera y no cabe en la barra
@@ -61,6 +63,10 @@ export function MobileMenu() {
                 <DiaryIcon />
                 {t("chronicle.open")}
               </button>
+              <button className="mmenu-win is-wide" onClick={win(() => openSearch())}>
+                <SearchIcon />
+                {t("search.title")}
+              </button>
             </div>
             <Row label={t("mobile.menu.language")}>
               <LangSwitch />
@@ -72,6 +78,9 @@ export function MobileMenu() {
               <button className={`mmenu-toggle ${muted ? "" : "on"}`} aria-pressed={!muted} onClick={() => setMuted(!muted)}>
                 {muted ? t("mobile.menu.soundOff") : t("mobile.menu.soundOn")}
               </button>
+            </Row>
+            <Row label={t("notifications.menu")}>
+              <NotifyMenuToggle />
             </Row>
             <Row label={t("mobile.menu.sync")} wide>
               <SyncControl />

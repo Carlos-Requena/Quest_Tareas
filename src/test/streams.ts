@@ -115,14 +115,37 @@ export function randomStream(seed: string, n: number): GameEvent[] {
           repeat: rnd() < 0.5 ? { days: rnd() < 0.3 ? [0, 1, 2, 3, 4, 5, 6] : [1, 3, 3, 9], until: rnd() < 0.3 ? "2026-01-20" : undefined } : undefined,
         }),
       };
-    if (r < 0.6) return { type: "agenda_updated", entryId: a, patch: rnd() < 0.5 ? { title: "Movido", start: 600, end: 660 } : { repeat: undefined, color: "elite" } };
+    // Quitar la repetición va como días vacíos, como en la app: `undefined` no sobrevive al JSON de la sincronización.
+    if (r < 0.6) return { type: "agenda_updated", entryId: a, patch: rnd() < 0.5 ? { title: "Movido", start: 600, end: 660 } : { repeat: { days: [] }, color: "elite" } };
     if (r < 0.85) return { type: "agenda_skipped", entryId: a, date: day };
     return { type: "agenda_deleted", entryId: a };
   };
 
-  const body = (): EventBody => {
+  // Editar, fallar y deshacer (features/editing, failure y undo). Los fallos llegan a veces
+  // antes de su plazo (la guarda los ignora) y los deshacer apuntan a uno de los últimos eventos.
+  const laterBody = (i: number): EventBody => {
+    const r = rnd();
+    const q = pick(Q);
+    if (r < 0.35)
+      return {
+        type: "quest_updated",
+        questId: q,
+        patch: pick([
+          { title: "Editada", dueAt: null },
+          { conditions: [{ id: `${q}-c`, kind: "count" as const, label: "y", target: 1 + Math.floor(rnd() * 4) }], category: pick(["elite", "repeat", "request"] as const) },
+          { repeatDays: [1, 3, 5], requires: [pick(Q)] },
+          { dueAt: T0 + Math.floor(rnd() * 10) * 86_400_000, cooldownMinutes: null, repeatDays: null },
+        ]),
+      };
+    if (r < 0.55) return { type: "quest_failed", questId: q };
+    if (r < 0.7) return { type: "temporal_failed", temporalId: pick(TT) };
+    return { type: "event_undone", eventId: `${seed}-${String(Math.max(0, i - 1 - Math.floor(rnd() * 5))).padStart(5, "0")}` };
+  };
+
+  const body = (i: number): EventBody => {
     if (rnd() < 0.12) return gearBody();
     if (rnd() < 0.06) return agendaBody();
+    if (rnd() < 0.06) return laterBody(i);
     const q = pick(Q);
     const r = rnd();
     if (r < 0.1)
@@ -144,6 +167,8 @@ export function randomStream(seed: string, n: number): GameEvent[] {
           // Recompensa antigua con `item` de texto (features/items/legacy.ts) en algunas.
           reward: rnd() < 0.3 ? ({ xp: 100, gold: 10, item: "Poción" } as QuestDef["reward"]) : { xp: 50 + Math.floor(rnd() * 400), gold: 20, itemId: rnd() < 0.5 ? pick(I) : undefined },
           cooldownMinutes: rnd() < 0.4 ? 30 : undefined,
+          // Repetición por días de la semana (features/complex), a veces con días que no valen.
+          repeatDays: rnd() < 0.15 ? [1, 3, 9, 3] : undefined,
           requires: rnd() < 0.3 ? [pick(Q)] : undefined,
           dueAt: rnd() < 0.3 ? T0 + Math.floor(rnd() * 40) * 86_400_000 : undefined,
           // Contactos (features/contacts), a veces con uno repetido, vacío o de un tipo desconocido que se limpian.
@@ -208,7 +233,7 @@ export function randomStream(seed: string, n: number): GameEvent[] {
     // Versión del formato (domain/upcast.ts): la mayoría sin `v` (anteriores a la 1), algunos
     // con la actual y unos pocos de una versión futura, que la proyección ignora.
     const v = i % 13 === 7 ? EVENT_VERSION + 1 : i % 3 === 0 ? EVENT_VERSION : undefined;
-    out.push({ ...body(), id: `${seed}-${String(i).padStart(5, "0")}`, deviceId: "test", ts, ...(v ? { v } : {}) } as GameEvent);
+    out.push({ ...body(i), id: `${seed}-${String(i).padStart(5, "0")}`, deviceId: "test", ts, ...(v ? { v } : {}) } as GameEvent);
   }
   return out;
 }

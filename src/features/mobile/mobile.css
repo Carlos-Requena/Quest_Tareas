@@ -135,7 +135,10 @@
   pointer-events: none;
 }
 .m-toast .toast {
-  display: inline-block;
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 6px;
   max-width: 100%;
   padding: 9px 16px;
   white-space: normal;
@@ -144,6 +147,15 @@
   border: 1px solid var(--line-strong);
   border-left: 2px solid var(--gold);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+.m-toast .toast-text {
+  white-space: normal;
+}
+/* «Deshacer» (features/undo): el aviso deja pasar los toques, el botón no. */
+.m-toast .toast-action {
+  min-height: 34px;
+  padding: 4px 14px;
+  pointer-events: auto;
 }
 
 /* ───────────── Menú «Más» ───────────── */
@@ -200,6 +212,9 @@
   border: 1px solid var(--line);
   color: var(--text);
   font-size: 14px;
+}
+.mmenu-win.is-wide {
+  grid-column: 1 / -1;
 }
 .mmenu-win svg {
   width: 18px;
@@ -345,6 +360,10 @@
   }
   .m-toast {
     display: block;
+  }
+  /* Editar, con su nombre (features/editing). */
+  .btn-edit-lbl {
+    display: inline;
   }
   /* El aviso sale arriba de la barra, también con el detalle cerrado: el del detalle sobra. */
   .detail .toast {

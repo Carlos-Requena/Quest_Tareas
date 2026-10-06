@@ -12,13 +12,20 @@ import { merchantBusy } from "../../merchant/ui";
 import { characterBusy } from "../../equipment/ui";
 import { chronicleBusy } from "../../chronicle/ui";
 import { useSwipe } from "../../mobile/swipe";
-import { addBlock, goToday, moveCalendar, setCalendarView } from "../actions";
-import { calendarBusy, useCalendarUi } from "../ui";
+import { editingBusy } from "../../editing/ui";
+import { failureBusy } from "../../failure/ui";
+import { searchBusy } from "../../search/ui";
+import { addBlock, cycleCalendarView, goToday, moveCalendar, setCalendarView } from "../actions";
+import { CALENDAR_VIEWS, calendarBusy, useCalendarUi } from "../ui";
+import { TodayView } from "../../today/components/TodayView";
 import { WeekView } from "./WeekView";
 import { DayView } from "./DayView";
 import "../calendar.css";
 
-/** La sección del calendario: la semana (lo que hay que hacer) o el día por horas (la agenda). */
+/**
+ * La sección del calendario, donde se planifica: «Mi día» (qué hacer ahora, features/today),
+ * la semana (lo que hay que hacer) o el día por horas (la agenda).
+ */
 export function CalendarView() {
   const { t } = useTranslation();
   const view = useCalendarUi((s) => s.view);
@@ -36,18 +43,18 @@ export function CalendarView() {
   const title =
     view === "week"
       ? `${short.format(keyMs(monday))} – ${new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(keyMs(sunday))}`
-      : new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(keyMs(day));
+      : new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(keyMs(view === "today" ? today : day));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const g = useGame.getState();
-      if (g.creating || g.clear || g.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || e.metaKey || e.ctrlKey) return;
+      if (g.creating || g.clear || g.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || editingBusy() || failureBusy() || searchBusy() || e.metaKey || e.ctrlKey) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       const ui = useCalendarUi.getState();
       switch (e.key) {
         case "ArrowLeft": moveCalendar(-1); break;
         case "ArrowRight": moveCalendar(1); break;
-        case "v": setCalendarView(ui.view === "week" ? "day" : "week"); break;
+        case "v": cycleCalendarView(); break;
         case "h": case "Home": goToday(); break;
         case "n": addBlock(ui.day); break;
         case "Escape": ui.setAdding(undefined); break;
@@ -68,13 +75,13 @@ export function CalendarView() {
     >
       <header className="cal-head">
         <div className="seg cal-views" role="tablist" aria-label={t("calendar.view.switch")}>
-          {(["week", "day"] as const).map((v) => (
+          {CALENDAR_VIEWS.map((v) => (
             <button key={v} role="tab" aria-selected={view === v} className={`seg-btn ${view === v ? "on" : ""}`} title={`${t(`calendar.view.${v}`)} (V)`} onClick={() => setCalendarView(v)}>
               {t(`calendar.view.${v}`)}
             </button>
           ))}
         </div>
-        <div className="cal-nav">
+        <div className={`cal-nav ${view === "today" ? "is-hidden" : ""}`}>
           <button className="cal-nav-btn" aria-label={t(view === "week" ? "calendar.prevWeek" : "calendar.prevDay")} title={t(view === "week" ? "calendar.prevWeek" : "calendar.prevDay")} onClick={() => moveCalendar(-1)}>
             ‹
           </button>
@@ -89,7 +96,7 @@ export function CalendarView() {
       </header>
 
       <div className="cal-body m-swipe" {...swipe}>
-        {view === "week" ? <WeekView today={today} /> : <DayView today={today} now={now} />}
+        {view === "today" ? <TodayView now={now} /> : view === "week" ? <WeekView today={today} /> : <DayView today={today} now={now} />}
       </div>
 
       {/* Los avisos (bloque añadido, quitado…) abajo; en el teléfono los pinta la barra (m-toast). */}

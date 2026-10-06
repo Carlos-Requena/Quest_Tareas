@@ -6,6 +6,8 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         // Contactos de las quests: llamar, escribir, abrir la web o Mapas (features/contacts).
         .plugin(tauri_plugin_opener::init())
+        // Avisos del sistema: pomodoros, encargos, agenda y rachas (features/notifications).
+        .plugin(tauri_plugin_notification::init())
         // Hoja de inicio de sesión de Google en iOS (sync/oauth.rs).
         .plugin(tauri_plugin_web_auth::init())
         // Sincronización con Google Drive (src/sync y src/features/sync).

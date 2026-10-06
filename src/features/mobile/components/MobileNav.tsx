@@ -8,6 +8,7 @@ import { LanternIcon, openMerchant } from "../../merchant";
 import { HelmetIcon, openCharacter } from "../../equipment";
 import { CalendarIcon, addBlock, useCalendarUi } from "../../calendar";
 import { useMobileUi } from "../ui";
+import { useQuickUi } from "../../quickadd/ui";
 import "../mobile.css";
 
 /**
@@ -89,7 +90,8 @@ export function MobileCreate() {
         sfx.move();
         if (section === "temporal") useTemporalUi.getState().setForm({ mode: "create" });
         else if (section === "calendar") addBlock(useCalendarUi.getState().day);
-        else useGame.getState().setCreating(true);
+        // En el tablón, la línea rápida (features/quickadd); desde ella, «Más detalles» abre el formulario.
+        else useQuickUi.getState().setSheet(true);
       }}
     >
       <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>

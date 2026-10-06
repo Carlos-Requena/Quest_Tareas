@@ -28,6 +28,12 @@ import { ChronicleModal, chronicleBusy, openChronicle } from "./features/chronic
 import { DetailBack, MobileCreate, MobileMenu, MobileNav, isPhone, useMobileUi } from "./features/mobile";
 import { CalendarView, calendarBusy, toggleCalendar } from "./features/calendar";
 import { AgendaFormModal } from "./features/agenda";
+import { EditQuestModal, editingBusy, openEdit } from "./features/editing";
+import { undoLast } from "./features/undo";
+import { FailureOverlay, FailureWatcher, failureBusy } from "./features/failure";
+import { QuickAddForm, QuickAddSheet, quickBusy, useQuickUi } from "./features/quickadd";
+import { SearchModal, openSearch, searchBusy } from "./features/search";
+import { NotificationScheduler } from "./features/notifications";
 
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
@@ -90,8 +96,21 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useGame.getState();
-      if (s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || e.metaKey || e.ctrlKey) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
+      const busy = s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || editingBusy() || failureBusy() || searchBusy() || quickBusy();
+      // ⌘Z / Ctrl+Z: deshacer lo último (features/undo). ⌘K / Ctrl+K: buscar (features/search).
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !typing && !busy) {
+        const key = e.key.toLowerCase();
+        if (key === "z") {
+          e.preventDefault();
+          void undoLast();
+        } else if (key === "k") {
+          e.preventDefault();
+          openSearch();
+        }
+        return;
+      }
+      if (busy || e.metaKey || e.ctrlKey || typing) return;
 
       // Teclas comunes a los dos tablones y al calendario (que no tiene plazos: H no hace nada).
       const board = s.section === "calendar" ? undefined : s.section;
@@ -104,6 +123,7 @@ export default function App() {
         l: () => (sfx.move(), toggleLang()),
         m: () => music.toggle(),
         s: () => toggleCalendar(),
+        "/": () => openSearch(),
         h: () => board && (sfx.move(), cycleHorizon(board, 1)),
         H: () => board && (sfx.move(), cycleHorizon(board, -1)),
       };
@@ -136,7 +156,10 @@ export default function App() {
         case "ArrowUp": move(-COLS); break;
         case "q": cycleTab(-1); break;
         case "e": case "Tab": cycleTab(e.shiftKey ? -1 : 1); break;
-        case "n": s.setCreating(true); break;
+        // N apunta una quest en la línea rápida (features/quickadd); Mayús+N abre el formulario completo.
+        case "n": useQuickUi.getState().focus(); break;
+        case "N": s.setCreating(true); break;
+        case "r": if (selected) openEdit(selected.id); break;
         case "Enter": case "a": if (selected) primaryAction(selected.id); break;
         case "x": case "Backspace": if (selected) abandonQuest(selected.id); break;
         case "+": case "=": if (selected) bumpNext(selected.id); break;
@@ -164,6 +187,7 @@ export default function App() {
       ) : (
         <main className="main">
           <aside className="board">
+            <QuickAddForm />
             <Tabs />
             <HorizonFilter section="board" counts={counts} />
             <h3 className="sec-h board-h">
@@ -225,6 +249,12 @@ export default function App() {
       <SyncWatcher />
       <TemporalOverlays />
       <AgendaFormModal />
+      <EditQuestModal />
+      <QuickAddSheet />
+      <SearchModal />
+      <FailureOverlay />
+      <FailureWatcher />
+      <NotificationScheduler />
     </div>
   );
 }

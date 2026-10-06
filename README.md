@@ -66,6 +66,13 @@ src/
     attributes/     Atributos: un nivel por cada área de las quests, con su radar
     recovery/       Error boundary: pantalla de recuperación si falla la interfaz, en vez de la ventana en negro
     sync/           Sincronización con Google Drive: un archivo de eventos por equipo y los adjuntos, con su nube en la cabecera
+    editing/        Editar quests (quest_updated)
+    undo/           Deshacer unos minutos (event_undone, ⌘Z)
+    failure/        La quest se fractura y el encargo se quema al pasar su día (quest_failed, temporal_failed)
+    quickadd/       Alta rápida de una línea: «Llamar al banco mañana #Hogar !»
+    today/          «Mi día», la vista del calendario con lo que hay que hacer ahora
+    search/         Búsqueda (/, ⌘K)
+    notifications/  Avisos del sistema: pomodoros, encargos, agenda, fechas límite y rachas
   test/            Utilidades de los tests (historiales aleatorios con semilla)
 src-tauri/         Backend Rust: plugin SQL, inicio de sesión con Google y Drive (src/sync, token en el llavero); la CSP estricta está en tauri.conf.json
 ```
@@ -112,7 +119,7 @@ Un tablón aparte (selector de la cabecera o tecla `T`) para lo que ocurre en un
 
 ## Calendario y agenda
 
-Una tercera sección (selector de la cabecera o tecla `S`): la **semana** con lo que hay que hacer cada día (quests con fecha límite, encargos y bloques de la agenda) y el **día por horas**, la agenda personal con bloques que se repiten ciertos días de la semana. Desde cada día se añade un bloque, una quest con esa fecha límite o un encargo. Detalles: [src/features/calendar/README.md](src/features/calendar/README.md) y [src/features/agenda/README.md](src/features/agenda/README.md).
+Una tercera sección (selector de la cabecera o tecla `S`), donde se planifica: **Mi día** (lo que se pierde esta noche, lo que está en curso, las rachas en peligro, lo que toca hoy y la agenda de hoy; [src/features/today/README.md](src/features/today/README.md)), la **semana** con lo que hay que hacer cada día (quests con fecha límite, encargos y bloques de la agenda) y el **día por horas**, la agenda personal con bloques que se repiten ciertos días de la semana. Desde cada día se añade un bloque, una quest con esa fecha límite o un encargo. Detalles: [src/features/calendar/README.md](src/features/calendar/README.md) y [src/features/agenda/README.md](src/features/agenda/README.md).
 
 ## Contactos
 
@@ -120,10 +127,18 @@ Las quests y los encargos pueden llevar contactos (teléfono, correo, WhatsApp, 
 
 ## Quests complejas y plazos
 
-- **Repetición:** cualquier quest puede volver al tablón tras completarla («cada 3 días», «cada 2 semanas»…), no solo las repetibles.
+- **Repetición:** cualquier quest puede volver al tablón tras completarla («cada 3 días», «cada 2 semanas»…, o **ciertos días de la semana**: «lunes, miércoles y viernes», que salen esos días en el calendario), no solo las repetibles.
 - **Requisitos:** una quest puede pedir otras; hasta completarlas sale con candado y no se puede aceptar. Al completar la última, avisa de lo que desbloquea. Detalles: [src/features/complex/README.md](src/features/complex/README.md).
 - **Plazos:** los dos tablones tienen un filtro con contador (tecla `H`): **1 día** (hoy, mañana o vencido), **7 días**, **2 semanas**, **1 mes** y **+1 mes** (y **sin fecha** en el de quests). Las quests pueden tener fecha límite; las de un encargo toman la suya. Detalles: [src/features/horizon/README.md](src/features/horizon/README.md).
 - **Encargos con quests:** al clavar un encargo se le pueden añadir quests (se crean solas en el Quest Board, si se quiere en cadena) o enlazar quests que ya existen. El encargo no se puede cumplir hasta terminarlas todas.
+
+## Editar, deshacer, alta rápida y fallos
+
+- **Editar** una quest con `R` o el botón ✎ del detalle (en curso no cambian los objetivos, la categoría ni la repetición). [src/features/editing/README.md](src/features/editing/README.md)
+- **Deshacer** unos minutos lo que se hizo por error: botón «Deshacer» en el aviso o `⌘Z` / `Ctrl+Z`. Completar una quest no se deshace (el cofre se volvería a tirar). [src/features/undo/README.md](src/features/undo/README.md)
+- **Alta rápida:** `N` y una línea con marcas (`mañana`, `lunes`, `12/10`, `#área`, `@quién`, `!`, `x3`); `Mayús+Enter` para el formulario completo. [src/features/quickadd/README.md](src/features/quickadd/README.md)
+- **Fallos:** si pasa el día de su fecha sin terminarla, la quest se fractura y el cartel del encargo se quema. Sin coste: queda en la crónica y se puede volver a clavar. [src/features/failure/README.md](src/features/failure/README.md)
+- **Búsqueda** (`/` o `⌘K`) y **avisos del sistema** (la campana de la cabecera). [src/features/search/README.md](src/features/search/README.md) · [src/features/notifications/README.md](src/features/notifications/README.md)
 
 ## Idiomas
 
@@ -131,11 +146,11 @@ Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en la c
 
 ## Atajos
 
-`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` nueva quest · `T` tablón de encargos temporales · `S` calendario · `I` objetos · `C` mercader · `P` personaje · `J` crónica · `L` idioma · `M` música
+`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `R` editar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` alta rápida · `Shift+N` formulario completo · `/` o `⌘K` buscar · `⌘Z` deshacer · `T` tablón de encargos temporales · `S` calendario · `I` objetos · `C` mercader · `P` personaje · `J` crónica · `L` idioma · `M` música
 
 En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `H` plazo · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` aceptar (si no lo está) o cumplir · `E` editar · `Esc` cerrar.
 
-En el calendario: `←→` semana o día anterior / siguiente · `V` semana ↔ día · `H` hoy · `N` bloque nuevo · `S` volver al Quest Board.
+En el calendario: `←→` semana o día anterior / siguiente (desde Mi día, el día por horas) · `V` Mi día → semana → día · `H` hoy · `N` bloque nuevo · `S` volver al Quest Board.
 
 ## Hoja de ruta
 
@@ -156,4 +171,5 @@ En el calendario: `←→` semana o día anterior / siguiente · `V` semana ↔ 
   - Descargar los ficheros de los demás → `EventStore.merge()` → reproyectar
   - Pendiente: publicar la app de Google Cloud en modo *In production* (en *Testing* hay que volver a conectar cada 7 días) y probarla en Windows
 - [x] Encargos aceptados y sin aceptar (`src/features/temporal/`), contactos (`src/features/contacts/`), calendario semanal (`src/features/calendar/`) y agenda por horas (`src/features/agenda/`)
-- [ ] Logros, estadísticas, editar quests, consecuencias, icono propio
+- [x] Uso diario: editar quests, deshacer, alta rápida, fallos (quest fracturada, cartel quemado), repetición por días, Mi día, búsqueda y avisos del sistema (447 tests)
+- [ ] Logros, estadísticas, icono propio

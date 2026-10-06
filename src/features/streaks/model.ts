@@ -28,10 +28,14 @@ export const streakGrace = (cooldownMinutes: number | undefined) => Math.max((co
 export const streakDeadline = (ts: number, cooldownMinutes: number | undefined) =>
   ts + Math.max(0, cooldownMinutes ?? 0) * 60_000 + streakGrace(cooldownMinutes);
 
-/** La racha tras completar la quest en `ts`. Si se pasó del plazo, vuelve a empezar en 1. */
-export function nextStreak(prev: Streak | undefined, ts: number, cooldownMinutes: number | undefined): Streak {
+/**
+ * La racha tras completar la quest en `ts`. Si se pasó del plazo, vuelve a empezar en 1.
+ * `until` lo pone quien sabe otro plazo: las que se repiten por días de la semana duran
+ * hasta que acaba el siguiente día que toca (features/complex, `streakUntil`).
+ */
+export function nextStreak(prev: Streak | undefined, ts: number, cooldownMinutes: number | undefined, until = streakDeadline(ts, cooldownMinutes)): Streak {
   const count = prev && ts <= prev.until ? prev.count + 1 : 1;
-  return { count, best: Math.max(prev?.best ?? 0, count), lastAt: ts, until: streakDeadline(ts, cooldownMinutes) };
+  return { count, best: Math.max(prev?.best ?? 0, count), lastAt: ts, until };
 }
 
 /** La racha en `now`: 0 si ya se rompió (no hace falta ningún evento para romperla). */

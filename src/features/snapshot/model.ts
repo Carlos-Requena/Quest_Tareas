@@ -4,6 +4,7 @@
 import type { EventPos, GameEvent } from "../../domain/events";
 import { comparePos } from "../../domain/events";
 import { applyEvent, newProjectionAcc, PROJECTION_VERSION, type ProjectionAcc } from "../../domain/projection";
+import { undoneIn } from "../undo/model";
 
 /** Versión del formato guardado (la forma de este objeto y de su JSON). */
 export const SNAPSHOT_FORMAT = 1;
@@ -33,9 +34,14 @@ export interface Projected {
 
 export const emptyProjected = (): Projected => ({ acc: newProjectionAcc(), count: 0 });
 
-/** Aplica eventos ya ordenados y posteriores a `p.last` (modifica `p.acc`). */
+/**
+ * Aplica eventos ya ordenados y posteriores a `p.last` (modifica `p.acc`). Salta los que
+ * otro evento de la lista deshizo (features/undo). Un deshacer cuyo evento quedó antes
+ * de `p.last` no se puede aplicar así: quien llama tiene que reproducirlo todo (`hasUndo`).
+ */
 export function applyAll(p: Projected, events: GameEvent[]): Projected {
-  for (const e of events) applyEvent(p.acc, e);
+  const undone = undoneIn(events);
+  for (const e of events) if (!undone.has(e.id)) applyEvent(p.acc, e);
   const tail = events[events.length - 1];
   return { acc: p.acc, last: tail ? { ts: tail.ts, id: tail.id } : p.last, count: p.count + events.length };
 }

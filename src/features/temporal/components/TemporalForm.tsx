@@ -6,7 +6,7 @@ import { sfx } from "../../../lib/sfx";
 import { LANGS, currentLang } from "../../../i18n";
 import { KIND_META, MAX_SKULLS, TEMPORAL_KINDS, TEMPORAL_LIMITS, type TemporalKind } from "../model";
 import { ACCEPT, formatSize, prepareFile, type FileError, type PreparedFile } from "../files";
-import { createTemporal, draftOf, draftReward, emptyDraft, isValidDraft, updateTemporal, type TemporalDraft } from "../actions";
+import { copyDraft, createTemporal, draftOf, draftReward, emptyDraft, isValidDraft, updateTemporal, type TemporalDraft } from "../actions";
 import { RewardPreview } from "../../rewards/components/RewardPreview";
 import { temporalBonusRate } from "../../rewards/model";
 import { useTemporalUi } from "../ui";
@@ -24,7 +24,14 @@ export function TemporalFormModal() {
   const form = useTemporalUi((s) => s.form);
   return (
     <AnimatePresence>
-      {form && <Modal key={form.mode === "edit" ? form.id : "new"} editId={form.mode === "edit" ? form.id : undefined} date={form.mode === "create" ? form.date : undefined} />}
+      {form && (
+        <Modal
+          key={form.mode === "edit" ? form.id : "new"}
+          editId={form.mode === "edit" ? form.id : undefined}
+          date={form.mode === "create" ? form.date : undefined}
+          from={form.mode === "create" ? form.from : undefined}
+        />
+      )}
     </AnimatePresence>
   );
 }
@@ -55,10 +62,16 @@ export function useFilePicker(onReady: (files: PreparedFile[]) => void) {
   return { take, errors, setErrors, busy };
 }
 
-function Modal({ editId, date }: { editId?: string; date?: string }) {
+function Modal({ editId, date, from }: { editId?: string; date?: string; from?: string }) {
   const editing = useGame((s) => (editId ? s.state.temporals.get(editId) : undefined));
   const { t } = useTranslation();
-  const [d, setD] = useState<TemporalDraft>(() => (editing ? draftOf(editing, useGame.getState().state.quests) : emptyDraft(Date.now(), date)));
+  const [d, setD] = useState<TemporalDraft>(() => {
+    const { temporals, quests } = useGame.getState().state;
+    if (editing) return draftOf(editing, quests);
+    // Copia de un encargo quemado (features/failure): lo mismo, con fecha nueva.
+    const burned = from ? temporals.get(from) : undefined;
+    return burned ? copyDraft(burned, quests) : emptyDraft(Date.now(), date);
+  });
   const quests = useGame((s) => s.state.quests);
   const [hoverSkull, setHoverSkull] = useState<number>();
   const [saving, setSaving] = useState(false);

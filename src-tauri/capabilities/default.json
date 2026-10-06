@@ -10,6 +10,11 @@
     "sql:default",
     "sql:allow-execute",
     "core:window:allow-destroy",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify",
+    "notification:allow-cancel",
+    "notification:allow-get-pending",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "tel:*" }, { "url": "mailto:*" }, { "url": "https://*" }]

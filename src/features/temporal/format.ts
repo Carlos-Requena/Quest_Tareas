@@ -32,7 +32,8 @@ export function dueChip(t: TemporalState, now: number): { label: string; urgency
   let label: string;
   switch (urgency) {
     case "done":
-      label = i18n.t("temporal.when.done");
+      // Quemado (features/failure): terminado sin cumplir.
+      label = t.failedAt !== undefined ? i18n.t("failure.when.burned") : i18n.t("temporal.when.done");
       break;
     case "overdue":
       label = days < 0 ? i18n.t("temporal.when.ago", { count: -days }) : i18n.t("temporal.when.overdue");

@@ -7,6 +7,9 @@ import type { EquipmentEventBody } from "../features/equipment/events";
 import type { ChecklistEventBody } from "../features/checklist/events";
 import type { CollectibleEventBody } from "../features/collectibles/events";
 import type { AgendaEventBody } from "../features/agenda/events";
+import type { EditingEventBody } from "../features/editing/events";
+import type { FailureEventBody } from "../features/failure/events";
+import type { UndoEventBody } from "../features/undo/events";
 import type { Drop } from "../features/items/model";
 
 /**
@@ -40,7 +43,10 @@ export type EventBody =
   | EquipmentEventBody
   | ChecklistEventBody
   | CollectibleEventBody
-  | AgendaEventBody;
+  | AgendaEventBody
+  | EditingEventBody
+  | FailureEventBody
+  | UndoEventBody;
 
 /**
  * Versión del formato de los eventos que escribe esta app. NORMA: si cambias la forma

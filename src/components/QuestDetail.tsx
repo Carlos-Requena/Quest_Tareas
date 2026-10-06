@@ -15,7 +15,8 @@ import { dueDate, dueLabel, questDue } from "../features/horizon";
 import { areaName } from "../features/attributes";
 import { ContactList } from "../features/contacts";
 import { useGame } from "../store/game";
-import { abandonQuest, addProgress } from "../store/actions";
+import { abandonQuest, addProgress, retireQuest } from "../store/actions";
+import { openEdit } from "../features/editing";
 import { detailPrimaryAction } from "../features/mobile";
 import { formatRemaining } from "../lib/time";
 import i18n, { num } from "../i18n";
@@ -48,8 +49,6 @@ function Section({ tag, label, children }: { tag: string; label: string; childre
 export function QuestDetail({ quest, status, now }: { quest?: QuestState; status?: QuestStatus; now: number }) {
   const quests = useGame((s) => s.state.quests);
   const temporals = useGame((s) => s.state.temporals);
-  const dispatch = useGame((s) => s.dispatch);
-  const say = useGame((s) => s.say);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { t } = useTranslation();
 
@@ -101,9 +100,11 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
             </span>
             <span className="sec-sub">{t(`category.${quest.category}`)}</span>
             <span className="detail-meta-right muted">
-              {recurs(quest)
-                ? t("detail.reappears", { time: formatRemaining((quest.cooldownMinutes ?? 0) * 60_000) })
-                : t("detail.once")}
+              {quest.repeatDays?.length
+                ? t("complex.recurrence.onDays", { days: weekdayList(quest.repeatDays) })
+                : recurs(quest)
+                  ? t("detail.reappears", { time: formatRemaining((quest.cooldownMinutes ?? 0) * 60_000) })
+                  : t("detail.once")}
               {quest.completions > 0 && t("detail.completedTimes", { n: quest.completions })}
               {due && (
                 <span className={`detail-due ${due.temporal ? "" : "is-own"}`}>
@@ -238,17 +239,31 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
             className={`btn btn-ghost ${confirmDelete ? "btn-danger" : ""}`}
             onClick={async () => {
               if (!confirmDelete) return setConfirmDelete(true);
-              await dispatch({ type: "quest_deleted", questId: quest.id });
-              say(() => i18n.t("toast.retired", { title: quest.title }));
+              await retireQuest(quest.id);
             }}
           >
             {confirmDelete ? t("actions.retireConfirm") : t("actions.retire")}
           </button>
         )}
+        <button className="btn btn-ghost btn-edit" onClick={() => openEdit(quest.id)} title={`${t("editing.open")} (R)`} aria-label={t("editing.open")}>
+          <span className="btn-key">R</span>
+          <span className="btn-edit-ico" aria-hidden>
+            ✎
+          </span>
+          <span className="btn-edit-lbl">{t("editing.open")}</span>
+        </button>
         <Toast />
       </div>
     </div>
   );
+}
+
+/** «martes y jueves»: los días de la semana de una quest que se repite por días, de lunes a domingo. */
+function weekdayList(days: number[]): string {
+  const names = i18n.t("agenda.weekdayNames", { returnObjects: true }) as string[];
+  const ordered = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => names[d]);
+  if (i18n.language === "ja") return ordered.join("・");
+  return ordered.length > 1 ? `${ordered.slice(0, -1).join(", ")} y ${ordered[ordered.length - 1]}` : ordered[0] ?? "";
 }
 
 export function Toast() {
@@ -259,13 +274,26 @@ export function Toast() {
       {toast && (
         <motion.span
           key={toast.key}
-          className="toast"
+          className={`toast ${toast.action ? "has-action" : ""}`}
           initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
         >
-          {toast.text()}
+          <span className="toast-text">{toast.text()}</span>
+          {/* Un botón en el aviso: «Deshacer» (features/undo). */}
+          {toast.action && (
+            <button
+              className="toast-action"
+              onClick={() => {
+                const run = toast.action!.run;
+                useGame.setState({ toast: undefined });
+                run();
+              }}
+            >
+              {toast.action.label()}
+            </button>
+          )}
         </motion.span>
       )}
     </AnimatePresence>

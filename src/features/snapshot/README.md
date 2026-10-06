@@ -44,11 +44,13 @@ flowchart LR
     F --> G[append en SQLite] --> H{¿100 eventos desde<br/>el último snapshot?}
     H -- sí --> I[guardar snapshot]
     B -- no: reloj atrasado --> J[append] --> K[rebuild: todo desde cero]
+    A -- event_undone --> J
 ```
 
 - **Sobre una copia** (`cloneAcc`): el estado anterior no cambia y todos los objetos son nuevos, igual que cuando se recalculaba todo. La copia cuesta O(tamaño del estado), no O(eventos).
 - **Mismo milisegundo:** los empates de `ts` se deshacen por `id`, que es aleatorio. Una acción que emite varios eventos seguidos (crear un encargo con sus quests, editarlo) los produce en el mismo milisegundo, y podían quedar al revés: un `quest_completed` antes de su `quest_accepted`, por ejemplo, y la guarda lo ignoraba. Ya pasaba antes del snapshot; lo destaparon los tests del store. Ahora `nextTs` (`src/domain/events.ts`) da a cada evento nuevo, como mínimo, el `ts` del último aplicado + 1 ms si el reloj no ha avanzado o va por detrás como mucho 1 minuto (`MAX_DRIFT_MS`; era 1 s hasta que pasó a ser un reloj lógico híbrido, ver «El orden» en COMO-FUNCIONA.md). Así, los eventos de un equipo quedan siempre en el orden en que se hicieron, también detrás de los fusionados de otros equipos.
 - **Reloj muy atrasado** (más de 1 s): el evento cae en medio del historial y el orden de las guardas puede cambiar. Entonces se recalcula todo (`rebuild()`). Mientras tanto, los `dispatch` que lleguen esperan.
+- **Deshacer** (`event_undone`, features/undo): cambia el pasado, así que también se recalcula todo. `applyAll` salta los eventos deshechos dentro de la lista que recibe (`undoneIn`), y `dispatch` devuelve el evento guardado (para ofrecer «Deshacer»).
 
 ### Arranque
 
@@ -58,7 +60,9 @@ flowchart TD
     B -- no --> R[reproducir todos los eventos]
     B -- sí --> C{countUpTo upTo<br/>= snapshot.count?}
     C -- no: hay eventos nuevos<br/>antes de upTo --> R
-    C -- sí --> D[since upTo: solo la cola] --> E[applyEvent de la cola]
+    C -- sí --> D[since upTo: solo la cola] --> U{¿hay un event_undone<br/>en la cola?}
+    U -- sí: puede deshacer algo<br/>de dentro del snapshot --> R
+    U -- no --> E[applyEvent de la cola]
     E --> V{¿desarrollo?}
     V -- sí --> W[comparar con la proyección completa;<br/>si no coincide, error en consola y se usa la completa]
     V -- no --> S[listo]

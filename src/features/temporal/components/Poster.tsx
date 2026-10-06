@@ -40,7 +40,8 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
   const landscape = look.shape === "landscape";
   // Quests enlazadas: cuántas hay y cuántas faltan (el encargo no se cumple hasta terminarlas).
   const linked = useGame((s) => linkedQuests(t, s.state.quests).length);
-  const missing = useGame((s) => (t.status === "pending" ? pendingLinks(t, s.state.quests).length : 0));
+  // Quemado (features/failure): las que se perdieron con él cuentan como no terminadas.
+  const missing = useGame((s) => (t.status === "pending" || t.failedAt !== undefined ? pendingLinks(t, s.state.quests).length : 0));
   const rows = landscape ? 25 : sketch ? 31 : 25;
 
   const hang = useRef<HTMLDivElement>(null);
@@ -108,7 +109,7 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
       ref={outerRef}
       layout
       data-tid={t.id}
-      className={`tp tp-${look.shape} is-${chip.urgency} ${selected ? "is-selected" : ""} ${meta.red ? "is-red" : ""} ${t.status === "pending" && !accepted ? "is-planned" : ""}`}
+      className={`tp tp-${look.shape} is-${chip.urgency} ${selected ? "is-selected" : ""} ${meta.red ? "is-red" : ""} ${t.status === "pending" && !accepted ? "is-planned" : ""} ${t.failedAt !== undefined ? "is-burned" : ""}`}
       style={
         {
           gridColumn: landscape ? "span 2" : "span 1",
@@ -168,7 +169,7 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
             <span className="tp-ribbon">{t.place || "Enquire within"}</span>
           </div>
           <span className="tp-clear" ref={stampRef}>
-            Clear
+            {t.failedAt !== undefined ? "Burned" : "Clear"}
           </span>
           <span className="tp-seal" ref={sealRef} aria-hidden>
             Accepted
@@ -195,7 +196,7 @@ export const Poster = forwardRef<HTMLButtonElement, Props>(function Poster({ t, 
           {look.skulls.map((s, i) => (
             <Skull
               key={i}
-              className={t.status === "done" ? "skull-gold" : ""}
+              className={t.status === "done" && t.failedAt === undefined ? "skull-gold" : ""}
               style={{ left: `${s.x}%`, top: `${s.y}%`, transform: `translate(-50%, -50%) rotate(${s.rotate}deg) scale(${s.scale})` }}
             />
           ))}

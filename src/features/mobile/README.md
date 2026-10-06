@@ -38,9 +38,10 @@ Se descartó una app aparte para el móvil: duplicaría las pantallas y se desin
 
 - **Cabecera en dos filas**: emblema, «Quest Board» y oro con las quests en curso; debajo, rango, nivel y la barra de XP a lo ancho. El idioma, la música, el silencio, Google Drive y los botones de ventanas salen de la cabecera.
 - **Barra de abajo** (`MobileNav`): Tablón, Encargos (con el aviso rojo de los de hoy), Calendario ([../calendar/README.md](../calendar/README.md)), Mercader, Personaje y **Más**: seis columnas. Sustituye al pie con las teclas. En el calendario, el rombo de crear añade un bloque a la agenda y deslizar el dedo pasa de semana o de día.
-- **Menú «Más»** (`MobileMenu`): objetos, crónica, idioma, música (con el volumen), sonido y Google Drive. Reutiliza los mismos controles que la cabecera; su CSS despliega quietos los paneles que en el escritorio salen al pasar el ratón.
-- **Rombo de crear** (`MobileCreate`): dorado, girado 45° como las gemas. Crea una quest en el tablón o un encargo en el de encargos.
-- **Avisos** encima de la barra (`.m-toast`), para que se vean también con el detalle cerrado. El del detalle y el del tablón de madera se esconden.
+- **Menú «Más»** (`MobileMenu`): objetos, crónica, **buscar** (features/search), idioma, música (con el volumen), sonido, **avisos** (features/notifications) y Google Drive. Reutiliza los mismos controles que la cabecera; su CSS despliega quietos los paneles que en el escritorio salen al pasar el ratón.
+- **Rombo de crear** (`MobileCreate`): dorado, girado 45° como las gemas. En el tablón abre la **hoja del alta rápida** (features/quickadd; desde ella, «Más detalles» abre el formulario completo); en el de encargos, un encargo; en el calendario, un bloque.
+- **Avisos** encima de la barra (`.m-toast`), para que se vean también con el detalle cerrado. El del detalle y el del tablón de madera se esconden. El botón «Deshacer» del aviso (features/undo) sí recibe el toque, aunque el aviso deje pasar los demás.
+- **Editar** (features/editing) va en el detalle con su nombre; en el escritorio, solo el icono ✎.
 
 ### El detalle, una hoja a pantalla completa
 

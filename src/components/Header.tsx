@@ -11,6 +11,8 @@ import { CharacterButton, DecorEmblem } from "../features/equipment";
 import { ChronicleButton } from "../features/chronicle";
 import { SectionSwitch } from "../features/temporal";
 import { SyncControl } from "../features/sync";
+import { SearchButton } from "../features/search";
+import { NotifyButton } from "../features/notifications";
 
 export function Emblem({ size = 64 }: { size?: number }) {
   return (
@@ -81,6 +83,7 @@ export function Header() {
           </div>
         </div>
 
+        <SearchButton />
         <LangSwitch />
         <SyncControl />
         <MusicControl />
@@ -92,6 +95,7 @@ export function Header() {
         >
           {muted ? "♪̸" : "♪"}
         </button>
+        <NotifyButton />
       </div>
     </header>
   );

@@ -9,6 +9,7 @@ import i18n from "../i18n";
 import { dropTableFor, rollDrops } from "../features/items/model";
 import { blockers, unlockedBetween } from "../features/complex/model";
 import { pendingLinks } from "../features/temporal/model";
+import { offerUndo } from "../features/undo/actions";
 
 
 export async function acceptQuest(id: string) {
@@ -29,17 +30,28 @@ export async function acceptQuest(id: string) {
     say(() => i18n.t("complex.toast.locked", { title: lock[0].title }));
     return;
   }
-  await dispatch({ type: "quest_accepted", questId: id });
-  say(() => i18n.t("toast.accepted", { title: q.title }));
+  const e = await dispatch({ type: "quest_accepted", questId: id });
+  offerUndo(e, () => i18n.t("toast.accepted", { title: q.title }));
 }
 
 export async function abandonQuest(id: string) {
-  const { state, dispatch, say } = useGame.getState();
+  const { state, dispatch } = useGame.getState();
   const q = state.quests.get(id);
   if (q?.status !== "active") return;
   sfx.cancel();
-  await dispatch({ type: "quest_abandoned", questId: id });
-  say(() => i18n.t("toast.abandoned", { title: q.title }));
+  // Se puede deshacer (features/undo): vuelve en curso con su progreso.
+  const e = await dispatch({ type: "quest_abandoned", questId: id });
+  offerUndo(e, () => i18n.t("toast.abandoned", { title: q.title }));
+}
+
+/** Retira la quest del tablón (se puede deshacer unos minutos). */
+export async function retireQuest(id: string) {
+  const { state, dispatch } = useGame.getState();
+  const q = state.quests.get(id);
+  if (!q) return;
+  sfx.paperRip(0.5);
+  const e = await dispatch({ type: "quest_deleted", questId: id });
+  offerUndo(e, () => i18n.t("toast.retired", { title: q.title }));
 }
 
 export async function addProgress(id: string, conditionId: string, amount: number) {

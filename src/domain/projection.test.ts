@@ -154,7 +154,9 @@ describe("invariantes sobre historiales aleatorios", () => {
       }
       // Una pomodoro por cada condición de pomodoro, ni más ni menos.
       expect(Object.keys(q.pomodoros).sort()).toEqual(q.conditions.filter(isPomodoroCondition).map((c) => c.id).sort());
-      if (q.status === "done") expect(q.completions).toBeGreaterThan(0);
+      // Terminada: completada alguna vez o fallida (features/failure); una fallida no está en ningún otro estado.
+      if (q.status === "done") expect(q.completions > 0 || q.failedAt !== undefined).toBe(true);
+      if (q.failedAt !== undefined) expect(q.status).toBe("done");
       if (q.requires) expect(q.requires).not.toContain(q.id);
     }
 
@@ -176,6 +178,10 @@ describe("invariantes sobre historiales aleatorios", () => {
           expect(owner.has(id)).toBe(false);
           owner.set(id, t.id);
         }
+      } else if (t.failedAt !== undefined) {
+        // Quemado (features/failure): sin recompensa.
+        expect(t.earned).toBeUndefined();
+        expect(t.completedAt).toBeUndefined();
       } else {
         expect(t.earned).toBeDefined();
         expect(t.completedAt).toBeTypeOf("number");

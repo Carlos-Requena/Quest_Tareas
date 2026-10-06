@@ -20,6 +20,13 @@ import { chronicleEs } from "../../features/chronicle/i18n";
 import { recoveryEs } from "../../features/recovery/i18n";
 import { syncEs } from "../../features/sync/i18n";
 import { mobileEs } from "../../features/mobile/i18n";
+import { editingEs } from "../../features/editing/i18n";
+import { undoEs } from "../../features/undo/i18n";
+import { failureEs } from "../../features/failure/i18n";
+import { todayEs } from "../../features/today/i18n";
+import { quickaddEs } from "../../features/quickadd/i18n";
+import { searchEs } from "../../features/search/i18n";
+import { notificationsEs } from "../../features/notifications/i18n";
 
 export const es = {
   app: {
@@ -162,6 +169,13 @@ export const es = {
   recovery: recoveryEs,
   sync: syncEs,
   mobile: mobileEs,
+  editing: editingEs,
+  undo: undoEs,
+  failure: failureEs,
+  today: todayEs,
+  quickadd: quickaddEs,
+  search: searchEs,
+  notifications: notificationsEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {

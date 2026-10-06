@@ -13,6 +13,8 @@ Clasifica las quests y los encargos temporales según **cuánto falta para su fe
 
 Cada opción del filtro muestra cuántos hay. La tecla `H` pasa al siguiente plazo (`Shift+H`, al anterior).
 
+**Solo un filtro (2026-10-06).** La planificación se hace en el calendario (features/calendar y features/today: Mi día, semana y día). Los plazos se quedan como filtro de los dos tablones y como atajos de la fecha límite en el formulario; no hay más vistas por plazo.
+
 Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
 
 ---

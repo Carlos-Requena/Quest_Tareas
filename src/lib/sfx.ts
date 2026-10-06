@@ -370,4 +370,30 @@ export const sfx = {
     [523.25, 1046.5].forEach((f) => celesta(f, end + 0.1, 1.2, 0.05));
     [440, 523.25, 698.46, 880].forEach((f, i) => tone(f, end + 0.45 + i * 0.04, 2.2, "sine", 0.035, 0.25));
   },
+  /**
+   * Una quest se fractura (features/failure): crujido seco, golpe grave y un acorde menor
+   * que cae. `stage` 0 es la primera grieta; 1, cuando se rompe en pedazos.
+   */
+  fracture(stage: 0 | 1 = 1) {
+    if (muted) return;
+    if (stage === 0) {
+      hiss(0, 0.09, 0.22, "highpass", 3200, 1800, 0.002, 2);
+      tone(140, 0, 0.18, "sine", 0.3);
+      return;
+    }
+    noise(0.6, 0.4, 4200);
+    tone(70, 0, 0.5, "sine", 0.5);
+    hiss(0.02, 0.35, 0.16, "bandpass", 2600, 700, 0.003, 3);
+    // La menor que baja: el «game over» de la quest.
+    stab([220, 261.63, 329.63], 0.18, 1.1, 0.07);
+    sweep(330, 110, 0.25, 1.1, "triangle", 0.06);
+  },
+  /** Un cartel prende y arde (features/failure): soplo del fuego, chasquidos y un acorde grave. */
+  burn(dur = 2.4) {
+    if (muted) return;
+    hiss(0, 0.5, 0.18, "lowpass", 300, 1600, 0.25);
+    hiss(0.2, dur, 0.1, "bandpass", 900, 500, 0.6, 0.7);
+    for (let i = 0; i < 18; i++) hiss(0.25 + Math.random() * dur, 0.03, 0.12 + Math.random() * 0.1, "highpass", 2500 + Math.random() * 3000, 1500, 0.001, 4);
+    stab([110, 130.81, 164.81], 0.3, dur, 0.04);
+  },
 };

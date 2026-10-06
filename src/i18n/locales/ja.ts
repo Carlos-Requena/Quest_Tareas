@@ -20,6 +20,13 @@ import { chronicleJa } from "../../features/chronicle/i18n";
 import { recoveryJa } from "../../features/recovery/i18n";
 import { syncJa } from "../../features/sync/i18n";
 import { mobileJa } from "../../features/mobile/i18n";
+import { editingJa } from "../../features/editing/i18n";
+import { undoJa } from "../../features/undo/i18n";
+import { failureJa } from "../../features/failure/i18n";
+import { todayJa } from "../../features/today/i18n";
+import { quickaddJa } from "../../features/quickadd/i18n";
+import { searchJa } from "../../features/search/i18n";
+import { notificationsJa } from "../../features/notifications/i18n";
 
 // Mismo esquema que es.ts: TypeScript avisa si falta o sobra alguna clave.
 // En japonés no hay plural; las formas _one existen solo para cumplir el tipo.
@@ -163,6 +170,13 @@ export const ja: Translation = {
   recovery: recoveryJa,
   sync: syncJa,
   mobile: mobileJa,
+  editing: editingJa,
+  undo: undoJa,
+  failure: failureJa,
+  today: todayJa,
+  quickadd: quickaddJa,
+  search: searchJa,
+  notifications: notificationsJa,
   seed: {
     dragon: {
       title: "書類ドラゴンの討伐",

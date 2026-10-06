@@ -79,10 +79,12 @@ export function Footer() {
       <Key k="+" label={t("footer.progress")} />
       <Key k="Q E" label={t("footer.category")} />
       <Key k="H" label={t("horizon.label")} />
+      <Key k="R" label={t("editing.open")} />
+      <Key k="/" label={t("search.title")} />
       <Key k="T" label={t("temporal.footer.switchToTemporal")} />
       <Windows />
-      <button className="ft-new" onClick={() => setCreating(true)}>
-        <kbd>N</kbd>
+      <button className="ft-new" onClick={() => setCreating(true)} title={t("quickadd.full")}>
+        <kbd>⇧N</kbd>
         {t("footer.newQuest")}
       </button>
       <span className="ft-right muted">↑↓←→ {t("footer.board")}</span>

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import type { Category, ConditionDef, QuestDef } from "../domain/types";
-import { CATEGORY_META } from "../domain/types";
+import type { Category, ConditionDef, QuestDef, QuestState } from "../domain/types";
+import { CATEGORY_META, isPomodoroCondition } from "../domain/types";
 import { useGame } from "../store/game";
 import { uid } from "../lib/id";
 import { sfx } from "../lib/sfx";
@@ -16,6 +16,9 @@ import { ChecklistInputs, cleanChecklist, type ChecklistItem } from "../features
 import { BACKDROP_EXIT, MODAL_EXIT } from "../lib/motion";
 import { RewardPreview, questReward } from "../features/rewards";
 import { ContactsField, cleanContacts, type ContactRef } from "../features/contacts";
+import { isChecklistCondition } from "../features/checklist";
+import { saveQuestEdit } from "../features/editing/actions";
+import { useEditingUi } from "../features/editing/ui";
 
 /** Espera por defecto de una repetible: 20 h (diaria con margen). */
 const DEFAULT_COOLDOWN = 20 * 60;
@@ -44,6 +47,13 @@ const newCond = (kind: CondDraft["kind"]): CondDraft => ({
   items: kind === "checklist" ? [{ id: uid(), text: "" }] : [],
 });
 
+/** Un objetivo que ya existe, para editarlo (conserva su id: el progreso va por id). */
+function condFrom(c: ConditionDef): CondDraft {
+  if (isPomodoroCondition(c)) return { ...newCond("pomodoro"), id: c.id, label: c.label, target: c.target, focusMinutes: c.focusMinutes, breakMinutes: c.breakMinutes };
+  if (isChecklistCondition(c)) return { ...newCond("checklist"), id: c.id, label: c.label, items: c.items.length ? c.items.map((it) => ({ ...it })) : [{ id: uid(), text: "" }] };
+  return { ...newCond("count"), id: c.id, label: c.label, target: c.target };
+}
+
 const filledItems = (c: CondDraft) => c.items.filter((it) => it.text.trim() !== "");
 
 const isUsable = (c: CondDraft) =>
@@ -66,24 +76,36 @@ function toCondition(c: CondDraft): ConditionDef {
 }
 
 export function CreateQuestModal() {
-  const open = useGame((s) => s.creating);
+  const creating = useGame((s) => s.creating);
   const setCreating = useGame((s) => s.setCreating);
-  return <AnimatePresence>{open && <QuestFormModal onClose={() => setCreating(false)} />}</AnimatePresence>;
+  // Con datos de partida: el alta rápida («Más detalles») o una copia de una fallida (features/editing).
+  const draft = useEditingUi((s) => s.draft);
+  const close = () => {
+    setCreating(false);
+    useEditingUi.getState().setDraft(undefined);
+  };
+  return <AnimatePresence>{(creating || draft) && <QuestFormModal key={draft ? "draft" : "new"} initial={draft} onClose={close} />}</AnimatePresence>;
 }
 
 /**
  * Formulario completo de una quest. Sin `onCreate`, la publica en el Quest Board.
  * Con `onCreate` (desde un encargo temporal), la devuelve sin publicarla: el encargo
  * la crea al guardarse. `preset` rellena cliente y área, o la fecha límite (desde el calendario).
+ * `initial` rellena todo (el alta rápida o una copia de una fallida); `edit` edita una que
+ * ya existe (features/editing): en curso no se cambian los objetivos, la categoría ni la repetición.
  */
 export function QuestFormModal({
   onClose,
   onCreate,
   preset,
+  initial,
+  edit,
 }: {
   onClose(): void;
   onCreate?(quest: QuestDef): void;
   preset?: { client?: string; area?: string; dueAt?: number };
+  initial?: Partial<QuestDef>;
+  edit?: QuestState;
 }) {
   const dispatch = useGame((s) => s.dispatch);
   const select = useGame((s) => s.select);
@@ -92,22 +114,26 @@ export function QuestFormModal({
   const say = useGame((s) => s.say);
   const { t } = useTranslation();
 
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<Category>("request");
-  const [client, setClient] = useState(preset?.client ?? "");
-  const [area, setArea] = useState(preset?.area ?? "");
-  const [kind, setKind] = useState("");
-  const [description, setDescription] = useState("");
-  const [conds, setConds] = useState<CondDraft[]>([newCond("count")]);
-  const [itemId, setItemId] = useState("");
-  // Repetición (cualquier categoría), requisitos y fecha límite: features/complex y features/horizon.
-  const [cooldown, setCooldown] = useState<number | undefined>(undefined);
-  const [cooldownTouched, setCooldownTouched] = useState(false);
-  const [requires, setRequires] = useState<string[]>([]);
-  const [dueAt, setDueAt] = useState<number | undefined>(preset?.dueAt);
+  const src = edit ?? initial;
+  const [title, setTitle] = useState(src?.title ?? "");
+  const [category, setCategory] = useState<Category>(src?.category ?? "request");
+  const [client, setClient] = useState(preset?.client ?? src?.client ?? "");
+  const [area, setArea] = useState(preset?.area ?? src?.area ?? "");
+  const [kind, setKind] = useState(src?.kind ?? "");
+  const [description, setDescription] = useState(src?.description ?? "");
+  const [conds, setConds] = useState<CondDraft[]>(() => (src?.conditions?.length ? src.conditions.map(condFrom) : [newCond("count")]));
+  const [itemId, setItemId] = useState(src?.reward?.itemId ?? "");
+  // Repetición (cualquier categoría, cada N o por días), requisitos y fecha límite: features/complex y features/horizon.
+  const [cooldown, setCooldown] = useState<number | undefined>(src?.cooldownMinutes);
+  const [repeatDays, setRepeatDays] = useState<number[] | undefined>(src?.repeatDays);
+  const [cooldownTouched, setCooldownTouched] = useState(!!src);
+  const [requires, setRequires] = useState<string[]>(src?.requires ?? []);
+  const [dueAt, setDueAt] = useState<number | undefined>(preset?.dueAt ?? src?.dueAt);
   // A quién llamar o escribir, o dónde ir (features/contacts).
-  const [contacts, setContacts] = useState<ContactRef[]>([]);
-  const recurring = recurs({ category, cooldownMinutes: cooldown });
+  const [contacts, setContacts] = useState<ContactRef[]>(src?.contacts ?? []);
+  const recurring = recurs({ category, cooldownMinutes: cooldown, repeatDays });
+  // En curso: los objetivos, la categoría y la repetición no se cambian (features/editing).
+  const locked = edit?.status === "active";
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => titleRef.current?.focus(), []);
@@ -124,7 +150,7 @@ export function QuestFormModal({
   const submit = async () => {
     if (!valid) return;
     const quest: QuestDef = {
-      id: uid(),
+      id: edit?.id ?? uid(),
       title: title.trim(),
       category,
       client: client.trim(),
@@ -133,13 +159,19 @@ export function QuestFormModal({
       description: description.trim(),
       conditions,
       reward: { ...reward, itemId: itemId || undefined },
-      cooldownMinutes: category === "repeat" ? cooldown ?? DEFAULT_COOLDOWN : cooldown,
+      // Con días de la semana, mandan los días (features/complex).
+      cooldownMinutes: repeatDays?.length ? undefined : category === "repeat" ? cooldown ?? DEFAULT_COOLDOWN : cooldown,
+      repeatDays: repeatDays?.length ? repeatDays : undefined,
       requires: requires.length ? requires : undefined,
       // Las que se repiten no tienen fecha límite: tras la primera vuelta quedaría vencida.
       dueAt: recurring ? undefined : dueAt,
       contacts: cleanContacts(contacts).length ? cleanContacts(contacts) : undefined,
-      createdAt: Date.now(),
+      createdAt: edit?.createdAt ?? Date.now(),
     };
+    if (edit) {
+      if (await saveQuestEdit(edit.id, quest)) close();
+      return;
+    }
     if (onCreate) {
       onCreate(quest);
       sfx.tick();
@@ -194,8 +226,8 @@ export function QuestFormModal({
       >
         <header className="modal-h">
           <span className="gem" />
-          <span className="tag">New Posting</span>
-          <span className="sec-sub">{t("modal.subtitle")}</span>
+          <span className="tag">{edit ? "Edit Posting" : "New Posting"}</span>
+          <span className="sec-sub">{edit ? t("editing.subtitle") : t("modal.subtitle")}</span>
           <span className="sec-line" />
         </header>
 
@@ -212,6 +244,7 @@ export function QuestFormModal({
                 <button
                   type="button"
                   key={c}
+                  disabled={locked}
                   className={`seg-btn ${category === c ? "on" : ""}`}
                   style={{ "--c": CATEGORY_META[c].color } as React.CSSProperties}
                   onClick={() => pickCategory(c)}
@@ -248,8 +281,9 @@ export function QuestFormModal({
             <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("modal.descriptionPh")} />
           </label>
 
-          <div className="field">
+          <fieldset className="field cond-fieldset" disabled={locked}>
             <span className="lbl">{t("modal.conditions")}</span>
+            {locked && <p className="rc-hint muted">{t("complex.recurrence.locked")}</p>}
             <div className="cond-edit">
               {conds.map((c, i) => {
                 const remove = (
@@ -326,7 +360,7 @@ export function QuestFormModal({
                 </button>
               </div>
             </div>
-          </div>
+          </fieldset>
 
           <div className="row-reward">
             <RewardPreview reward={reward} hint={t("rewards.quest")} />
@@ -345,21 +379,29 @@ export function QuestFormModal({
               setCooldown(v);
               setCooldownTouched(true);
             }}
+            days={repeatDays}
+            onDays={(d) => {
+              setRepeatDays(d);
+              setCooldownTouched(true);
+              // Sin días, una repetible vuelve a su espera de siempre.
+              if (!d && category === "repeat" && cooldown === undefined) setCooldown(DEFAULT_COOLDOWN);
+            }}
+            disabled={locked}
           />
           <DeadlineField value={dueAt} onChange={setDueAt} disabled={recurring} />
           <ContactsField value={contacts} onChange={setContacts} />
-          <RequiresField value={requires} onChange={setRequires} />
+          <RequiresField value={requires} onChange={setRequires} forQuest={edit?.id} />
         </div>
 
         <footer className="modal-f">
           <span className="muted hint">
-            <kbd>{MOD_KEY}</kbd>+<kbd>Enter</kbd> {t("modal.publish")} · <kbd>Esc</kbd> {t("modal.close")}
+            <kbd>{MOD_KEY}</kbd>+<kbd>Enter</kbd> {edit ? t("editing.save") : t("modal.publish")} · <kbd>Esc</kbd> {t("modal.close")}
           </span>
           <button type="button" className="btn btn-ghost" onClick={close}>
             {t("modal.cancel")}
           </button>
           <button type="submit" className={`btn btn-primary ${valid ? "" : "is-disabled"}`} disabled={!valid}>
-            {t("modal.submit")}
+            {edit ? t("editing.submit") : t("modal.submit")}
           </button>
         </footer>
       </motion.form>

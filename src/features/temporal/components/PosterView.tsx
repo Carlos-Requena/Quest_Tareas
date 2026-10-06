@@ -19,6 +19,7 @@ import { useFilePicker } from "./TemporalForm";
 import { ACCEPT } from "../files";
 import { PosterQuests } from "./PosterQuests";
 import { ContactList } from "../../contacts";
+import { repostTemporal } from "../../failure/actions";
 
 /** El cartel en grande: todos sus datos, sus adjuntos y las acciones (cumplir, editar, adjuntar, retirar). */
 export function PosterView() {
@@ -168,7 +169,7 @@ function View({ t }: { t: TemporalState }) {
     >
       <div className="pv-veil" onClick={close} />
       <div className="pv-wrap">
-        <div className={`pv-sheet ${meta.red ? "is-red" : ""} is-${t.status}`} ref={sheet}>
+        <div className={`pv-sheet ${meta.red ? "is-red" : ""} is-${t.status} ${t.failedAt !== undefined ? "is-burned" : ""}`} ref={sheet}>
           <div className="pv-paper" style={{ clipPath: clip }}>
             <div className="pv-frame">
               <div className="pv-head pv-in">
@@ -184,7 +185,11 @@ function View({ t }: { t: TemporalState }) {
                   <span className="pv-lbl">{tr("temporal.view.when")}</span>
                   <span className="pv-val">{longDue(t)}</span>
                   <span className={`tp-chip is-${chip.urgency} pv-chip`}>
-                    {pending ? chip.label : tr("temporal.view.completedOn", { date: longDate(t.completedAt ?? now) })}
+                    {pending
+                      ? chip.label
+                      : t.failedAt !== undefined
+                        ? tr("failure.view.burnedOn", { date: longDate(t.failedAt) })
+                        : tr("temporal.view.completedOn", { date: longDate(t.completedAt ?? now) })}
                   </span>
                   {pending && (
                     <span className={`pv-accept-state ${accepted ? "is-accepted" : ""}`}>
@@ -259,7 +264,7 @@ function View({ t }: { t: TemporalState }) {
                 <small>G</small>
               </div>
             </div>
-            <span className="tp-clear pv-clear">Clear</span>
+            <span className="tp-clear pv-clear">{t.failedAt !== undefined ? "Burned" : "Clear"}</span>
             <span className="tp-seal pv-seal" ref={sealRef} aria-hidden>
               Accepted
               <small className="num">{t.acceptedAt !== undefined ? sealDate(t.acceptedAt) : ""}</small>
@@ -269,7 +274,7 @@ function View({ t }: { t: TemporalState }) {
             {skulls.map((s, i) => (
               <Skull
                 key={i}
-                className={pending ? "" : "skull-gold"}
+                className={pending || t.failedAt !== undefined ? "" : "skull-gold"}
                 style={{ left: `${s.x}%`, top: `${s.y}%`, transform: `translate(-50%, -50%) rotate(${s.rotate}deg) scale(${s.scale})` }}
               />
             ))}
@@ -277,6 +282,12 @@ function View({ t }: { t: TemporalState }) {
         </div>
 
         <div className="pv-actions">
+          {/* Quemado (features/failure): se puede volver a clavar una copia con fecha nueva. */}
+          {t.failedAt !== undefined && (
+            <button className="btn btn-primary is-ready" onClick={() => repostTemporal(t.id)}>
+              {tr("failure.repost")}
+            </button>
+          )}
           {pending && !accepted && (
             <button className="btn btn-primary is-ready" onClick={() => acceptTemporal(t.id)}>
               <span className="btn-key">↵</span>

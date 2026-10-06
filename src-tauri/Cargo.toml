@@ -23,6 +23,8 @@ tauri = { version = "2", features = [] }
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 # Abrir los contactos de las quests (tel:, mailto:, https:) con la app del sistema, también en iOS.
 tauri-plugin-opener = "2"
+# Notificaciones del sistema (features/notifications): pomodoros, encargos, agenda y rachas. En iOS se programan.
+tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1.53.1", features = ["net", "time", "io-util", "sync"] }

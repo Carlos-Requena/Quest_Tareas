@@ -7,14 +7,18 @@
 
 import type { Category, QuestState } from "../../domain/types";
 import { isAccepted, type TemporalState } from "../temporal/model";
-import { agendaOn, dateKey, type AgendaColor, type AgendaState } from "../agenda/model";
+import { agendaOn, dateKey, weekday, type AgendaColor, type AgendaState } from "../agenda/model";
 
 /** Lo que puede salir en un día del calendario. */
 export type CalendarItem =
   | { kind: "agenda"; id: string; title: string; start: number; end: number; color: AgendaColor; repeats: boolean }
   /** `start` falta en los de todo el día. */
-  | { kind: "temporal"; id: string; title: string; start?: number; end?: number; skulls: number; accepted: boolean; done: boolean }
-  | { kind: "quest"; id: string; title: string; category: Category; active: boolean };
+  | { kind: "temporal"; id: string; title: string; start?: number; end?: number; skulls: number; accepted: boolean; done: boolean; burned?: boolean }
+  /**
+   * Quest: por su fecha límite o, si se repite por días, cada día que toca (`repeats`).
+   * `done`: ya hecha ese día; `failed`: se fracturó (features/failure).
+   */
+  | { kind: "quest"; id: string; title: string; category: Category; active: boolean; repeats?: boolean; done?: boolean; failed?: boolean };
 
 export interface CalendarDay {
   date: string;
@@ -37,6 +41,11 @@ export interface CalendarSources {
   quests: Iterable<QuestState>;
   temporals: Iterable<TemporalState>;
   agenda: Iterable<AgendaState>;
+  /**
+   * Hoy (AAAA-MM-DD): las quests que se repiten por días salen de hoy en adelante (el
+   * pasado no se sabe). Sin él, salen todos los días que tocan.
+   */
+  today?: string;
 }
 
 const CATEGORY_ORDER: Record<Category, number> = { elite: 0, request: 1, repeat: 2 };
@@ -52,17 +61,30 @@ export function calendarDay(date: string, src: CalendarSources): CalendarDay {
 
   for (const t of src.temporals) {
     if (dateKey(t.dueAt) !== date) continue;
-    const base = { kind: "temporal" as const, id: t.id, title: t.title, skulls: t.difficulty, accepted: t.status === "done" || isAccepted(t), done: t.status === "done" };
+    // Quemado (features/failure): terminado, pero sin cumplir.
+    const base = { kind: "temporal" as const, id: t.id, title: t.title, skulls: t.difficulty, accepted: t.status === "done" || isAccepted(t), done: t.status === "done", ...(t.failedAt !== undefined ? { burned: true } : {}) };
     if (t.allDay) allDay.push(base);
     else {
       const start = minuteOf(t.dueAt);
       timed.push({ ...base, start, end: Math.min(1440, start + TEMPORAL_MINUTES) });
     }
   }
-  const quests = [...src.quests]
-    .filter((q) => q.dueAt !== undefined && q.status !== "done" && !q.reserved && dateKey(q.dueAt) === date)
-    .sort((a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category] || a.createdAt - b.createdAt);
-  for (const q of quests) allDay.push({ kind: "quest", id: q.id, title: q.title, category: q.category, active: q.status === "active" });
+  const all = [...src.quests].sort((a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category] || a.createdAt - b.createdAt);
+  // Por su fecha límite: las pendientes y las que se fracturaron ese día (features/failure).
+  for (const q of all) {
+    if (q.dueAt === undefined || q.reserved || dateKey(q.dueAt) !== date) continue;
+    if (q.status === "done" && q.failedAt === undefined) continue;
+    allDay.push({ kind: "quest", id: q.id, title: q.title, category: q.category, active: q.status === "active", ...(q.failedAt !== undefined ? { failed: true } : {}) });
+  }
+  // Las que se repiten por días, cada día que tocan (features/complex), de hoy en adelante.
+  const wd = weekday(date);
+  if (!src.today || date >= src.today) {
+    for (const q of all) {
+      if (!q.repeatDays?.includes(wd) || q.reserved || q.status === "done") continue;
+      const done = q.lastCompletedAt !== undefined && dateKey(q.lastCompletedAt) === date;
+      allDay.push({ kind: "quest", id: q.id, title: q.title, category: q.category, active: q.status === "active", repeats: true, ...(done ? { done } : {}) });
+    }
+  }
 
   for (const o of agendaOn(src.agenda, date))
     timed.push({ kind: "agenda", id: o.entry.id, title: o.entry.title, start: o.start, end: o.end, color: o.entry.color, repeats: !!o.entry.repeat });

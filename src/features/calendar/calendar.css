@@ -35,6 +35,14 @@
   align-items: center;
   gap: 4px;
 }
+/* Las vistas en una línea («今日の予定» incluido). */
+.cal-views .seg-btn {
+  white-space: nowrap;
+}
+/* En «Mi día» no se pasa de semana ni de día (las flechas llevan al día por horas). */
+.cal-nav.is-hidden {
+  visibility: hidden;
+}
 .cal-nav-btn,
 .cal-today {
   height: 32px;
@@ -308,6 +316,28 @@
 .cal-chip.is-temporal.is-done .cal-chip-title {
   text-decoration: line-through;
 }
+/* Quemado (features/failure): pergamino chamuscado. */
+.cal-chip.is-temporal.is-burned {
+  opacity: 0.7;
+  color: var(--parchment-lo);
+  background: linear-gradient(180deg, var(--parchment-burn), var(--char));
+  border-left-color: var(--fire);
+}
+/* Quest que se repite por días (features/complex): hecha ese día, apagada; fracturada, rota. */
+.cal-chip.is-quest.is-weekly .cal-rep {
+  color: var(--c);
+}
+.cal-chip.is-quest.is-done {
+  opacity: 0.55;
+}
+.cal-chip.is-quest.is-done .cal-chip-title,
+.cal-chip.is-quest.is-failed .cal-chip-title {
+  text-decoration: line-through;
+}
+.cal-chip.is-quest.is-failed {
+  opacity: 0.6;
+  border-left-color: var(--elite);
+}
 
 /* ── Día: lo de todo el día arriba y la rejilla por horas ── */
 .cal-dayview {
@@ -454,7 +484,7 @@
   pointer-events: none;
 }
 .cal-toast .toast {
-  display: block;
+  display: flex;
   padding: 6px 16px;
   background: var(--panel-solid);
   border: 1px solid var(--line-strong);
@@ -462,6 +492,10 @@
 }
 .cal-toast:not(:has(.toast)) {
   display: none;
+}
+/* El botón «Deshacer» sí recibe el clic (features/undo). */
+.cal-toast .toast-action {
+  pointer-events: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -356,6 +356,15 @@
 /* ───────────── Teléfono (features/mobile; 760 px es PHONE_MAX_WIDTH) ─────────────
    Una página cada vez (ChronicleModal pagina con `per`); se pasa deslizando el dedo
    o con las flechas, que van dentro del libro, en las esquinas de abajo. */
+/* Lo que falló (features/failure): en tinta roja y tachado a medias. */
+.diary-entry.is-failed .diary-line,
+.diary-entry.is-failed .diary-mark {
+  color: var(--diary-ink-red);
+}
+.diary-entry.is-failed .diary-reward {
+  color: var(--diary-ink-soft);
+}
+
 @media (max-width: 760px) {
   .chron {
     width: 100%;

@@ -26,6 +26,37 @@
   font-size: 11px;
 }
 
+/* Repetición por días de la semana: una chapa redonda por día, de lunes a domingo. */
+.rc-days {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+.rc-day {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.rc-day:hover:not(:disabled) {
+  color: var(--text);
+}
+.rc-day.on {
+  color: var(--bg);
+  background: var(--cat, var(--gold));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--cat, var(--gold)) 45%, transparent);
+}
+.field.is-locked select,
+.field.is-locked .rc-day,
+.field.is-locked input {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Requisitos en el formulario: chapas numeradas + desplegable. */
 .rq-list {
   display: flex;
@@ -152,4 +183,19 @@
 .card-lock-note .lock-ico {
   flex: none;
   color: var(--gold);
+}
+
+/* Teléfono (features/mobile): la fila de la repetición baja de línea y los días, a 40 px. */
+@media (max-width: 760px) {
+  .rc-row {
+    flex-wrap: wrap;
+  }
+  .rc-days {
+    flex-wrap: wrap;
+  }
+  .rc-day {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
 }

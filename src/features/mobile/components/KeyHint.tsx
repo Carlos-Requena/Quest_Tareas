@@ -3,7 +3,7 @@ import { useIsPhone } from "../phone";
 
 export type TouchHint = "continue" | "skip";
 /** Textos con <kbd> de las animaciones a pantalla completa. */
-export type KeyHintKey = "clear.hint" | "temporal.clear.hint" | "temporal.posted.hint";
+export type KeyHintKey = "clear.hint" | "temporal.clear.hint" | "temporal.posted.hint" | "failure.hint";
 
 /**
  * Pista de las animaciones a pantalla completa: «Pulsa Enter para continuar» en el escritorio

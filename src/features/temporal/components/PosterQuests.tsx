@@ -14,6 +14,7 @@ const MARK: Record<LinkState, React.ReactNode> = {
   available: "○",
   cooldown: "◷",
   reserved: "◇",
+  failed: "✗",
 };
 
 /** Las quests del encargo en el cartel abierto: cuáles están terminadas y cuáles faltan. Cada una lleva al Quest Board. */
@@ -23,8 +24,8 @@ export function PosterQuests({ t }: { t: TemporalState }) {
   const { t: tr } = useTranslation();
   const list = linkedQuests(t, quests);
   if (!list.length) return null;
-  // Un encargo cumplido tenía todas sus quests terminadas.
-  const states = list.map((q) => (t.status === "done" ? "done" : linkState(q, t.linkedAt[q.id] ?? 0, quests, now)));
+  // Un encargo cumplido tenía todas sus quests terminadas; uno quemado, no (features/failure).
+  const states = list.map((q) => (t.status === "done" && t.failedAt === undefined ? "done" : linkState(q, t.linkedAt[q.id] ?? 0, quests, now)));
   const done = states.filter((s) => s === "done").length;
 
   return (

@@ -62,7 +62,24 @@ export interface PurchaseEntry extends Base {
   price: number;
 }
 
-export type ChronicleEntry = QuestEntry | TemporalEntry | PurchaseEntry;
+/**
+ * Algo que falló (features/failure): una quest fracturada o un encargo quemado. Sin XP
+ * ni oro: solo queda constancia. El título se copia, como en las demás.
+ */
+export interface FailedEntry extends Base {
+  k: "failed";
+  target: "quest" | "temporal";
+  /** Id de la quest o del encargo. */
+  id: string;
+  title: string;
+  /** Quest: su categoría. */
+  category?: Category;
+  /** Encargo: sus calaveras y cuántas quests se perdieron con él. */
+  skulls?: number;
+  quests?: number;
+}
+
+export type ChronicleEntry = QuestEntry | TemporalEntry | PurchaseEntry | FailedEntry;
 
 /** Acumulador de la proyección. Solo datos planos (va en el snapshot). */
 export interface ChronicleAcc {
@@ -143,7 +160,7 @@ export function chronicleDays(acc: ChronicleAcc): ChronicleDay[] {
       days.push(cur);
     }
     cur.lines.push(line);
-    if (entry.k !== "purchase") {
+    if (entry.k === "quest" || entry.k === "temporal") {
       cur.xp += entry.xp;
       cur.gold += entry.gold;
     }
@@ -156,6 +173,7 @@ export function chronicleTotals(acc: ChronicleAcc, now: number) {
   let quests = 0;
   let temporals = 0;
   let purchases = 0;
+  let failed = 0;
   let bestStreak = 0;
   const activeDays = new Set<number>();
   for (const e of acc.entries) {
@@ -164,12 +182,14 @@ export function chronicleTotals(acc: ChronicleAcc, now: number) {
       quests++;
       bestStreak = Math.max(bestStreak, e.streak ?? 0);
     } else if (e.k === "temporal") temporals++;
+    else if (e.k === "failed") failed++;
     else purchases++;
   }
   return {
     quests,
     temporals,
     purchases,
+    failed,
     bestStreak,
     activeDays: activeDays.size,
     /** Días desde el comienzo (el de hoy incluido). */

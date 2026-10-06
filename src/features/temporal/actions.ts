@@ -18,9 +18,12 @@ import {
   type TemporalDef,
   type TemporalKind,
   type TemporalPatch,
+  type TemporalState,
 } from "./model";
 import type { PreparedFile } from "./files";
 import { useTemporalUi } from "./ui";
+import { offerUndo } from "../undo/actions";
+import { UNDO_WINDOW_MS } from "../undo/model";
 import { useHorizonUi } from "../horizon/ui";
 import { cleanContacts, type ContactRef } from "../contacts/model";
 
@@ -115,6 +118,29 @@ export function draftOf(t: TemporalDef, quests?: Map<string, QuestState>): Tempo
     accept: false,
     contacts: t.contacts ?? [],
   };
+}
+
+/**
+ * Borrador para volver a clavar un encargo quemado (features/failure): lo mismo con fecha
+ * nueva (mañana, a la misma hora) y sus quests perdidas como quests nuevas, sin aceptar.
+ * Los adjuntos no se copian: siguen en el cartel quemado.
+ */
+export function copyDraft(t: TemporalState, quests: Map<string, QuestState>, now = Date.now()): TemporalDraft {
+  const base = draftOf(t);
+  const lost = t.questIds.map((id) => quests.get(id)).filter((q): q is QuestState => !!q && q.failedAt !== undefined);
+  return {
+    ...base,
+    date: isoDate(new Date(now + 86_400_000)),
+    attachments: [],
+    questIds: [],
+    fullQuests: lost.map((q) => ({ ...questDefOf(q), id: uid(), dueAt: undefined, createdAt: now })),
+  };
+}
+
+/** La definición de una quest (sin su estado de juego). */
+function questDefOf(q: QuestState): QuestDef {
+  const { id, title, category, description, client, area, kind, conditions, reward, cooldownMinutes, repeatDays, requires, dueAt, contacts, createdAt } = q;
+  return { id, title, category, description, client, area, kind, conditions, reward, cooldownMinutes, repeatDays, requires, dueAt, contacts, createdAt };
 }
 
 /** Quest de un objetivo («título ×N») escrita en el formulario del encargo, sin id ni fecha todavía. */
@@ -339,12 +365,12 @@ export async function detachAttachment(id: string, attachmentId: string) {
 
 /** Acepta un encargo: sus quests salen de la reserva al Quest Board y ya se puede cumplir. */
 export async function acceptTemporal(id: string) {
-  const { state, dispatch, say } = useGame.getState();
+  const { state, dispatch } = useGame.getState();
   const t = state.temporals.get(id);
   if (t?.status !== "pending" || isAccepted(t)) return;
   const freed = [...state.quests.values()].filter((q) => q.reserved && q.temporalId === id).length;
-  await dispatch({ type: "temporal_accepted", temporalId: id });
-  say(() =>
+  const e = await dispatch({ type: "temporal_accepted", temporalId: id });
+  offerUndo(e, () =>
     freed
       ? i18n.t("temporal.toast.acceptedQuests", { title: t.title, count: freed })
       : i18n.t("temporal.toast.accepted", { title: t.title }),
@@ -364,8 +390,8 @@ export async function postponeTemporal(id: string) {
     return;
   }
   sfx.cancel();
-  await dispatch({ type: "temporal_postponed", temporalId: id });
-  say(() => i18n.t("temporal.toast.postponed", { title: t.title }));
+  const e = await dispatch({ type: "temporal_postponed", temporalId: id });
+  offerUndo(e, () => i18n.t("temporal.toast.postponed", { title: t.title }));
 }
 
 /** Cumple el encargo: copia la recompensa en el evento y lanza la animación de «logro». */
@@ -397,16 +423,18 @@ export async function completeTemporal(id: string) {
 
 /** Retira el cartel del tablón (y sus archivos, si nadie más los usa). */
 export async function deleteTemporal(id: string) {
-  const { state, dispatch, say } = useGame.getState();
+  const { state, dispatch } = useGame.getState();
   const t = state.temporals.get(id);
   if (!t) return;
   sfx.paperRip(1);
   const ui = useTemporalUi.getState();
   ui.closeView();
   if (ui.selectedId === id) ui.select(undefined);
-  await dispatch({ type: "temporal_deleted", temporalId: id });
-  await collect(t.attachments.map((a) => a.blobId));
-  say(() => i18n.t("temporal.toast.deleted", { title: t.title }));
+  const e = await dispatch({ type: "temporal_deleted", temporalId: id });
+  // Los archivos se borran pasada la ventana de deshacer (features/undo): si se deshace, siguen en uso.
+  const blobIds = t.attachments.map((a) => a.blobId);
+  if (blobIds.length) setTimeout(() => void collect(blobIds), UNDO_WINDOW_MS);
+  offerUndo(e, () => i18n.t("temporal.toast.deleted", { title: t.title }));
 }
 
 /** Lee el contenido de un adjunto. `undefined` si este equipo no tiene el archivo. */

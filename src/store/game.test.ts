@@ -469,3 +469,83 @@ describe("eventos que llegan sin pasar por las acciones", () => {
     consistent(b);
   });
 });
+
+describe("editar, deshacer, alta rápida y fallos (features/editing, undo, quickadd y failure)", () => {
+  it("editar emite un parche mínimo y deshacer lo revierte, también tras volver a abrir la app", async () => {
+    const b = await boot();
+    await addQuest(b, "q", { title: "Antes" });
+    const editing = await import("../features/editing/actions");
+    const undo = await import("../features/undo/actions");
+    const def = b.g().state.quests.get("q")!;
+    await editing.saveQuestEdit("q", { ...def, title: "Después" });
+    expect(lastEvent()).toMatchObject({ type: "quest_updated", patch: { title: "Después" } });
+    expect(Object.keys((lastEvent() as { patch: object }).patch)).toEqual(["title"]);
+    expect(b.g().state.quests.get("q")?.title).toBe("Después");
+    expect(await undo.undoLast()).toBe(true);
+    expect(lastEvent().type).toBe("event_undone");
+    expect(b.g().state.quests.get("q")?.title).toBe("Antes");
+    consistent(b);
+    // Al abrir otra vez, con el deshacer en la cola del snapshot, sigue deshecho.
+    const again = await boot();
+    expect(again.g().state.quests.get("q")?.title).toBe("Antes");
+    consistent(again);
+  });
+
+  it("deshacer abandonar devuelve la quest en curso con su progreso", async () => {
+    const b = await boot();
+    await addQuest(b, "q");
+    await b.actions.acceptQuest("q");
+    await b.actions.addProgress("q", "q-c", 1);
+    await b.actions.abandonQuest("q");
+    expect(b.g().state.quests.get("q")?.status).toBe("available");
+    const undo = await import("../features/undo/actions");
+    await undo.undoLast();
+    expect(b.g().state.quests.get("q")).toMatchObject({ status: "active", progress: { "q-c": 1 } });
+    consistent(b);
+  });
+
+  it("deshacer un snapshot ya guardado: el arranque lo reproduce todo", async () => {
+    const b = await boot();
+    await addQuest(b, "victima");
+    await b.actions.retireQuest("victima");
+    const del = lastEvent();
+    // Más de 100 eventos: el snapshot ya incluye el retiro.
+    for (let i = 0; i < 110; i++) await b.g().dispatch({ type: "progress_added", questId: "nada", conditionId: "x", amount: 1 });
+    expect(snapshot()?.count).toBeGreaterThanOrEqual(100);
+    await b.g().dispatch({ type: "event_undone", eventId: del.id });
+    // El deshacer llega dentro de la ventana solo si no han pasado 15 minutos: aquí, milisegundos.
+    expect(b.g().state.quests.has("victima")).toBe(true);
+    const again = await boot();
+    expect(again.g().state.quests.has("victima")).toBe(true);
+    consistent(again);
+  });
+
+  it("el alta rápida publica la quest de una línea", async () => {
+    const b = await boot();
+    const quick = await import("../features/quickadd/actions");
+    expect(await quick.quickCreate("Llamar al banco mañana #Hogar x2 !")).toBe(true);
+    const q = quest(b, "Llamar al banco");
+    expect(q).toMatchObject({ category: "elite", area: "Hogar" });
+    expect(q.conditions[0]).toMatchObject({ kind: "count", target: 2 });
+    expect(q.dueAt).toBeTypeOf("number");
+    expect(await quick.quickCreate("   ")).toBe(false);
+    consistent(b);
+  });
+
+  it("checkFailures fractura lo que pasó su día (y no lo perdonado)", async () => {
+    const b = await boot();
+    // Hoy a mediodía, después del día en que empiezan los fallos.
+    const today = new Date(2026, 9, 20, 12).getTime();
+    vi.spyOn(Date, "now").mockReturnValue(today);
+    await addQuest(b, "vencida", { dueAt: new Date(2026, 9, 19).getTime() });
+    await addQuest(b, "perdonada", { dueAt: new Date(2026, 9, 1).getTime() });
+    await addQuest(b, "hoy", { dueAt: new Date(2026, 9, 20).getTime() });
+    const failure = await import("../features/failure/actions");
+    await failure.checkFailures();
+    const st = b.g().state.quests;
+    expect(st.get("vencida")?.failedAt).toBeTypeOf("number");
+    expect(st.get("perdonada")?.failedAt).toBeUndefined();
+    expect(st.get("hoy")?.failedAt).toBeUndefined();
+    consistent(b);
+  });
+});

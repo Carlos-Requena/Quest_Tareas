@@ -26,8 +26,8 @@ export function WeekView({ today }: { today: string }) {
   const monday = weekStart(day);
 
   const days = useMemo(
-    () => weekDays(monday).map((k) => calendarDay(k, { quests: quests.values(), temporals: temporals.values(), agenda: agenda.values() })),
-    [monday, quests, temporals, agenda],
+    () => weekDays(monday).map((k) => calendarDay(k, { quests: quests.values(), temporals: temporals.values(), agenda: agenda.values(), today })),
+    [monday, quests, temporals, agenda, today],
   );
   const wd = new Intl.DateTimeFormat(locale, { weekday: "short" });
 

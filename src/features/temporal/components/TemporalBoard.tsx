@@ -15,6 +15,9 @@ import { merchantBusy } from "../../merchant/ui";
 import { characterBusy } from "../../equipment/ui";
 import { chronicleBusy } from "../../chronicle/ui";
 import { useIsPhone } from "../../mobile";
+import { editingBusy } from "../../editing/ui";
+import { failureBusy } from "../../failure/ui";
+import { searchBusy } from "../../search/ui";
 
 type Dir = "left" | "right" | "up" | "down";
 
@@ -117,7 +120,7 @@ export function TemporalBoard() {
     const onKey = (e: KeyboardEvent) => {
       const g = useGame.getState();
       // Con otra ventana abierta (mercader, personaje, crónica), el tablón espera.
-      if (g.creating || g.clear || g.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || e.metaKey || e.ctrlKey) return;
+      if (g.creating || g.clear || g.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || editingBusy() || failureBusy() || searchBusy() || e.metaKey || e.ctrlKey) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const ui = useTemporalUi.getState();
       const move = (dir: Dir) => {

@@ -378,6 +378,14 @@ Las dos cosas se comprobaron con datos reales de la versión anterior (ver «Ver
 
 ---
 
+### Cartel quemado (features/failure, 2026-10-06)
+
+Si se acaba el día de un encargo sin cumplirlo, se **quema**: `temporal_failed` lo deja en `status: "done"` con `failedAt` (sin `completedAt` ni `earned`) y sus quests sin terminar que no se repiten fallan con él. En el tablón (con «Mostrar cumplidos») sale chamuscado, con el sello «BURNED», «Quemado», sus quests perdidas tachadas (`LinkState` «failed») y la recompensa tachada; en su vista, «Se quemó el…» y **«Volver a clavar»** (`copyDraft`: lo mismo para mañana a la misma hora, sin aceptar, con sus quests perdidas como nuevas; los adjuntos se quedan en el quemado). Una quest enlazada que se fractura no cuenta como terminada (`linkedQuestDone`): el encargo ya no se puede cumplir hasta desenlazarla.
+
+### Deshacer (features/undo)
+
+Aceptar, aplazar y retirar un encargo se pueden deshacer unos minutos (aviso con «Deshacer»). Por eso los adjuntos de un encargo retirado se borran del almacén **pasada la ventana de deshacer**, y solo si nadie los usa.
+
 ## Archivos
 
 | Archivo | Contenido |
