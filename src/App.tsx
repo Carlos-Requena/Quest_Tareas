@@ -32,6 +32,18 @@ import { AgendaFormModal } from "./features/agenda";
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
 
+// Este archivo tiene varias responsabilidades.
+//  Inicializa la aplicación, lee el estado del juego filtrando quests según el tipo.
+// Se encarga de aplicar plazos. Mantiene selección y navegación de quests. Renderiza la UI principal (tablón, detalle, modales).
+// Se encarga de crear un listener global para el teclado.
+// Elige la sección en la que se está.
+// Monta overlays, además de adaptar la UI a escritorio o teléfono (detalles a pantalla completa, menú inferior, etc).
+
+// Resumimos lo principal en App: lo que hace el usuario
+// Actions: que operación se solicita (aceptar, abandonar, completar, etc).
+// Domain: el calculo de operaciones sobre el estado del juego (proyecciones, plazos, bloqueos, etc).
+// Game Store: registra eventos de usuario y actualiza el estado del juego (quests, temporals, etc).
+
 export default function App() {
   const ready = useGame((s) => s.ready);
   const error = useGame((s) => s.error);
