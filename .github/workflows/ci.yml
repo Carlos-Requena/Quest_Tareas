@@ -1,5 +1,5 @@
 # CI de Quests: puerta de la fase 1.5 («CI verde en ambos sistemas»).
-# En macOS y Windows: tipos, tests, build del frontend y de la app de Tauri.
+# En macOS y Windows: tipos, tests, build del frontend y de la app de Tauri; en macOS, además, la documentación.
 # Los instaladores quedan como artefactos del run (sin firmar), para probarlos a mano.
 name: CI
 
@@ -40,6 +40,11 @@ jobs:
         run: pnpm exec tsc --noEmit
       - name: Tests
         run: pnpm test
+      # Documentación: tablas generadas al día, README con su plantilla, enlaces y eventos
+      # que existen (scripts/docs.mjs). No depende del sistema: basta con uno.
+      - name: Documentación
+        if: runner.os == 'macOS'
+        run: pnpm docs:check
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2

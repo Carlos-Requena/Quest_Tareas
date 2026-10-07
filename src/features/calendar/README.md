@@ -1,75 +1,77 @@
+---
+funcionalidad: calendar
+titulo: Calendario
+resumen: Tercera sección (tecla S) donde se planifica: Mi día, la semana con quests con fecha, encargos y agenda, y el día por horas.
+tipo: presentación
+eventos: []
+preferencias: [quests.calendarView]
+adr: [ADR-41, ADR-46]
+---
+
 # Calendario
 
-Una sección nueva, junto al Quest Board y los encargos (selector de la cabecera, tecla `S` o «Calendario» en la barra del teléfono), con dos vistas:
+La sección de planificación, junto al Quest Board y el tablón de encargos (selector de la cabecera, tecla `S` o «Calendario» en la barra del teléfono). Tiene tres vistas: **Mi día** ([today](../today/README.md)), **Semana** y **Día**. Se calcula de las quests, los encargos y la [agenda](../agenda/README.md), sin eventos propios. La app sigue abriendo en el Quest Board.
 
-- **Semana** (de lunes a domingo): lo que hay que hacer cada día. Salen las **quests con fecha límite**, los **encargos** (aceptados en pergamino; sin aceptar, a trazos; cumplidos, tachados) y los **bloques de la agenda**.
-- **Día**: la **agenda personal por horas** ([../agenda/README.md](../agenda/README.md)). Arriba lo de todo el día; debajo, una rejilla de 0:00 a 24:00 con los bloques y los encargos con hora. Pulsar en una hora libre añade un bloque.
+## Qué hace
 
-No tiene eventos: se calcula de las quests, los encargos y la agenda. La app sigue abriendo en el Quest Board.
-
-Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
-
----
-
-## Requisitos
-
-| # | Requisito | Cómo se cumple |
+| # | Requisito del propietario | Cómo se cumple |
 |---|---|---|
-| R1 | Un calendario semanal para ver qué cosas hay que hacer | Vista «Semana»: siete columnas, hoy en dorado, con lo de todo el día arriba y lo que tiene hora debajo |
+| R1 | Un calendario semanal para ver qué hay que hacer | Vista «Semana»: siete columnas de lunes a domingo, hoy en dorado, lo de todo el día arriba y lo que tiene hora debajo |
 | R2 | Que salgan tareas y tareas temporales | Quests por su fecha límite y encargos por su fecha (con hora o todo el día) |
-| R3 | Otro calendario por horas para uso personal | Vista «Día» con la agenda (features/agenda) |
-| R4 | Añadir cosas desde el calendario | «+» de cada día: bloque en la agenda, quest con esa fecha límite o encargo ese día; en el día, pulsar una hora |
+| R3 | Otro calendario por horas para uso personal | Vista «Día»: lo de todo el día arriba y una rejilla de 0:00 a 24:00 con los bloques de la agenda y los encargos con hora |
+| R4 | Añadir cosas desde el calendario | «+» de cada día: bloque en la agenda, quest con esa fecha límite o encargo ese día; en el día, pulsar una hora libre |
 
----
-
-## Decisiones de diseño
+## Reglas y decisiones
 
 ### Qué sale cada día (`calendarDay`)
 
 | Qué | Cuándo sale | Cómo |
 |---|---|---|
-| Encargo | El día de su fecha, pendiente, cumplido o quemado | Pergamino con calavera y hora (o arriba, si es de todo el día). Sin aceptar: a trazos y «Sin aceptar»; cumplido: tachado; quemado: chamuscado (features/failure) |
+| Encargo | El día de su fecha: pendiente, cumplido o quemado | Pergamino con calavera y hora (o arriba, si es de todo el día). Sin aceptar: a trazos y «Sin aceptar»; cumplido: tachado; quemado: chamuscado ([failure](../failure/README.md)) |
 | Quest | El día de **su propia** fecha límite, si no está terminada ni en reserva; también si se fracturó ese día | Gema del color de su categoría; «En curso» si está aceptada; fracturada, tachada en rojo |
-| Quest que se repite por días | Cada día que toca, **de hoy en adelante** (`CalendarSources.today`) | Con ↻; el día que se completó, tachada con ✓ (features/complex) |
+| Quest que se repite por días | Cada día que toca, **de hoy en adelante** (`CalendarSources.today`; el pasado no se sabe) | Con ↻; el día que se completó, tachada con ✓ ([complex](../complex/README.md)) |
 | Bloque de la agenda | Cada día en que se repite (o su día) | Barra del color elegido, con su hora y ↻ si se repite |
 
-- **Las quests de un encargo** no salen por la fecha del encargo: ya sale el encargo, con su sello de quests. Sí salen si tienen fecha límite propia.
-- **Las quests en reserva** (de un encargo sin aceptar) no salen: aún no están en el Quest Board.
-- **Las quests sin fecha** no salen: el calendario es para lo que tiene día.
-- **Un encargo con hora** ocupa una hora en la rejilla del día (no tiene fin): `TEMPORAL_MINUTES`.
+- **Las quests de un encargo** no salen por la fecha del encargo (ya sale el encargo, con su sello de quests); sí si tienen fecha límite propia.
+- **Las quests en reserva** (de un encargo sin aceptar) y **las que no tienen fecha** no salen.
+- **Un encargo con hora** ocupa una hora en la rejilla del día (`TEMPORAL_MINUTES`).
 
 ### Bloques que se solapan (`layoutDay`)
 
-Como en cualquier calendario: los bloques que se pisan forman un grupo y se reparten en columnas; cada uno usa la primera columna libre a su hora y el grupo tiene tantas columnas como bloques a la vez llega a tener. Los que no se pisan van a lo ancho.
+Los bloques que se pisan forman un grupo y se reparten en columnas: cada uno usa la primera columna libre a su hora y el grupo tiene tantas columnas como bloques a la vez llega a tener. Los que no se pisan van a lo ancho.
 
 ### Abrir y añadir
 
 - **Abrir:** un bloque abre su formulario (con el día, para «Quitar solo este día»); un encargo, su cartel en el tablón de encargos; una quest, el Quest Board con ella elegida.
-- **Añadir** (el «+» de cada día, que aparece al pasar el ratón): bloque en la agenda (a las 9:00), quest (el formulario completo del Quest Board con la fecha límite puesta: `QuestFormModal` con `preset.dueAt`) o encargo (su formulario con ese día a las 10:00: `TemporalForm` con `date`).
+- **Añadir** (el «+» de cada día): bloque a las 9:00, quest (formulario completo con la fecha límite puesta: `QuestFormModal` con `preset.dueAt`) o encargo ese día a las 10:00 (`TemporalForm` con `date`).
 - **En el día:** pulsar en la rejilla añade un bloque a esa media hora; al abrirlo, la rejilla se coloca en la hora actual (hoy) o en la mañana.
 
-### El sitio donde se planifica (2026-10-06)
+### El sitio donde se planifica
 
-El calendario es la vista de planificación: **Mi día · Semana · Día**. «Mi día» (features/today) es la primera y la que sale la primera vez: lo que se pierde esta noche, lo que está en curso, las rachas en peligro, lo que toca hoy y la agenda de hoy. Los plazos (features/horizon) se quedan solo como filtro de los dos tablones. Las quests que se repiten por días salen aquí cada día que tocan.
+El calendario es la vista de planificación ([ADR-46](../../../docs/decisions/ADR-46-mi-dia.md)): Mi día es la primera vista y la que sale la primera vez. Los plazos ([horizon](../horizon/README.md)) se quedan solo como filtro de los dos tablones. Por qué una sección y no una ventana: [ADR-41](../../../docs/decisions/ADR-41-calendario.md).
 
 ### Estado de interfaz propio
 
-La vista (Mi día, semana o día) y el día elegido viven en `ui.ts`. La vista se recuerda en cada equipo (`localStorage`, `quests.calendarView`), como el idioma; la primera vez, Mi día; el día empieza siempre en hoy. Los avisos del calendario salen abajo (`.cal-toast`); en el teléfono, en la barra.
+La vista y el día elegido viven en `ui.ts`. La vista se recuerda en cada equipo (`quests.calendarView`); el día empieza siempre en hoy. Los avisos del calendario salen abajo (`.cal-toast`); en el teléfono, sobre la barra.
 
-### Teclado y teléfono
+## Eventos
+
+No tiene eventos: se calcula de las quests, los encargos y la agenda. Lo que se añade desde el calendario usa los eventos de cada funcionalidad (`agenda_created`, `quest_created`, `temporal_created`).
+
+## Interfaz
 
 | Tecla | Qué hace |
 |---|---|
 | `S` | Abrir el calendario (y volver al Quest Board) |
-| `←` `→` | Semana (o día) anterior o siguiente; desde Mi día, el día por horas de ayer o mañana |
-| `V` | Mi día → semana → día |
-| `H` | Hoy (en el calendario no hay plazos: la `H` de los tablones no hace nada aquí) |
+| `←` `→` | Semana o día anterior / siguiente; desde Mi día, el día por horas de ayer o mañana |
+| `V` | Mi día → Semana → Día |
+| `H` | Hoy (aquí no hay plazos) |
 | `N` | Bloque nuevo en el día elegido |
 | `Esc` | Cerrar el menú «+» |
 
-En el teléfono la semana va en filas (un día debajo de otro), el «+» de cada día siempre se ve, **deslizar el dedo** pasa de semana o de día (`useSwipe` de features/mobile) y el rombo de crear añade un bloque. La barra de abajo pasa a seis botones (Tablón, Encargos, **Calendario**, Mercader, Personaje y Más).
+El teclado del calendario espera mientras hay una ventana abierta (importa el `…Busy()` de cada una: personaje, mercader, crónica, edición, fallos y búsqueda).
 
----
+En el teléfono la semana va en filas (un día debajo de otro), el «+» de cada día siempre se ve, **deslizar el dedo** pasa de semana o de día (`useSwipe`) y el rombo de crear añade un bloque.
 
 ## Archivos
 
@@ -78,39 +80,39 @@ En el teléfono la semana va en filas (un día debajo de otro), el «+» de cada
 | `model.ts` | `CalendarItem` (con `repeats`, `done`, `failed` y `burned`), `calendarDay`, `layoutDay`, `minuteOf`. Puro |
 | `actions.ts` | Navegar (`moveCalendar`, `goToday`, `setCalendarView`, `cycleCalendarView`, `toggleCalendar`), abrir (`openCalendarItem`) y añadir (`addBlock`, `addQuest`, `addTemporal`) |
 | `ui.ts` | Vista, día elegido, menú «+» y quest en creación; `calendarBusy` |
-| `i18n.ts` | Textos es + ja |
-| `calendar.css` | Semana, día, chips y bloques; diseño de teléfono |
 | `components/CalendarView.tsx` | La sección: cabecera, teclado, deslizar, avisos y la ventana de quest |
-| `components/WeekView.tsx` | La semana |
-| `components/DayView.tsx` | El día por horas |
+| `components/WeekView.tsx`, `DayView.tsx` | La semana y el día por horas |
 | `components/CalendarChip.tsx` | Lo que sale en un día (y su color) |
 | `components/AddMenu.tsx` | El menú «+» de un día |
-| `components/CalendarIcon.tsx` | Icono (cabecera y barra del teléfono) |
+| `components/CalendarIcon.tsx` | Icono (selector de la cabecera y barra del teléfono) |
+| `calendar.css`, `i18n.ts` | Estilos (con su bloque de teléfono) y textos es + ja |
 | `model.test.ts` | Qué sale cada día y el reparto en columnas |
 
-## Puntos de integración
+## Integración
 
 | Fuera de la carpeta | Cambio |
 |---|---|
-| `store/game.ts` | `Section` suma `"calendar"` |
-| `App.tsx` | La sección, la tecla `S`, la `H` sin efecto en el calendario y `calendarBusy()` en la guarda del teclado |
-| `components/Footer.tsx` | Pie del calendario |
-| `components/CreateQuestModal.tsx` | `preset.dueAt` |
-| `features/temporal` | `SectionSwitch` con el calendario (`temporal.section.calendar`); `TemporalForm` / `emptyDraft` aceptan el día |
-| `features/horizon/ui.ts` | `HorizonSection`: los plazos solo en los dos tablones |
-| `features/mobile` | Botón «Calendario» en la barra (seis columnas) y el rombo de crear añade un bloque |
-| `i18n/locales/{es,ja}.ts` | Montan `calendar` |
-| `features/today` | La vista «Mi día» (`TodayView`) |
+| `src/store/game.ts` | `Section` suma `"calendar"` |
+| `src/App.tsx` | La sección, la tecla `S`, la `H` sin efecto aquí y `calendarBusy()` en la guarda del teclado |
+| `src/components/Footer.tsx` | Pie del calendario |
+| `src/components/CreateQuestModal.tsx` | `preset.dueAt` |
+| `src/features/temporal/components/SectionSwitch.tsx` | El calendario en el selector de la cabecera |
+| `src/features/horizon/ui.ts` | `HorizonSection`: los plazos solo en los dos tablones |
+| `src/features/mobile/components/MobileNav.tsx` | Botón «Calendario» en la barra; el rombo de crear añade un bloque |
+| `src/i18n/locales/{es,ja}.ts` | Montan `calendar` |
 
----
+## Dependencias
 
-## Verificación
+- **features/agenda** (`model.ts`, `ui.ts`, `AgendaForm`): los bloques que pinta y su formulario. Para cambiar cómo se repiten, lee su README.
+- **features/temporal** (`model.ts`, `actions.ts`, `ui.ts`, `Skull`): los encargos, abrir su cartel y crear uno con fecha.
+- **features/today** (`TodayView`): la vista Mi día. Para cambiarla, lee su README.
+- **features/mobile** (`swipe.ts`): deslizar para pasar de semana o de día.
+- **features/chronicle**, **features/equipment**, **features/merchant**, **features/editing**, **features/failure**, **features/search** (sus `ui.ts`): solo para que el teclado espere con sus ventanas abiertas. No hace falta leer sus README.
+- **La usan:** `today` (chips y acciones), `menu` (tarjeta Calendar), `mobile` (barra), `search` (abrir un bloque), `temporal` (icono del selector).
 
-Hecho el 2026-10-03 con `pnpm dev` en el navegador integrado (1024 × 768 y 402 × 874).
+## Estado actual
 
-- **Tests:** qué sale un día (quests por su fecha, sin las de otro día, sin fecha ni en reserva; encargos con hora y de todo el día; bloques que se repiten) y el reparto en columnas.
-- **Interfaz:** semana con el gimnasio (lunes y jueves), una quest creada desde el «+» del viernes con su fecha límite, un encargo creado desde el «+» del martes (sale sin aceptar), vista día del domingo con un encargo a las 10:00 y un bloque que se solapa (dos columnas), quitar solo el jueves, deslizar a la semana siguiente, japonés y teléfono (semana en filas, día por horas, barra con seis botones).
-
-**No verificado:** la app nativa y el iPhone de verdad (el gesto de deslizar con el dedo se probó con eventos de puntero simulados); el sonido de los botones.
-
-**Mi día y quests por días (2026-10-06):** tests en `features/today/model.test.ts` (también que las quests por días salen de hoy en adelante y tachadas el día que se hicieron). En el navegador (1100 × 720 y 402 × 874, español y japonés): Mi día con una cita y una quest que se pierden esta noche, una quest de martes y jueves en «Toca hoy» y el jueves en «Próximos días», `V` por las tres vistas, chips de lo quemado y lo fracturado.
+- **Última verificación:** 2026-10-06, tests y navegador a 1100 × 720 y 402 × 874, en español y japonés (Mi día, quests por días, `V` por las tres vistas, chips de lo quemado y lo fracturado).
+- **Tests:** `model.test.ts` y `src/features/today/model.test.ts`.
+- **Sin verificar:** la app nativa y el iPhone de verdad (el gesto de deslizar se probó con eventos de puntero simulados); el sonido de los botones.
+- **Historial:** [docs/history/verificacion/calendar.md](../../../docs/history/verificacion/calendar.md).

@@ -1,179 +1,106 @@
 # Quests — Informe técnico de arquitectura
 
-> **Copia del informe técnico a fecha de 2026-10-06** (actualizada con el uso diario: editar quests, deshacer, alta rápida, fallos, repetición por días, Mi día, búsqueda y avisos del sistema; antes, con los encargos aceptados y sin aceptar, los contactos, el calendario y la agenda, el mercader, el personaje, los atributos, el equipo de serie, las rachas, las listas, la crónica la fase 1.5: eventos versionados, reloj lógico híbrido, error boundary, CSP y CI, la fase 2: sincronización con Google Drive, y la app de iPhone). El original vive como documento colaborativo en Claude: [Quests — Informe técnico de arquitectura](https://claude.ai/code/artifact/1cb3618f-d1e6-483e-a198-a1998279827b). Los diagramas de esta copia son capturas de ese documento (`docs/img/`).
->
-> Las cifras de líneas de código y la tabla «Estructura del código» describen la **fase 1**. Después se añadieron idiomas (`src/i18n/`), el pomodoro como tipo de condición (`src/features/pomodoro/`), la música (`src/features/music/`), los objetos con rareza y drops (`src/features/items/`), los encargos temporales con archivos adjuntos y quests enlazadas (`src/features/temporal/`), las quests complejas con repetición y requisitos (`src/features/complex/`), los plazos (`src/features/horizon/`) el snapshot de la proyección con los primeros tests de Vitest (`src/features/snapshot/`), el mercader (`src/features/merchant/`), el personaje con su equipo (`src/features/equipment/`), los atributos (`src/features/attributes/`), el equipo de serie (`src/features/armory/`), las rachas (`src/features/streaks/`), el objetivo de tipo lista (`src/features/checklist/`), la crónica del aventurero (`src/features/chronicle/`) la pantalla de recuperación (`src/features/recovery/`) la sincronización con Google Drive (`src/features/sync/`) y la interfaz de teléfono (`src/features/mobile/`, sin tipos de dominio nuevos). El diagrama de clases (imagen, redibujado el 2026-10-02, también con la sincronización: `RemoteFile`, el módulo `sync`, `SyncState`, `EventStore.byDevice`, `BlobStore.ids` / `readBase64` y `ProjectionAcc.deletedQuests`) ya incluye el pomodoro, la música, los objetos (`ItemDef`, `Rarity`, `Drop`, `Pity`, `DropTable`), los encargos temporales (`TemporalDef`, `TemporalState`, `TemporalKind`, `AttachmentRef`, `BlobStore`), sus quests enlazadas (`questIds`, `linkedAt`, `QuestState.temporalId`), los requisitos y la fecha límite de las quests (`requires`, `dueAt`, `lastCompletedAt`), los plazos (`Horizon`) y el snapshot de la proyección (`ProjectionAcc`, `Snapshot`, el módulo `snapshot`, `GameStore.projected` y `EventStore.since` / `countUpTo`) y el mercader, el equipo y los atributos (`GearDef`, `GearSlot`, `GearArt`, `Purchase`, `Equipped`, `Attribute`, `Showcase`, `GameState.gear` y `PlayerState.owned` / `equipped` / `attributes`), y las listas, las rachas y la crónica (`ChecklistConditionDef`, `QuestState.checked` / `streak`, `Streak`, `ChronicleEntry`, `GameState.chronicle`). La estructura vigente y las normas de trabajo están en [AGENTES.md](AGENTES.md).
+> **Este archivo es la fuente del informe.** El [documento publicado en Claude](https://claude.ai/code/artifact/1cb3618f-d1e6-483e-a198-a1998279827b) conserva los diagramas editables (de ahí salen las imágenes de `docs/img/`) y es una instantánea para leer: si difiere de este archivo, manda este. Las decisiones están en [decisions/](decisions/README.md); la historia (fases, cifras de cada época, fallos resueltos), en [history/](history/CHANGELOG-TECNICO.md); el estado de cada funcionalidad, en su README (resumen en [INDEX.md](INDEX.md#funcionalidades)).
 
 ---
 
 ## Resumen
 
-La fase 1 está terminada: Quests ya funciona como app de escritorio en macOS (Tauri 2 + React 19 + TypeScript), con datos persistentes en SQLite y todas las animaciones del tablón. Son unas 1.930 líneas de TypeScript y 1.160 de CSS. La fase 1.5 (endurecimiento) también está hecha: hay 314 tests automáticos del dominio y el store, y una CI que los pasa y compila la app en macOS y Windows. Windows no se ha probado a mano todavía.
+Quests es una app de escritorio (macOS y Windows) y de iPhone que convierte tareas en *quests* de estilo JRPG, hecha con Tauri 2 + React 19 + TypeScript. Las fases 1 (base local), 1.5 (endurecimiento) y 2 (sincronización con Google Drive) están terminadas, la app de iPhone funciona y la fase 3 (producto y distribución) va por la mitad: ya están editar, deshacer, el alta rápida, los fallos, Mi día, la búsqueda, los avisos del sistema, el menú de opciones y el icono propio; faltan los logros, las estadísticas, las animaciones reducidas y los instaladores firmados.
 
 Tres decisiones sostienen la escalabilidad del proyecto:
 
-1. **Event sourcing.** No se guarda el estado («XP = 1150»), sino los hechos que lo producen. Así la sincronización entre dispositivos consiste en unir listas de eventos, sin conflictos de escritura.
-2. **Dominio puro y separado de la UI.** Las reglas del juego (niveles, recompensas, estados) viven en `src/domain/` sin depender de React ni de Tauri. Se pueden testear y reutilizar en móvil o en un servidor.
-3. **Almacenamiento detrás de una interfaz.** `EventStore` aísla SQLite. La fase 2 (Google Drive) y un posible backend futuro se enchufan ahí sin tocar la UI.
+1. **Event sourcing.** No se guarda el estado («XP = 1150»), sino los hechos que lo producen. La sincronización entre equipos consiste en unir listas de eventos, sin conflictos de escritura ([ADR-02](decisions/ADR-02-event-sourcing.md)).
+2. **Dominio puro y separado de la interfaz.** Las reglas del juego viven en `src/domain/` y en los `model.ts` de cada funcionalidad, sin React ni Tauri: se testean solas y se reutilizan en el iPhone sin cambios.
+3. **Almacenamiento detrás de una interfaz.** `EventStore` aísla SQLite; la sincronización y un posible backend futuro se enchufan ahí sin tocar la interfaz.
 
-Las deudas que había que cerrar antes de sincronizar ya están resueltas: los eventos llevan versión (ADR-24), se ordenan con un reloj lógico híbrido en lugar del reloj de cada dispositivo (ADR-25), la interfaz tiene un error boundary (ADR-27), la CSP es estricta (ADR-26) y la CI pasa en los dos sistemas. Los snapshots (ADR-16) y los tests del dominio y el store ya estaban hechos. La fase 2 también está hecha: cada equipo sube sus eventos a tu Google Drive y baja los de los demás, y dos equipos que trabajaron sin conexión llegan al mismo estado (ADR-28 a ADR-30).
+Los eventos llevan versión ([ADR-24](decisions/ADR-24-eventos-versionados.md)) y se ordenan con un reloj lógico híbrido ([ADR-25](decisions/ADR-25-reloj-hibrido.md)); el arranque parte de un snapshot ([ADR-16](decisions/ADR-16-snapshot.md)); la interfaz tiene un error boundary, la CSP es estricta y la CI pasa tipos, tests y build en macOS y Windows en cada push.
 
-Quests también funciona en el **iPhone**: el mismo proyecto de Tauri compilado para iOS, con el mismo dominio, los mismos eventos, el mismo SQLite y la misma sincronización. Solo cambian la interfaz, que se adapta al teléfono con CSS (ADR-31), y el inicio de sesión de Google, que en iOS usa la hoja del sistema (ADR-32). Se ha probado en el simulador; en un iPhone de verdad se compila, se firma y se instala, pero aún no se ha abierto (ADR-34).
+## Estado por plataforma
 
-## Estado del proyecto
+| Plataforma | Estado | Sin probar |
+|---|---|---|
+| **macOS** | App nativa que usa el propietario, con sus datos reales; sincroniza con Google Drive | Lo nativo de las funcionalidades más nuevas (el «Estado actual» de cada README) |
+| **Windows** | La CI compila el instalador y pasa los tests; el propietario sincronizó con Drive (2026-10-06) | La app a fondo: fuentes, animaciones y visor de PDF de WebView2 |
+| **iPhone** | Release firmada con un Apple ID gratuito e instalada; el propietario sincroniza con ella (2026-10-06) | Lo propio del teléfono, en el «Estado actual» de [mobile](../src/features/mobile/README.md#estado-actual) |
+| **Navegador** (`pnpm dev`) | Donde se verifica cada funcionalidad en ejecución, en escritorio y a 402 × 874 | — |
 
-Todas las funciones de la fase 1 están hechas; la verificación ha sido manual (navegador integrado y app nativa en macOS).
-
-| Funcionalidad | Estado | Cómo se verificó |
-| --- | --- | --- |
-| Tablón con pestañas por categoría (Élite, Repetible, Encargo) | Hecho | Prueba manual en navegador |
-| Crear quest con objetivos, recompensa y tiempo de reaparición | Hecho | Prueba manual: formulario completo publicado |
-| Aceptar: sello «EN CURSO», destello, temblor y grietas | Hecho | Capturas durante la animación |
-| Progreso por objetivo con botones +/− | Hecho | Prueba manual |
-| Reportar: tarjeta rota, «Quest Clear», contadores, «Level Up!» | Hecho | Capturas de la secuencia completa |
-| Repetibles con espera («Vuelve en 20 h») | Hecho | Prueba manual tras corregir un fallo del sello |
-| Abandonar y retirar quests | Hecho | Prueba manual |
-| Niveles, rangos F–S y oro (sin límite de quests en curso desde la app de iPhone) | Hecho | Comprobado: 400 XP → nivel 3, 1.150 XP → nivel 4 |
-| Persistencia SQLite en la app nativa | Hecho | Base `quests.db` inspeccionada con `sqlite3` |
-| Atajos de teclado | Hecho | Flechas, Enter y X probados; la tecla `+` no se pudo probar |
-| Sonidos sintetizados con botón de silencio | Hecho | Sin verificación auditiva |
-| Quests complejas: repetición en cualquier categoría (también «cada 3 días») y requisitos con candado | Hecho | Comprobaciones del dominio con marcas de tiempo fijas en tres zonas horarias y prueba en navegador (Playwright) |
-| Plazos: filtro de 1 día, 7 días, 2 semanas, 1 mes y más de un mes en los dos tablones; fecha límite de las quests | Hecho | Bordes de cada plazo, cambio de hora y prueba en navegador, también en japonés y a 1.024 px |
-| Encargos con quests enlazadas: se crean en el Quest Board y hay que terminarlas para cumplir el encargo | Hecho | Guardas de la proyección, datos antiguos proyectados idénticos y flujo completo en navegador |
-| Snapshot de la proyección: cada acción aplica solo su evento y el arranque parte del último snapshot | Hecho | Tests con 25 historiales aleatorios cortados en 10 puntos y prueba en navegador (snapshot falseado, evento antiguo, reloj atrasado); app nativa: arranque, cola, evento antiguo y snapshot falseado sobre la base real |
-| Mercader (Hu Tao) con escaparate semanal, personaje con su equipo y decoración del menú, y atributos por área con radar | Hecho | Tests del dominio y del store (compras, doble gasto entre dispositivos, escaparate con cambios de hora, equipo, atributos) y prueba en navegador con Playwright: crear piezas, comprar, equiparlas, fondo y emblema, japonés y de 1.024 a 1.440 px. Sin probar en la app nativa |
-| 69 piezas de serie del mercader (Mushoku Tensei, Re:Zero, Konosuba, JRPG) con precio por ranura, rachas de las repetibles, objetivo de tipo lista, crónica del aventurero y áreas traducidas | Hecho | 302 tests en 21 archivos; prueba en navegador con un historial de 14 días, en español y japonés, de 1.024 a 1.300 px; un snapshot de la versión 2 se descarta y se recalcula. Sin probar en la app nativa (tampoco el arreglo del vídeo de Hu Tao) |
-| Eventos versionados (`v`, `EVENT_VERSION`, `upcastEvent`) | Hecho | Tests: sin `v`, actual y futura dan el estado esperado; los de una versión futura se ignoran (prueba de mutación: quitar la guarda la detectan 2 tests) |
-| Reloj lógico híbrido (`nextTs` con deriva máxima de 1 minuto) | Hecho | Tests con dos equipos desfasados y con el store (fusionar eventos de un equipo adelantado 30 s); con la regla anterior de 1 s fallan 2 tests |
-| Error boundary con pantalla de recuperación | Hecho | Fallo forzado en el navegador: sale la pantalla y «Volver a intentarlo» devuelve el tablón |
-| CSP estricta | Hecho | La misma política como cabecera en Chromium (build de producción): sin bloqueos en el tablón, el mercader con su vídeo, el personaje, la música y un PDF en `blob:`. App nativa de macOS: arranca y abre la base de datos con la CSP; sin revisar la ventana a simple vista |
-| CI en macOS y Windows | Hecho | `.github/workflows/ci.yml`: tipos, tests y build con `tauri-action` en los dos sistemas |
-| Prueba a mano en Windows | Pendiente | La CI deja el instalador como artefacto |
-| Tests automáticos | Hecho | 332 tests en 24 archivos (dominio, store y sincronización); prueba de mutación: detectan 19 de 20 errores introducidos, y 11 de 11 en el mercader, el equipo y los atributos. Sin tests del almacén de binarios ni de la interfaz |
-| App de iPhone: Tauri para iOS e interfaz de teléfono (barra de abajo, detalle y ventanas a pantalla completa, deslizar para pasar página) | Hecho | 4 tests nuevos (336 en 25 archivos). En el navegador a 402 × 874: todas las pantallas y animaciones, en español; escritorio sin cambios. En el simulador de iOS 27: arranca, guarda en SQLite y lo conserva al reinstalar, toques de verdad en el tablón y el detalle. Sin probar en un iPhone de verdad, ni el sonido, los PDF o el iPad |
-| Inicio de sesión de Google en iOS (plugin `web-auth` con `ASWebAuthenticationSession`) | Hecho, a falta de iniciar sesión | En el simulador con un id falso: el llavero responde, se abre la hoja con la página de Google (que rechaza el id) y cerrarla no da error. Con el cliente iOS de verdad (creado en el mismo proyecto), Google enseña su página de inicio de sesión. Falta iniciar sesión para probar el canje y la sincronización iPhone ↔ Mac |
-| Encargos aceptados y sin aceptar: sello «ACCEPTED», quests en reserva hasta aceptarlo, aplazar y filtro Todos · Aceptados · Sin aceptar | Hecho | 375 tests (guardas, datos antiguos, invariante de la reserva y flujo con el store; prueba de mutación 2 de 2). En el navegador a 800 × 600 y 402 × 874, en español y japonés. Sin probar en la app nativa |
-| Contactos en quests y encargos: desplegable con teléfono, correo, WhatsApp, enlace o dirección, y botones Llamar, Escribir, Abrir, Cómo llegar y Copiar | Hecho | Tests de validación, enlaces (solo `tel:`, `mailto:` y `https:`), limpieza y proyección; `cargo check` con el plugin. En el navegador a 800 × 600 y 402 × 874. Sin abrir de verdad Teléfono, Mail o Mapas en la app nativa ni en el iPhone |
-| Calendario (semana y día por horas) y agenda personal con bloques que se repiten; añadir bloques, quests o encargos desde un día | Hecho | 394 tests (días y cambio de hora, repetición, guardas, reparto en columnas y acciones con el store). En el navegador a 1024 × 768 y 402 × 874, en español y japonés. Sin probar en la app nativa ni en el iPhone |
-| Editar quests (`quest_updated`), deshacer (`event_undone`, ⌘Z) y alta rápida de una línea | Hecho | 447 tests en 38 archivos (parches, guardas, círculos, ventana de deshacer, deshacer con snapshot y al volver a abrir la app, marcas del alta rápida). En el navegador a 1280 × 820 y 402 × 874. Sin probar en la app nativa |
-| Fallos: la quest se fractura y el cartel del encargo se quema al acabar el día de su fecha; volver a clavar | Hecho | Tests de plazos (cambio de hora), guardas, quests de un encargo, perdón y store. En el navegador con el reloj adelantado: las dos animaciones, la crónica, el cartel quemado y las copias. Sin probar en la app nativa ni escuchar el sonido |
-| Repetición por días de la semana, «Mi día» en el calendario y búsqueda | Hecho | Tests (siguiente día, racha, calendario, plan del día, búsqueda sin tildes y con kana). En el navegador en español y japonés, escritorio y teléfono |
-| Avisos del sistema (`tauri-plugin-notification`) | Hecho, sin ver un aviso de verdad | Tests del plan; `cargo check` y compilación para el simulador de iOS con el plugin; en el navegador, el temporizador avisa a su hora. Sin ver un aviso del sistema en macOS, Windows ni el iPhone |
-| Menú de opciones: pestaña «MENU» (tecla `O`) con barrido, Kazuma, tarjetas de cada sección en 3D, coleccionable de la semana y ajustes; barra del teléfono a cuatro botones | Hecho | 452 tests en 39 archivos (partes del día, quest actual y días hasta el escaparate con cambio de hora). En el navegador a 1280 × 800, 1024 × 680 y 402 × 874, en español y japonés: barrido, paralaje, ventanas encima del menú y Escape, secciones y búsqueda. Sin probar en la app nativa ni en el iPhone, ni el sonido del barrido |
-| Personajes del menú: rotación diaria sin repetir, elegir otro para hoy y añadir o quitar personajes con su imagen (sincronizados) | Hecho | 464 tests (eventos y guardas, rotación en 2.000 días con 5, 3 y 2 personajes, cambio de hora, elección del día; prueba de mutación). En el navegador a 1280 × 800 y 402 × 874: los cinco de `public/menu/`, elegir, volver a la rotación, añadir un PNG y quitarlo (con su imagen). Sin probar la llegada a otro equipo por Drive ni en la app nativa |
-| Sincronización con Google Drive (fase 2) | Hecho | 18 tests con dos y tres equipos en memoria y un Drive falso (la puerta de la fase: el mismo estado en cualquier orden). En la app nativa de macOS con Google Drive de verdad, dos copias con bases distintas: inicio de sesión, ejemplos juntados y acciones en las dos con los mismos 37 eventos. Sin probar en Windows, con dos equipos físicos ni los adjuntos con Drive de verdad |
-
-La base de datos de la app nativa está en `~/Library/Application Support/com.quests.app/quests.db` (macOS) y en `%APPDATA%\com.quests.app\` (Windows).
+La fecha de la última verificación de cada funcionalidad está en [INDEX.md](INDEX.md#funcionalidades) y lo que le falta, en su README.
 
 ## Stack tecnológico
 
-Tauri se eligió frente a Electron por tamaño (unos 10 MB frente a ~150 MB) y por tener un backend nativo en Rust donde irán OAuth y la sincronización. El resto es el ecosistema web estándar, el más rico para animaciones de interfaz.
+Tauri se eligió frente a Electron por tamaño (unos 10 MB frente a ~150 MB) y por tener un backend nativo en Rust donde viven OAuth y la sincronización ([ADR-01](decisions/ADR-01-tauri.md)). El resto es el ecosistema web estándar, el más rico para animaciones. Las versiones exactas están en `package.json`, `pnpm-lock.yaml` y `src-tauri/Cargo.lock`.
 
-| Capa | Tecnología | Versión | Papel | Por qué |
-| --- | --- | --- | --- | --- |
-| Contenedor de escritorio y móvil | Tauri | 2.12.1 | Ventana nativa, empaquetado, puente JS↔Rust | Binario pequeño, macOS + Windows + iOS con el mismo código |
-| Backend nativo | Rust (edición 2021) | 1.94.1 | Plugins, y en fase 2 OAuth y sync | Seguro, rápido, acceso al sistema y al llavero |
-| Base de datos | SQLite vía tauri-plugin-sql (sqlx) | 2.5.0 / 0.8.6 | Almacén local de eventos | Embebida, sin servidor, transaccional |
-| UI | React | 19.3.0 | Componentes de interfaz | Ecosistema y librerías de animación |
-| Lenguaje | TypeScript | 6.0.3 | Tipado de dominio, eventos y UI | Errores en compilación, refactors seguros |
-| Bundler | Vite | 8.3.1 | Servidor de desarrollo y build | Recarga en caliente, integrado con Tauri |
-| Estado | Zustand | 5.0.15 | Store global (eventos, proyección, UI) | Mínimo, sin boilerplate, accesible fuera de React |
-| Animación declarativa | Motion (Framer Motion) | 13.4.6 | Transiciones, layout, pestañas, paneles | Springs y animaciones de layout |
-| Animación por línea de tiempo | GSAP | 3.15.0 | Sello, tarjeta rota, Quest Clear, Level Up | Secuencias precisas y encadenadas |
-| Sonido | Web Audio API | nativo | Efectos sintetizados | Sin archivos de audio que empaquetar |
-| Tipografía | Fontsource (Cormorant Garamond, Cinzel, Shippori Mincho) | 5.3.0 | Fuentes locales | Funciona sin conexión |
-| Gestor de paquetes | pnpm | 11.8.0 | Dependencias JS | Rápido y determinista |
-
-Para los idiomas se añadieron después i18next 26.4.2 y react-i18next 17.0.15 (español y japonés, unos 64 KB en el build). Todas las versiones son las instaladas en el repositorio a fecha de este informe.
+| Capa | Tecnología | Papel | Por qué |
+|---|---|---|---|
+| Contenedor | Tauri 2 | Ventana nativa, empaquetado, puente JS↔Rust | Binario pequeño; macOS, Windows e iOS con el mismo código |
+| Backend nativo | Rust | Plugins, OAuth, llavero y llamadas a Drive | Seguro, con acceso al sistema; el token nunca llega al WebView |
+| Base de datos | SQLite vía `tauri-plugin-sql` (sqlx) | Almacén local de eventos y binarios | Embebida, sin servidor, transaccional |
+| Interfaz | React 19 + TypeScript 6 | Componentes con tipos | Ecosistema de animación y refactors seguros |
+| Bundler | Vite 8 | Servidor de desarrollo y build | Recarga en caliente, integrado con Tauri |
+| Estado | Zustand 5 | Store global y stores de interfaz por funcionalidad | Mínimo y accesible fuera de los componentes ([ADR-05](decisions/ADR-05-zustand.md)) |
+| Animación | Motion + GSAP 3 | Transiciones y layout; secuencias encadenadas | Cada una para lo suyo ([ADR-06](decisions/ADR-06-motion-y-gsap.md)) |
+| Idiomas | i18next + react-i18next | Español y japonés, diccionarios tipados | Claves comprobadas al compilar |
+| Sonido | Web Audio API | Efectos sintetizados | Sin archivos que empaquetar ([ADR-07](decisions/ADR-07-sonido-sintetizado.md)) |
+| Tipografía | Fontsource (subconjunto latino) | Fuentes locales | Funciona sin conexión ([ADR-08](decisions/ADR-08-fuentes-locales.md)) |
+| Tests | Vitest + happy-dom | Dominio, store y sincronización | Rápidos y con zona horaria fija |
 
 ## Arquitectura por capas
 
-La app tiene dos procesos: el frontend en un WebView y un backend nativo en Rust. Toda la lógica de negocio vive en el dominio puro, en el centro.
+La app tiene dos procesos: el frontend en un WebView y un backend nativo en Rust. La lógica de negocio vive en el dominio puro, en el centro.
 
 ![Arquitectura por capas: frontend, backend nativo y sync](img/arquitectura.png)
 
-Las flechas bajan como comandos (`dispatch`) y suben como estado nuevo; ningún componente lee ni escribe SQLite directamente.
+Los comandos bajan como eventos (`dispatch`) y el estado nuevo sube; ningún componente lee ni escribe SQLite directamente. Cada funcionalidad (`src/features/<nombre>/`) aporta su modelo puro al dominio y sus componentes a la interfaz. Las dependencias van en un solo sentido: `components` → `store` → `domain` ← `storage` ([AGENTES §4](AGENTES.md#4-mapa-del-código)).
 
 ## Diagrama de clases
 
-El modelo separa la definición inmutable de una quest (`QuestDef`) de su estado de juego (`QuestState`). Todo lo que hay en `GameState` se calcula; lo único que se guarda es `GameEvent`.
+El modelo separa la definición de una quest (`QuestDef`, lo que viaja en el evento) de su estado de juego (`QuestState`). Todo lo que hay en `GameState` se calcula; lo único que se guarda es `GameEvent`.
 
 ![Diagrama de clases: dominio, store y almacenamiento](img/diagrama-clases.png)
 
-Son tipos de TypeScript, no clases con métodos: la lógica vive en funciones puras (`project`, `effectiveStatus`, `conditionsMet`), lo que facilita testearla. `quest_created` transporta un `QuestDef` completo y `quest_completed` una copia de `RewardDef`.
+Son tipos de TypeScript, no clases con métodos: la lógica vive en funciones puras (`project`, `effectiveStatus`, `conditionsMet`). Por áreas:
 
-Una condición es de dos tipos: **contador** (`target` = cantidad, avanza con +1) o **pomodoro** (`target` = rondas, avanza con el tiempo). Cada ronda de pomodoro es concentración más descanso, salvo la última, que no tiene descanso porque la tarea ya ha terminado. Cada condición de pomodoro tiene su `Pomodoro` en `QuestState.pomodoros` (1 : 1); su estado guarda solo el avance en una línea de tiempo, así que sobrevive a cerrar la app. Los datos de la versión anterior, cuando el pomodoro era un objeto único de la quest, se convierten al leerlos (`legacy.ts`): es el primer caso real de versionado de eventos. La música (`MusicPlayer`) es la excepción deliberada: una preferencia de cada equipo, sin eventos ni sincronización, y por eso sí es una clase.
+- **Quests.** `QuestDef` lleva categoría, objetivos (`ConditionDef`: contador, pomodoro o lista de casillas), recompensa calculada (`RewardDef`, con el objeto garantizado), y de forma opcional repetición (`cooldownMinutes` o `repeatDays`), requisitos (`requires`), fecha límite (`dueAt`) y contactos (`ContactRef`). `QuestState` añade el estado (`available`, `active`, `cooldown`, `done`), el progreso de cada objetivo (`progress`, `pomodoros`, `checked`), `completions`, `lastCompletedAt`, la racha (`Streak`), `failedAt`, y dos campos calculados: `temporalId` (su encargo pendiente) y `reserved` (en reserva). `QuestPatch` es el parche de `quest_updated`.
+- **Objetos.** `ItemDef` (rareza, `ItemKind` fijo, imagen reducida, si sale en los cofres) vive en `GameState.items`. `PlayerState` suma `inventory`, `discovered`, `pity` y `collectiblesBought`. Cada `Drop` de `quest_completed` copia su rareza.
+- **Encargos.** `TemporalDef` (tipo de cartel, calaveras, fecha, lugar, notas, adjuntos `AttachmentRef`, quests enlazadas `questIds`, contactos, `planned`) y `TemporalState` (pendiente o hecho, `acceptedAt`, `completedAt`, `failedAt`, `earned`, `linkedAt`) en `GameState.temporals`. Los archivos están en el `BlobStore`.
+- **Mercader y personaje.** `GearDef` (ranura `GearSlot`, rareza, icono y, en los fondos, `GearArt` en el `BlobStore`) en `GameState.gear`, que junta el catálogo del jugador y las piezas de serie. `PlayerState` suma `owned` (cada `Purchase` con su precio copiado), `equipped` y `attributes` (un `Attribute` por área).
+- **Agenda y menú.** `AgendaDef` / `AgendaState` (día `AAAA-MM-DD`, minutos, `AgendaRepeat`, días quitados) en `GameState.agenda`; `CharacterDef` (con su `CharacterArt` en el `BlobStore`) en `GameState.characters`. Ninguno toca al jugador.
+- **Calculado sin estado propio.** La crónica (`ChronicleEntry` en `GameState.chronicle`, apuntada por la proyección), los plazos (`Horizon`), el escaparate (`Showcase`), Mi día (`TodayPlan`), la búsqueda (`SearchHit`), el alta rápida (`QuickQuest`), los avisos (`Reminder`) y la rotación de personajes.
+- **Infraestructura.** `ProjectionAcc` (el acumulador, con `deletedQuests`, que guarda el `Snapshot`), `GameStore` (`projected`, `state`, `dispatch` que devuelve el evento guardado), `EventStore` (`since`, `countUpTo`, `byDevice`, `merge`…), `BlobStore` (`ids`, `readBase64`) y los tipos de la sincronización (`RemoteFile`, `Cursors`, `SyncReport`, `SyncState` en Rust).
 
-**Objetos.** `ItemDef` vive en el almanaque (`GameState.items`) y tiene nombre, rareza, tipo, descripción, imagen reducida y si sale en drops. `PlayerState` suma `inventory`, `discovered` y `pity`, todo calculado a partir de los eventos. `RewardDef.itemId` sustituye al antiguo texto `item`, que se convierte al leerlo (`features/items/legacy.ts`). Cada `Drop` de `quest_completed` copia su rareza, y `DropTable` define las probabilidades por rareza y las tiradas.
-
-**Encargos temporales.** `TemporalDef` es algo con fecha (una cita, una entrega) que vive en su propio tablón, fuera de las quests: tipo de cartel (`TemporalKind`), dificultad de 1 a 5 calaveras, fecha (`dueAt`, o todo el día), lugar, notas, recompensa y adjuntos. `TemporalState` añade si está pendiente o cumplido, cuándo y lo ganado; están en `GameState.temporals`. Cumplir uno suma su XP y su oro al jugador. La urgencia (hoy, pronto, vencido) se calcula con la hora actual, sin eventos. Cada `AttachmentRef` lleva solo los metadatos y una miniatura: el archivo está en el almacén de binarios (`BlobStore`), con su SHA-256 como clave.
-
-**Quests complejas, plazos y encargos con quests.** `QuestDef` gana dos campos opcionales: `requires` (quests que hay que completar antes de poder aceptarla) y `dueAt` (fecha límite de todo el día); `cooldownMinutes` ya vale para cualquier categoría, no solo para las repetibles. `QuestState` añade `lastCompletedAt` y `temporalId`, el encargo pendiente al que pertenece, calculado a partir de los enlaces. `TemporalDef.questIds` enlaza las quests que hay que terminar antes de cumplir el encargo, y `TemporalState.linkedAt` guarda cuándo se enlazó cada una. El plazo (`Horizon`: 1 día, 7 días, 2 semanas, 1 mes o más) se calcula con la hora actual, sin eventos. El detalle está en [src/features/complex/README.md](../src/features/complex/README.md) y [src/features/horizon/README.md](../src/features/horizon/README.md).
-
-**Snapshot de la proyección.** `project()` se parte en `applyEvent(acc, e)`, que aplica un evento sobre el acumulador `ProjectionAcc`, y `finishProjection(acc)`, que calcula nivel, rango y `temporalId`. El store ya no guarda la lista de eventos: `GameStore.projected` lleva el acumulador y el último evento aplicado, y `dispatch` aplica solo el evento nuevo sobre una copia. Cada 100 eventos se guarda un `Snapshot` en la tabla `meta`. Al arrancar se usa si es de la misma `PROJECTION_VERSION` y `EventStore.countUpTo(upTo)` coincide con su `count`; entonces solo se aplican los eventos de `EventStore.since(upTo)`. Si no, se reproduce todo. Detalle en [src/features/snapshot/README.md](../src/features/snapshot/README.md).
-
-**Mercader, equipo y atributos.** `GearDef` es el catálogo del mercader (`GameState.gear`): armadura para las ocho ranuras del muñeco (`GearSlot`) y decoración del menú (fondo y emblema), con rareza, icono y, solo el fondo, la imagen grande en el `BlobStore` (`GearArt`). `PlayerState` suma `owned` (cada `Purchase` con su precio copiado), `equipped` (ranura → pieza) y `attributes` (un `Attribute` por área de las quests, calculado a partir de `quest_completed`). El escaparate de la semana (`Showcase`) se calcula con la hora, sin eventos. Detalle en [src/features/merchant/README.md](../src/features/merchant/README.md), [src/features/equipment/README.md](../src/features/equipment/README.md) y [src/features/attributes/README.md](../src/features/attributes/README.md).
-
-**Piezas de serie, listas, rachas y crónica.** El catálogo trae 69 piezas de serie (`features/armory`) que no son eventos: `GameState.gear` junta las del jugador y las de serie, y el precio sale de la rareza y la ranura. `ConditionDef` suma `ChecklistConditionDef` (casillas; las marcadas en `QuestState.checked`). `QuestState.streak` (`Streak`) cuenta las veces seguidas a tiempo de una quest que se repite. `GameState.chronicle` lleva las entradas de la crónica (`ChronicleEntry`: quest, encargo o compra), que apunta `applyEvent` cuando un evento cuenta. Las áreas conocidas tienen clave `@id` y se traducen.
-
-**Versión y orden de los eventos.** `EventMeta` suma `v`, la versión del formato (`EVENT_VERSION`, ahora 1; los eventos anteriores no la llevan y cuentan como 0). `applyEvent` pasa cada evento por `upcastEvent`, que lo sube paso a paso con `UPCASTERS`, e ignora los de una versión más nueva que la app (`isFromFuture`). `EventMeta.ts` es ahora un reloj lógico híbrido (`nextTs`): sigue al último evento aplicado, propio o fusionado, con una deriva máxima de 1 minuto (`MAX_DRIFT_MS`).
-
-**Sincronización.** `EventStore` suma `byDevice` (los eventos de un equipo, para subirlos a su archivo) y `BlobStore`, `ids` y `readBase64`. `ProjectionAcc.deletedQuests` guarda las quests retiradas. La sincronización (`features/sync`) no añade nada al estado del juego, solo sus propios tipos: `RemoteFile` (un archivo de Drive), `Cursors` (versión ya leída de cada archivo, en `meta`) y `SyncReport`. `runSync` recibe sus dependencias (`DriveApi`, `SyncBlobs`); en la app, Drive lo maneja Rust (`SyncState`, con el token en el llavero).
-
-**Recompensa calculada.** La XP y el oro de `RewardDef` ya no los escribe el usuario: el módulo `rewards` los calcula con los objetivos (`REWARD_RATES`: minutos de pomodoro, √ de la cantidad, casillas) y el peso de la categoría (`CATEGORY_FACTOR`), y la proyección los aplica en `quest_created`. La recompensa de un `TemporalState` pendiente se recalcula en `finishProjection` con sus calaveras y lo que valen sus quests enlazadas (`temporalValue`). Lo ganado no cambia: va copiado en `quest_completed` y `temporal_completed` (ADR-35).
-
-**Coleccionables y tipos fijos.** `ItemDef.kind` pasa a ser un `ItemKind` fijo (8 tipos, en la ficha del objeto); los textos libres antiguos se clasifican al leerlos (`itemKindOf`). Los objetos que salen en los cofres son coleccionables: `receiveItems` quema los repetidos. El módulo `collectibles` calcula el coleccionable que vende Hu Tao cada semana (`collectibleOffer`: uno mítico o superior que no tienes, con la semana como semilla; vendido hasta el lunes si ya lo compraste) y su precio (`collectiblePrice`). `applyCollectibleEvent` aplica `collectible_purchased` sobre `ItemsAcc`, que apunta cuándo se compró (`bought`, en `PlayerState.collectiblesBought`) (ADR-36).
-
-**Encargos aceptados y sin aceptar.** `TemporalState.acceptedAt` dice cuándo se aceptó un encargo; sin él, está «sin aceptar». `TemporalDef.planned` solo cuenta al crearlo: los anteriores no lo traen y nacen aceptados. Las quests de un encargo sin aceptar quedan en reserva (`QuestState.reserved`, calculado en `finishProjection`): no salen en el Quest Board y `quest_accepted` se ignora hasta que se acepta el encargo, que tampoco se puede cumplir antes (ADR-38).
-
-**Contactos.** `QuestDef.contacts` y `TemporalDef.contacts` llevan hasta 6 `ContactRef` (tipo `ContactKind`: teléfono, correo, WhatsApp, enlace o dirección; a quién y el dato). Van dentro de la definición, sin eventos propios, y se limpian al leerlos (`cleanContacts`). `contactHref` los convierte en `tel:`, `mailto:` o `https:`, que abre `tauri-plugin-opener` con un permiso limitado a esos tres esquemas (ADR-39).
-
-**Agenda y calendario.** `AgendaDef` es un bloque de la agenda personal (título, día `AAAA-MM-DD` en la hora local, inicio y fin en minutos, color y notas) que puede repetirse ciertos días de la semana (`AgendaRepeat`, con un último día opcional). `AgendaState` suma los días quitados (`skipped`); van en `GameState.agenda` y no tocan al jugador. El módulo `calendar` no tiene tipos de dominio ni eventos: `calendarDay` junta cada día las quests con fecha límite, los encargos y los bloques, y `layoutDay` reparte en columnas los que se solapan (ADR-40 y ADR-41).
-
-**Uso diario (2026-10-06).** `QuestDef.repeatDays` (días de la semana en que vuelve, como `AgendaRepeat.days`). `QuestState.failedAt` y `TemporalState.failedAt` marcan lo fracturado y lo quemado (con `status: "done"`). `QuestPatch` (features/editing) es el parche de `quest_updated`, con `null` para quitar un campo. `ChronicleEntry` suma `FailedEntry` (`k: "failed"`). La unión de eventos suma `EditingEventBody`, `FailureEventBody` y `UndoEventBody`. Sin tipos en el estado: Mi día (`TodayPlan`), la búsqueda (`SearchHit`), el alta rápida (`QuickQuest`) y los avisos (`Reminder`) se calculan; `GameStore.dispatch` devuelve el `GameEvent` guardado y `toast` puede llevar una acción.
-
-**Personajes del menú (2026-10-07).** `CharacterDef` es un personaje que añade el jugador (nombre, `CharacterArt` con la referencia de su imagen en el `BlobStore` y una miniatura); van en `GameState.characters` y no tocan al jugador. Los eventos son `character_added` y `character_removed` (ADR-50). Los de serie son archivos de `public/menu/`, fuera de los eventos y del snapshot. La rotación diaria (`characterOfDay`) y lo elegido para hoy (`CharacterPick`, por equipo) se calculan.
-
-**Almanaques.** El almanaque abarca todo lo que se puede conseguir, con un libro por tipo de objeto: coleccionables, objetos de quest, armaduras, fondos y emblemas. `features/items/almanac.ts` (puro, solo para la interfaz) reparte los `ItemDef` y los `GearDef` del catálogo entre ellos y dice si están conseguidos (en el inventario o comprados). No añade tipos al modelo ni eventos (ADR-37).
+El detalle de cada tipo está en el README de su funcionalidad. Si cambia el modelo, el diagrama se redibuja en la misma tarea ([runbook](runbooks/redibujar-diagramas.md)).
 
 ## Modelo de eventos y persistencia
 
-Cada acción del usuario se registra como un evento inmutable. El estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. Hay seis tipos de evento de quest, que son estos. El pomodoro añade otros cinco (`pomodoro_started`, `_paused`, `_resumed`, `_stopped` y `_break_skipped`), documentados en [src/features/pomodoro/README.md](../src/features/pomodoro/README.md). Los objetos añaden tres (`item_created`, `item_updated` e `item_deleted`), documentados en [src/features/items/README.md](../src/features/items/README.md). Los encargos temporales añaden diez (`temporal_created`, `_updated`, `_attached`, `_detached`, `_linked`, `_unlinked`, `_accepted`, `_postponed`, `_completed` y `_deleted`), documentados en [src/features/temporal/README.md](../src/features/temporal/README.md); `temporal_completed` se ignora mientras quede alguna quest enlazada sin terminar o si el encargo no está aceptado. Las quests complejas y los plazos no añaden eventos: solo campos opcionales de `QuestDef`. El mercader añade cuatro (`gear_created`, `gear_updated`, `gear_deleted` y `gear_purchased`, que copia el precio y solo cuenta si el oro llega en ese punto del historial) y el equipo, dos (`gear_equipped` y `gear_unequipped`); los atributos no añaden ninguno. Por ellos, `PROJECTION_VERSION` pasa a 2. La lista añade un evento más, `checklist_checked` (marca o desmarca una casilla con la quest en curso), 29 tipos en total. Las rachas y la crónica no añaden ninguno. Por ellas, `PROJECTION_VERSION` pasa a 3. La sincronización (fase 2) tampoco añade eventos; la lápida de las quests retiradas (ADR-30) la sube a 4. La recompensa calculada (ADR-35) tampoco añade eventos y la sube a 5. Los coleccionables (ADR-36) añaden `collectible_purchased` (30 tipos) y la suben a 7, porque un repetido de cofre se quema, el tipo de los objetos pasa a ser fijo y se apunta cuándo se compra cada coleccionable. Aceptar y aplazar los encargos (ADR-38) añaden `temporal_accepted` y `temporal_postponed` (32 tipos) y la suben a 8, porque cada encargo guarda cuándo se aceptó. La agenda (ADR-40) añade `agenda_created`, `agenda_updated`, `agenda_skipped` y `agenda_deleted` (36 tipos) y la sube a 9, porque el acumulador gana la agenda. El uso diario añade `quest_updated` (editar, ADR-42), `event_undone` (deshacer, ADR-43), `quest_failed` y `temporal_failed` (fallos, ADR-44): **40 tipos**, y `PROJECTION_VERSION` pasa a 10 (también por la repetición por días, ADR-45). Los personajes del menú (ADR-50) añaden `character_added` y `character_removed`: **42 tipos**, y `PROJECTION_VERSION` pasa a 11, porque el acumulador gana los personajes.
+Cada acción se registra como un evento inmutable y el estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. Hay seis tipos de evento del núcleo (abajo); el resto los declara cada funcionalidad en su `events.ts`, y la lista completa, con dónde se documenta cada uno, se genera desde el código en [INDEX.md](INDEX.md#eventos--funcionalidad).
 
 | Evento | Datos | Efecto en la proyección | Regla de conflicto |
-| --- | --- | --- | --- |
-| `quest_created` | `quest: QuestDef` completa | Añade la quest como `available` | Se ignora si el id ya existe |
-| `quest_deleted` | `questId` | Elimina la quest | Los eventos posteriores sobre ella se ignoran |
-| `quest_accepted` | `questId` | `available` o espera vencida → `active`; reinicia el progreso | Solo aplica desde un estado válido y con sus requisitos completados |
-| `quest_abandoned` | `questId` | `active` → `available` (o `cooldown` si aún no venció) | Solo aplica si está activa |
-| `progress_added` | `questId`, `conditionId`, `amount` (±1) | Suma al contador, limitado a [0, objetivo] | Delta, no valor absoluto: dos dispositivos suman en vez de pisarse |
-| `quest_completed` | `questId`, `reward` (copia, con `itemId` garantizado), `drops` (botín ya tirado) | Suma XP, oro, objeto garantizado y drops; avanza el pity; si se repite (repetible o con repetición) → `cooldown`, resto → `done` | Si dos dispositivos la completan sin conexión, solo cuenta la primera, botín incluido |
+|---|---|---|---|
+| `quest_created` | `quest: QuestDef` completa | Añade la quest como `available`, con la recompensa calculada | Se ignora si el id ya existe o se retiró |
+| `quest_deleted` | `questId` | Elimina la quest y deja su id retirado | Los eventos posteriores sobre ella se ignoran |
+| `quest_accepted` | `questId` | `available` o espera vencida → `active`; reinicia el progreso | Solo desde un estado válido, con sus requisitos completados y fuera de la reserva |
+| `quest_abandoned` | `questId` | `active` → `available` (o `cooldown` si aún no venció) | Solo si está activa |
+| `progress_added` | `questId`, `conditionId`, `amount` (±1) | Suma al contador, limitado a [0, objetivo] | Delta, no valor absoluto: dos equipos suman en vez de pisarse |
+| `quest_completed` | `questId`, `reward` (copia), `drops` (botín ya tirado) | Suma XP, oro y objetos; avanza el pity, la racha, el atributo y la crónica; si se repite → `cooldown`, si no → `done` | Si dos equipos la completan sin conexión, solo cuenta la primera, botín incluido |
 
-El `ts` de cada evento nuevo lo pone `dispatch` con `nextTs`, un reloj lógico híbrido: max(reloj, último aplicado + 1 ms), donde el último aplicado puede ser de otro equipo, salvo que vaya más de 1 minuto por delante del reloj (ADR-17 y ADR-25). Así, los eventos que una acción emite en el mismo milisegundo no se reordenan por su `id` aleatorio, y lo que un equipo hace después de ver un evento remoto va detrás de él aunque su reloj vaya atrasado.
-
-Cada evento nuevo lleva también `v`, la versión de su formato (ADR-24). Para cambiar la forma de un evento se sube `EVENT_VERSION`, se añade un paso en `UPCASTERS` (`src/domain/upcast.ts`) y se sube `PROJECTION_VERSION`. Los eventos de una versión más nueva que la app se guardan, pero la proyección los ignora hasta actualizarla.
-
-La recompensa se copia dentro de `quest_completed`. Así, editar una quest en el futuro no cambia la XP ya ganada. Lo mismo con el botín: se tira al reportar y el resultado se guarda en el evento, así que la proyección no depende del azar.
+- **Orden:** el `ts` lo pone `dispatch` con `nextTs`, un reloj lógico híbrido: como mínimo el último evento aplicado + 1 ms (sea de este equipo o de otro), salvo que ese vaya más de `MAX_DRIFT_MS` por delante del reloj ([COMO-FUNCIONA](COMO-FUNCIONA.md#el-orden)).
+- **Versión:** cada evento lleva `v` (`EVENT_VERSION`); los antiguos se convierten al leerlos con `UPCASTERS` y los de una versión futura se ignoran hasta actualizar ([runbook](runbooks/migrar-evento.md)).
+- **Proyección:** `PROJECTION_VERSION` (`src/domain/projection.ts`) sube cada vez que cambia el resultado de `project()` para eventos ya guardados; el snapshot de otra versión se descarta. Su historia está en el [changelog](history/CHANGELOG-TECNICO.md#versiones-de-la-proyección).
+- **Copias:** la recompensa va copiada en `quest_completed` y `temporal_completed`, el precio en `gear_purchased` y `collectible_purchased`, y el botín ya tirado en `quest_completed`: cambiar fórmulas, precios o tablas no altera lo ya ganado o pagado.
 
 **Esquema SQLite** (creado al arrancar por `openSqliteStore()`):
 
 ```sql
 CREATE TABLE events (
   id        TEXT PRIMARY KEY,      -- UUID v4 del evento
-  device_id TEXT NOT NULL,         -- dispositivo que lo generó
-  ts        INTEGER NOT NULL,      -- milisegundos desde epoch (reloj local)
-  body      TEXT NOT NULL,         -- JSON con type + datos
+  device_id TEXT NOT NULL,         -- equipo que lo generó
+  ts        INTEGER NOT NULL,      -- reloj lógico híbrido, en milisegundos
+  body      TEXT NOT NULL,         -- JSON con type, v y datos
   synced    INTEGER NOT NULL DEFAULT 0  -- 1 = ya subido a Drive
 );
 CREATE INDEX events_ts ON events (ts, id);
-CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);  -- device_id, y en fase 2 cursores de sync
-```
-
-La inserción usa `INSERT OR IGNORE`, de modo que fusionar eventos remotos repetidos es seguro (idempotente). En el navegador, el mismo contrato se cumple sobre `localStorage`, solo para desarrollo.
-
-Los archivos adjuntos de los encargos temporales no van en `events`, sino en una tabla aparte del mismo `quests.db` (ADR-11). En el navegador, en IndexedDB:
-
-```sql
+CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);  -- device_id, snapshot, cursores y cuenta de la sincronización
 CREATE TABLE blobs (
   id      TEXT PRIMARY KEY,         -- SHA-256 del contenido
   mime    TEXT NOT NULL,
@@ -184,185 +111,86 @@ CREATE TABLE blobs (
 );
 ```
 
+La inserción usa `INSERT OR IGNORE`, así que fusionar eventos remotos repetidos es seguro. En el navegador, el mismo contrato se cumple sobre `localStorage` (eventos) e IndexedDB (binarios), solo para desarrollo.
+
 ## Ciclo de vida de una quest
 
-Una quest tiene cuatro estados y cada transición corresponde a un evento. Para reportar, todos los objetivos tienen que estar cumplidos.
+Una quest tiene cuatro estados y cada transición es un evento. Para reportar, todos los objetivos tienen que estar cumplidos.
 
-![Ciclo de vida de una quest: 4 estados](img/ciclo-de-vida-quest.png)
+![Ciclo de vida de una quest](img/ciclo-de-vida-quest.png)
 
-La espera no genera ningún evento: `effectiveStatus()` compara la hora actual con `availableAt`, así que una quest que se repite vuelve sola al tablón aunque la app esté cerrada.
-
-Una quest con requisitos sigue en `available`, pero no se puede aceptar hasta completarlos: el bloqueo se calcula con `prerequisitesMet()`, no es un estado nuevo.
+- **La espera no genera eventos:** `effectiveStatus()` compara la hora con `availableAt`, así que una quest que se repite vuelve sola al tablón aunque la app esté cerrada.
+- **Bloqueada y en reserva no son estados:** una quest con requisitos pendientes (`prerequisitesMet`) o de un encargo sin aceptar (`reserved`) sigue en `available`, pero no se puede aceptar.
+- **Fallar** (`quest_failed`, al acabar el día de su fecha sin completarla) la deja en `done` con `failedAt`, sin recompensa ([failure](../src/features/failure/README.md)).
 
 ## Flujos principales
 
-Todos los flujos siguen el mismo patrón: una acción valida, emite un evento, el store recalcula el estado y la UI reacciona animando el cambio.
+Todos siguen el mismo patrón: una acción valida, emite un evento, el store aplica ese evento sobre la proyección y la interfaz anima el cambio.
 
-**Aceptar una quest** (`Enter` o botón «Aceptar»):
+**Aceptar una quest** (`Enter` o «Aceptar»):
 
-1. `acceptQuest(id)` comprueba que la quest esté disponible y que no le falten requisitos. No hay límite de quests en curso.
-2. `dispatch({type: "quest_accepted"})` crea el evento con `id`, `deviceId` y `ts`.
-3. El store recalcula `project(eventos)` y React vuelve a pintar.
-4. `QuestCard` detecta el cambio a `active` y lanza la línea de tiempo GSAP: sello, sonido, temblor, destello y grietas.
-5. El evento se escribe en SQLite de forma asíncrona.
+1. `acceptQuest(id)` comprueba que esté disponible, que no le falten requisitos y que no esté en reserva.
+2. `dispatch({type: "quest_accepted"})` completa el evento (`id`, `deviceId`, `ts`, `v`), lo aplica sobre una copia del acumulador (`applyEvent` + `finishProjection`) y React vuelve a pintar.
+3. `QuestCard` detecta el paso a `active` y lanza la línea de tiempo GSAP: sello, sonido, temblor, destello y grietas.
+4. El evento se escribe en SQLite de forma asíncrona y el aviso ofrece «Deshacer».
 
 **Reportar una quest** (`Enter` con todos los objetivos cumplidos):
 
-1. `reportQuest(id)` guarda el `PlayerState` de antes.
-2. Emite `quest_completed` con una copia de la recompensa.
-3. Lee el `PlayerState` de después y abre `ClearOverlay` con ambos.
-4. El overlay anima: tarjeta rota en 24 pedazos, «Quest Clear», contadores de XP y oro, barra de nivel y, si sube de nivel, «Level Up!».
+1. `reportQuest(id)` guarda el `PlayerState` de antes y tira el botín (`rollDrops`).
+2. Emite `quest_completed` con la recompensa y los drops copiados.
+3. Abre `ClearOverlay` con el jugador de antes y el de después: tarjeta rota, «Quest Clear», contadores de XP y oro, barra de nivel, «Level Up!» si toca y el cofre del botín.
 
-**Sincronizar con Google Drive** (fase 2, `src/features/sync`):
+**Sincronizar con Google Drive** ([sync](../src/features/sync/README.md)):
 
-1. Al abrir la app, cada 5 minutos, al volver a la ventana y al cerrarla: `runSync` lista los `events-*.jsonl` de Drive (Rust hace la llamada, con el token del llavero).
-2. Baja los de los otros equipos cuya `version` cambió desde el último cursor guardado en `meta`, y `store.merge(remotos)` inserta solo los nuevos. Si entró algo, se recalcula la proyección.
-3. Si este equipo tiene eventos sin subir, sube su `events-<deviceId>.jsonl` entero y marca como subidos los que leyó antes de subir.
-4. Sube los binarios que se usan y faltan en Drive (`blob-<sha256>`) y baja los que faltan aquí.
-5. Cada dispositivo escribe solo en su propio fichero, así que nunca hay dos escritores sobre el mismo archivo.
-
-## Estructura del código
-
-Las dependencias van en un solo sentido: `components` → `store` → `domain` ← `storage`. El dominio no importa nada de React, Zustand ni Tauri; es la regla que hay que proteger al crecer.
-
-| Módulo | Archivos | Líneas | Responsabilidad |
-| --- | --- | --- | --- |
-| `src/domain/` | types, events, projection, leveling, seed | 332 | Reglas del juego puras: tipos, eventos, proyección, curva de XP, rangos, datos de ejemplo |
-| `src/storage/` | eventStore | 127 | Interfaz `EventStore` y sus dos implementaciones (SQLite y localStorage) |
-| `src/store/` | game, actions | 158 | Store Zustand (eventos + estado + UI) y casos de uso (aceptar, progresar, reportar, abandonar) |
-| `src/components/` | Header, Tabs, QuestCard, QuestDetail, CreateQuestModal, ClearOverlay, Footer | 1.041 | Interfaz y animaciones |
-| `src/lib/` | sfx, id, time | 124 | Utilidades: sonido, UUID, PRNG con semilla, formato de tiempo |
-| `src/App.tsx`, `main.tsx` | — | 152 | Composición, filtrado del tablón y navegación por teclado |
-| `src/styles/` | theme, app | 1.164 | Tokens de color y tipografía; estilos de componentes |
-| `src-tauri/` | lib.rs, tauri.conf.json, capabilities | ~40 | Ventana, plugin SQL y permisos mínimos (`sql:default`, `sql:allow-execute`) |
-
-Convenciones a mantener:
-
-- Toda escritura pasa por `dispatch(evento)`; ningún componente modifica el estado directamente.
-- La lógica que decide (¿se puede aceptar?, ¿está completa?) vive en `domain/` o `store/actions.ts`, nunca en un componente.
-- Las animaciones leen el cambio de estado; no lo provocan.
-
-**Una carpeta por funcionalidad.** Cada funcionalidad nueva vive en `src/features/<nombre>/` con su modelo, eventos, acciones, componentes, textos y un `README.md` de diseño. Ya existen `pomodoro` (dominio, con eventos), `music` (servicio local, sin eventos), `items` (entidades propias, azar e imágenes), `temporal` (sección propia, estado de UI propio, archivos adjuntos y quests enlazadas), `complex` (repetición y requisitos, sin eventos propios) y `horizon` (plazos calculados, sin eventos); después, `snapshot` (infraestructura), `merchant` (el mercader: catálogo, precios, escaparate semanal y compras), `equipment` (el muñeco, el armario y la decoración del menú) y `attributes` (un nivel por área de las quests, sin eventos). El dominio importa solo el `model.ts` de cada funcionalidad, nunca su `index.ts`, para no crear ciclos con el store.
+1. Al abrir la app, cada 5 minutos, al volver a la ventana, al ocultarla con algo sin subir y al cerrarla, `runSync` lista los archivos de Quests en Drive (lo hace Rust, con el token del llavero).
+2. Baja los archivos de los otros equipos cuya `version` cambió desde el último cursor y `store.merge` inserta solo los eventos nuevos; si entró algo, recalcula la proyección.
+3. Si hay eventos sin subir, sube el archivo entero del equipo y marca como subidos los que leyó antes de subir.
+4. Sube los binarios que se usan y faltan en Drive, y baja los que faltan aquí. Cada equipo escribe solo en su archivo.
 
 ## Escalabilidad
 
-La arquitectura escala bien en dispositivos y plataformas; el primer límite real era el volumen de eventos, y ya se resuelve con snapshots sin cambiar el modelo (ADR-16). Las cifras de capacidad son estimaciones, no mediciones.
-
 | Dimensión | Situación actual | Cuándo se nota | Medida propuesta |
-| --- | --- | --- | --- |
-| Volumen de eventos | Cada acción aplica solo su evento; el arranque carga el último snapshot (cada 100 eventos) y lee solo los posteriores | Resuelto (ADR-16). Queda: cada acción copia el estado entero, y un evento antiguo fusionado obliga a reproducirlo todo | Hecho en src/features/snapshot. Pendiente: medirlo en la app nativa con un historial grande, porque el ahorro real está en no leer todo SQLite por el puente de Tauri; cambios en `dispatch` |
-| Evolución del esquema | Cada evento lleva `v`; `upcastEvent` convierte los antiguos al leerlos | Resuelto (ADR-24) | Un paso en `UPCASTERS` por cada cambio de formato |
-| Varios dispositivos | Reloj lógico híbrido con deriva máxima de 1 minuto | Resuelto (ADR-25). Queda: un equipo con más de 1 minuto de retraso respecto a lo ya aplicado recalcula todo en cada acción | Si se nota, recalcular desde el snapshot anterior en lugar de desde cero |
-| Sincronización | Un JSONL por dispositivo en Drive, reescrito entero cuando hay novedades; los demás lo bajan solo si cambió su versión | Cuando un equipo pase de unos MB de eventos | Partir el archivo por meses (solo cambia el último) o compactar a snapshot |
-| Escrituras en lote | Resuelto: `merge` inserta 150 filas por sentencia y `markSynced` actualiza en bloques | — | — |
-| Plataformas | macOS probado; Windows compilado y con tests en la CI, sin probar a mano; iOS probado en el simulador e instalado en un iPhone 15 Pro Max | Ahora | Abrir el instalador de la CI en un Windows real; instalar en un iPhone |
-| Móvil | iPhone: la misma app (Tauri para iOS) con interfaz de teléfono (`features/mobile`); Android no | Si se quiere Android | Tauri compila también a Android: haría falta el inicio de sesión de Google con Custom Tabs (el plugin `web-auth` solo tiene la parte de iOS) |
-| Backend propio | No hay | Si se quieren cuentas, social o web | Sustituir el sync de Drive por un servidor detrás de la misma interfaz `EventStore` |
-| Equipo | Una persona; tests con Vitest y CI en macOS y Windows | Al entrar un segundo desarrollador | Lint y CI obligatoria antes de fusionar (protección de la rama `main` en GitHub) |
-| Funcionalidad | Store único mezcla dominio y UI | Al pasar de ~10 pantallas | Separar `uiStore` del `gameStore`; un módulo por feature (quests, inventario, estadísticas). Los encargos temporales ya tienen su propio store de UI (`features/temporal/ui.ts`) |
-| Archivos adjuntos | Tabla `blobs` en SQLite, por SHA-256; se borran los que nadie usa; se sincronizan los que se usan, uno por archivo (`blob-<sha256>`) | Al sincronizar (fase 2) o con muchos PDF grandes | Subir cada archivo una sola vez por su hash (`unsynced` / `markSynced` en `BlobStore`); avisar del espacio ocupado |
+|---|---|---|---|
+| Volumen de eventos | Cada acción aplica solo su evento; el arranque carga el último snapshot (cada 100 eventos) y lee solo los posteriores | Cada acción copia el estado entero, y un evento antiguo fusionado obliga a reproducirlo todo | Medir en la app nativa con un historial grande |
+| Deriva de relojes | Reloj lógico híbrido con una deriva máxima (`MAX_DRIFT_MS`) | Un equipo con más retraso que esa deriva respecto a lo aplicado recalcula todo en cada acción hasta que su reloj lo alcanza | Recalcular desde el snapshot anterior en vez de desde cero |
+| Deshacer | Cada deshacer reproduce todo el historial | Con historiales muy largos | Igual que el anterior |
+| Sincronización | Un JSONL por equipo, reescrito entero cuando hay novedades | Cuando un equipo pase de unos MB de eventos | Partir el archivo por meses o compactar a snapshot |
+| Binarios | Tabla `blobs` por SHA-256; se sincronizan los que se usan, uno por archivo | Con muchos PDF grandes; los que dejan de usarse no se borran de Drive | Borrar de Drive los huérfanos; avisar del espacio ocupado |
+| Plataformas | macOS, Windows (CI) e iOS | Si se quiere Android | Tauri compila a Android; faltaría el inicio de sesión de Google con Custom Tabs (`web-auth` solo tiene iOS) |
+| Backend propio | No hay | Si se quieren cuentas, funciones sociales o web | Un servidor detrás de la misma interfaz `EventStore` |
+| Equipo | Una persona; CI en macOS y Windows | Al entrar un segundo desarrollador | Lint y CI obligatoria antes de fusionar (protección de `main`) |
 
 ## Deuda técnica y riesgos
 
-La fase 1.5 cerró los puntos de prioridad alta que había que resolver antes de la sincronización, y la fase 2 el último: los tokens de Google van al llavero del sistema.
+La lista vigente. Lo resuelto pasa al [changelog](history/CHANGELOG-TECNICO.md). Si una tarea toca uno de estos puntos, se resuelve o, al menos, no se añaden casos ([AGENTES §11](AGENTES.md#11-deuda-conocida-no-la-empeores)).
 
 | Prioridad | Problema | Riesgo | Solución |
-| --- | --- | --- | --- |
-| Media | Faltan tests del almacén de binarios, de los adjuntos y de la interfaz (dominio y store: 314 tests, en la CI) | Romper los adjuntos o la interfaz sin enterarse | Tests de `blobStore` (IndexedDB y SQLite) y de los componentes |
-| Baja | Resuelto: los eventos no tenían versión | Ninguno ya | Hecho: campo `v`, `EVENT_VERSION` y `UPCASTERS` (ADR-24) |
-| Baja | Resuelto: orden por reloj local | Ninguno ya; con más de 1 minuto de deriva se recalcula todo | Hecho: reloj lógico híbrido (ADR-25) |
-| Baja | Resuelto: sin error boundary en React | Ninguno ya | Hecho: `features/recovery` (ADR-27) |
-| Baja | Resuelto: tokens OAuth sin destino seguro | Ninguno ya | Hecho: refresh token en el llavero (crate `keyring`), access token solo en la memoria de Rust; el JavaScript nunca ve un token (ADR-28) |
-| Baja | Resuelto: CSP desactivada | Ninguno ya; falta verla a simple vista en la app nativa | Hecho: CSP estricta en `tauri.conf.json` (ADR-26) |
-| Media | iPhone: la sincronización funciona en un iPhone de verdad (el propietario, 2026-10-06); la compilación release depende de arreglos para Xcode 27 (ADR-34) | Diferencias del iPhone real sin probar a fondo (interruptor de silencio, visor de PDF, teclado sobre los formularios); con un Apple ID gratuito la app caduca a los 7 días | Con la cuenta de desarrollador de pago, TestFlight |
-| Media | Avisos del sistema sin ver de verdad (features/notifications): ni programados en el iPhone ni en macOS o Windows; en el escritorio no avisan con la app cerrada | Que un aviso no salga o salga dos veces | Probarlo en el simulador y en el iPhone (aceptando el permiso); en el escritorio, valorar un aviso del sistema programado en Rust |
-| Media | Windows: la sincronización funciona (el propietario, 2026-10-06); el resto de la app sin probar a fondo (la CI compila y pasa los tests) | Diferencias de WebView2 frente a WKWebView en fuentes, animaciones y el visor de PDF | Instalar el artefacto de la CI en un Windows real |
-| Media | App sin firma ni notarización, icono por defecto | Avisos de Gatekeeper y SmartScreen al instalar | Certificados de Apple y Windows; icono propio |
-| Media | No respeta `prefers-reduced-motion` (parcial: las partículas y sacudidas de `src/lib/fx.ts`, que usa el cofre del botín, sí lo respetan) | Accesibilidad: animaciones intensas sin opción de reducirlas | Versión reducida de cada animación; extender `calm()` al resto |
+|---|---|---|---|
+| Media | Sin tests del almacén de binarios real (IndexedDB y SQLite), de los adjuntos de las acciones de encargos, de los componentes React ni de las animaciones | Romper los adjuntos o la interfaz sin enterarse | Tests de `blobStore` y de los componentes |
+| Media | Windows sin probar a fondo: la CI compila y pasa los tests, y la sincronización funciona, pero nadie ha revisado la app (fuentes, animaciones, visor de PDF de WebView2) | Diferencias de WebView2 frente a WKWebView | Instalar el artefacto de la CI en un Windows real y recorrer la app |
+| Media | iPhone: partes sin probar en el teléfono (lista en [mobile](../src/features/mobile/README.md#estado-actual)); con un Apple ID gratuito, la app caduca a los 7 días | Fallos que solo se ven en el teléfono | Probarlas en el iPhone; TestFlight con la cuenta de desarrollador de pago |
+| Media | Avisos del sistema sin ver de verdad en ningún sistema, y en el escritorio no avisan con la app cerrada ([notifications](../src/features/notifications/README.md#estado-actual)) | Que un aviso no salga o salga dos veces | Probarlos en el simulador y el iPhone; en el escritorio, avisos programados desde Rust |
+| Media | Sincronización: casos sin probar con Drive de verdad (lista en [sync](../src/features/sync/README.md#estado-actual)); la app de Google Cloud sigue en «Testing» (la sesión caduca cada 7 días) | Adjuntos que no llegan; volver a conectar cada semana | Probarlos con dos equipos; publicarla en «In production» (hoja de ruta) |
+| Media | La CSP estricta no se ha revisado a simple vista en la ventana nativa (se probó la misma política en Chromium) | Algo que no carga (vídeo, PDF, fondo) | Si algo no carga, mirar primero la CSP |
+| Media | App sin firma ni notarización | Avisos de Gatekeeper y SmartScreen al instalar | Certificados de Apple y Windows |
+| Media | «Reducir movimiento» solo se respeta en parte: las celebraciones de `src/lib/fx.ts`, los encargos, los fallos y el menú sí; el sello, «Quest Clear» y «Level Up!» no | Animaciones intensas sin opción de reducirlas | Versión reducida de cada animación, con `calm()` |
 | Baja | El límite [0, objetivo] del progreso depende del orden | Resultados distintos en casos raros de fusión | Aceptable; documentado |
-| Baja | Resuelto: los textos estaban fijos en español | Ninguno ya | Hecho: i18next con español y japonés en `src/i18n/`, diccionarios tipados |
-| Baja | Resuelto: no se podían editar quests | Ninguno ya | Hecho: `quest_updated` (ADR-42) |
 
 ## Decisiones de arquitectura
 
-Cada decisión queda registrada con la alternativa que se descartó, para no reabrirlas sin un motivo nuevo.
-
-| # | Decisión | Alternativas descartadas | Motivo | Consecuencia |
-| --- | --- | --- | --- | --- |
-| ADR-01 | Tauri 2 como contenedor | Electron, Flutter, Godot/Unity, nativo por plataforma | Binario ~10 MB, Rust para sync/OAuth, ecosistema web para animaciones | Probar en dos motores web (WebKit en macOS, Chromium en Windows) |
-| ADR-02 | Event sourcing en lugar de guardar estado | Tablas con estado actual + última escritura gana | Fusión sin conflictos entre dispositivos e historial completo | Hace falta versionado de eventos y snapshots al crecer |
-| ADR-03 | SQLite local como fuente de verdad (local-first) | Base de datos remota, Supabase | Funciona sin conexión, sin coste ni servidor | La sincronización es responsabilidad de la app |
-| ADR-04 | Google Drive como canal de sync, un fichero por dispositivo | Replicación MySQL, SQLite dentro de una carpeta de Drive | MySQL exige servidores siempre conectados; un SQLite compartido se corrompe con dos escritores | OAuth propio y app de Google Cloud en modo producción |
-| ADR-05 | Zustand para el estado | Redux Toolkit, Context de React | Mínimo y accesible desde fuera de componentes (atajos, acciones) | Separar store de UI cuando crezca |
-| ADR-06 | Motion + GSAP | Solo CSS, solo Motion, PixiJS | Motion para layout y transiciones; GSAP para secuencias largas encadenadas | Dos librerías que conocer; regla: GSAP solo en secuencias |
-| ADR-07 | Sonido sintetizado con Web Audio | Archivos de audio | Cero recursos que empaquetar | Sonidos sencillos; se pueden sustituir por samples más adelante |
-| ADR-08 | Fuentes locales con Fontsource | Google Fonts por red | La app funciona sin conexión | Solo el subconjunto latino: 372 KB de fuentes y 852 KB de frontend total (con los subconjuntos japoneses eran 26 MB) |
-| ADR-09 | Drops aleatorios resueltos en la acción y guardados dentro de `quest_completed` | Tirar en la proyección con semilla; evento `item_dropped` aparte | La proyección sigue siendo determinista y el botín hereda la guarda contra completados duplicados | El pity se recalcula reproduciendo los drops; cambiar las tablas no altera lo ya ganado |
-| ADR-10 | Imagen de los objetos reducida a 160 px y guardada como data URL en el evento | Ficheros en la carpeta de la app (plugin `fs`); imagen original | Se sincroniza con los demás eventos, sin plugin ni permisos nuevos | 3–30 KB por imagen dentro de SQLite; si se cambia mucho, valorar snapshots |
-| ADR-11 | Adjuntos (PDF e imágenes de hasta 20 MB) en un almacén de binarios aparte, por su SHA-256: tabla `blobs` en SQLite e IndexedDB en el navegador; en el evento, solo la referencia y una miniatura de 320 px | El archivo dentro del evento como ADR-10; plugin `fs`; IndexedDB también en la app nativa | Un PDF de varios MB se leería en cada arranque y no cabe en `localStorage`; la misma conexión SQLite evita plugins y permisos nuevos; el hash evita duplicados entre dispositivos | La fase 2 tendrá que sincronizar binarios además de eventos; un dispositivo puede ver la referencia antes que el archivo («no está en este equipo») |
-| ADR-12 | Encargos temporales como entidad y tablón propios (`TemporalDef`, sección aparte) | Una cuarta categoría de quest | Tienen fecha y se cumplen una vez: no se aceptan ni tienen objetivos ni esperas | Comparten con las quests la recompensa (XP y oro suman al jugador), no `completedCount` ni los drops |
-| ADR-13 | Repetición (en cualquier categoría) y requisitos como campos opcionales de `QuestDef`, con una guarda en la proyección: `quest_accepted` se ignora si faltan requisitos | Eventos nuevos para los requisitos; una categoría «cadena»; comprobarlo solo en la acción | La definición ya viaja entera en `quest_created` y los datos antiguos se leen igual; con la guarda, todos los dispositivos llegan al mismo estado | Repetición y requisitos no se editan hasta que exista `quest_updated`; un requisito retirado deja de bloquear |
-| ADR-14 | Quests enlazadas a un encargo con `TemporalDef.questIds` y los eventos `temporal_linked` / `temporal_unlinked`; `temporal_completed` se ignora mientras quede alguna sin terminar | `QuestDef.temporalId` fijado al crear la quest; borrar las quests al retirar el encargo | Se pueden enlazar y desenlazar después, como deltas que se suman entre dispositivos; `linkedAt` hace que una repetible cuente solo si se completa tras enlazarla | Con el reloj de cada equipo, un encargo cumplido justo tras la última quest podría volver a pendiente al fusionar (lo resuelve el reloj híbrido); retirar un encargo deja sus quests en el tablón |
-| ADR-15 | Plazos calculados con la hora actual (`horizonOf`), excluyentes y con «1 mes» (de 15 a 30 días) para no dejar huecos; fecha límite opcional en `QuestDef` | Guardar el plazo en un evento; plazos acumulativos; solo los cuatro plazos pedidos | Cambia solo con el paso del tiempo, sin eventos; cada fecha cae en un plazo y los contadores suman el total | Una quest sin fecha propia ni encargo sale en «sin fecha»; las que se repiten no tienen fecha límite |
-| ADR-16 | Snapshot del acumulador de la proyección en la tabla meta cada 100 eventos, válido si coinciden PROJECTION_VERSION y el número de eventos hasta upTo; dispatch aplica solo el evento nuevo sobre una copia (structuredClone) | Guardar GameState; validar con un hash de todos los eventos; actualizaciones inmutables a mano en cada case; guardar en cada evento | Arrancar sin leer todo el historial; el recuento detecta cualquier evento que entre en medio, porque nunca se borran; la copia no obliga a tocar el switch ni los modelos | Hay que subir PROJECTION_VERSION al cambiar project() (en desarrollo se avisa si se olvida); el snapshot es una caché local que no se sincroniza |
-| ADR-17 | El ts de un evento nuevo es como mínimo el del último aplicado + 1 ms si el reloj no ha avanzado o va por detrás menos de 1 s (nextTs) | Ids ordenables en el tiempo (UUID v7, ULID); un contador por equipo; esperar al reloj híbrido | Las acciones que emiten varios eventos lo hacen en el mismo milisegundo y el desempate por id aleatorio los reordenaba (un quest_completed antes de su quest_accepted). Es el arreglo más pequeño y no cambia el formato de los eventos | El ts puede adelantarse unos milisegundos al reloj; un retraso de más de 1 s sigue recalculándolo todo. El reloj híbrido sigue pendiente para varios dispositivos |
-| ADR-18 | Mercader con catálogo propio (GearDef); el precio y el rango salen de la rareza, gear_purchased copia el precio y la proyección solo vigila el oro | Vender objetos del almanaque; precio elegido por el usuario; comprobar el escaparate y el rango en la proyección | El propietario quiere que comprar cueste y añadir mercancía sin poner precio; un mismo oro gastado en dos dispositivos sin conexión solo vale una vez | Cambiar los precios no altera lo pagado; el escaparate y el rango se comprueban en la acción |
-| ADR-19 | Escaparate semanal calculado con la semana como semilla: 5 piezas más las añadidas en los últimos 7 días, sin eventos | Un evento de reposición cada lunes; todo el catálogo siempre a la venta | Hace que comprar sea más difícil y todos los equipos ven el mismo escaparate sin sincronizar nada | Una pieza puede tardar semanas en volver (nextShowing dice cuándo); con 5 piezas o menos, todo está a la venta |
-| ADR-20 | Atributos calculados en la proyección a partir de quest_completed y el área de la quest; muñeco dibujado en SVG, una forma por ranura con el color de la rareza | Eventos propios de atributos; pegar la imagen de cada pieza sobre el muñeco | Sin datos nuevos y retroactivo para lo ya completado; las imágenes del usuario no encajan en un cuerpo | Las áreas se normalizan (mayúsculas y espacios); la imagen de cada pieza se ve en su ranura, no sobre el cuerpo |
-| ADR-21 | Piezas de serie del mercader en el código (`BUILTIN_GEAR`), sumadas al catálogo del jugador con `gearOf` / `fullCatalog`, fuera del acumulador; arte en SVG generado | Crearlas con eventos en el primer arranque; un JSON en `public/`; imágenes de las series | Las tiene todo el que instala la app, también quien ya tenía datos; sin peso en los eventos ni en el snapshot; sin derechos de imagen | No se editan ni se retiran; nunca se borra ni se renombra una clave (las compras la nombran) |
-| ADR-22 | Rachas y crónica calculadas en la proyección (`QuestState.streak`, `ProjectionAcc.chronicle`), apuntadas solo cuando un evento pasa sus guardas | Eventos propios; leer el historial de SQLite al abrir la crónica | Retroactivas, sin duplicados entre dispositivos y sin repetir las guardas fuera del dominio | La crónica crece con el snapshot (unos 270 KB al año); `PROJECTION_VERSION` pasa a 3 |
-| ADR-23 | Objetivo de tipo lista con `checklist_checked` (valor por casilla) y áreas conocidas con clave `@id` para traducir los atributos | Reusar `progress_added` (+1); traducir las áreas solo al pintarlas | Marcar dos veces en dos dispositivos cuenta una; «Salud» y «健康» suben el mismo atributo | Cambiar los sinónimos une atributos: hay que subir `PROJECTION_VERSION` |
-| ADR-24 | Versión en cada evento (`v`, `EVENT_VERSION`) con conversión paso a paso al aplicarlo (`UPCASTERS`); los eventos de una versión futura se ignoran | Solo upcasters por forma, como `legacy.ts`; reescribir los eventos al migrar; rechazar los de una versión futura | Con la sincronización, cada cambio de formato llegará a equipos con versiones distintas; la versión explícita dice qué conversión toca sin adivinar por la forma | Cambiar un formato obliga a subir `EVENT_VERSION` y `PROJECTION_VERSION`; un equipo sin actualizar no ve lo que hacen los actualizados hasta actualizarse |
-| ADR-25 | Reloj lógico híbrido dentro de `ts`: max(reloj, último aplicado + 1 ms), también si el último es de otro equipo, con una deriva máxima de 1 minuto | HLC clásico con contador y hora física en campos aparte; relojes vectoriales; ids ordenables en el tiempo | Mantiene la causalidad entre equipos sin cambiar el formato de los eventos, las consultas de SQLite ni el snapshot; el orden total (ts, id) sigue siendo el mismo en todos los equipos | El `ts` puede adelantarse hasta 1 minuto al reloj; un equipo con más deriva recalcula todo hasta que su reloj lo alcanza |
-| ADR-26 | CSP estricta: solo `'self'`, `data:` y `blob:` donde hace falta e IPC; sin *nonces* de Tauri en `style-src` | `csp: null`; *nonces* también en los estilos | Cierra la carga de scripts y recursos de fuera; Motion, GSAP y React necesitan estilos en línea, que el *nonce* anularía | Cada origen nuevo (Google, en la fase 2) hay que añadirlo a mano; `'unsafe-inline'` en los estilos |
-| ADR-27 | Un error boundary en la raíz con pantalla de recuperación (`features/recovery`) que vuelve a montar la app sin recargar | Uno por sección; recargar sin más | Un fallo a medias deja estados raros; volver a montar conserva el store y descarta el estado local roto | Un fallo en un rincón tapa toda la ventana hasta reintentar |
-| ADR-28 | Rust hace el inicio de sesión (PKCE con redirección a 127.0.0.1) y todas las llamadas a Drive; refresh token en el llavero; el JavaScript solo pide listar, bajar y subir | fetch desde el JavaScript con el token; token en SQLite o en un archivo | El token nunca llega al WebView ni al disco en claro, y la CSP no tiene que abrirse a Google | Comandos nativos que mantener; se prueba la lógica con un Drive falso, y lo nativo solo a mano |
-| ADR-29 | Un JSONL por equipo con todos sus eventos, reescrito entero cuando hay novedades; los demás lo bajan si cambió su version de Drive (cursor en meta); binarios uno por archivo por SHA-256, solo los que se usan | Un archivo por evento; añadir al final; sincronizar toda la tabla blobs | Drive no permite añadir a un archivo y miles de archivos serían miles de peticiones; un solo escritor por archivo evita conflictos | Cada subida reescribe el archivo del equipo (unos KB o MB); los binarios que dejan de usarse se quedan en Drive |
-| ADR-30 | Datos de ejemplo con ids fijos y lápida de quests retiradas (ProjectionAcc.deletedQuests) | Ids aleatorios; no crear ejemplos si hay sincronización | Dos equipos que arrancan vacíos los tendrían duplicados, y uno que se instala tarde devolvería los ya retirados | PROJECTION_VERSION pasa a 4; un id de quest retirado no se puede volver a crear |
-| ADR-31 | iPhone con la misma app de Tauri y una interfaz de teléfono hecha con CSS (`@media (max-width: 760px)` en cada funcionalidad) y un armazón propio (`features/mobile`: barra de abajo, menú «Más», detalle a pantalla completa) | Una app móvil aparte (Swift o React Native); una PWA; reducir el teléfono al día a día | El dominio, los eventos, SQLite y la sincronización se reutilizan sin tocar; una PWA no podría guardar el token en el llavero ni hablar con Drive sin abrir la CSP. El propietario quería todo, como en el Mac | Cada pantalla nueva necesita su bloque de teléfono; el JavaScript solo distingue el teléfono donde el CSS no basta (`isPhone()`) |
-| ADR-32 | Inicio de sesión de Google en iOS con un cliente «iOS» sin secreto y `ASWebAuthenticationSession` en un plugin propio (`src-tauri/plugins/web-auth`); el canje del código, en Rust | Redirección a 127.0.0.1 (como en el escritorio); `tauri-plugin-deep-link` y Safari; el SDK de Google Sign-In | iOS no deja escuchar un puerto con Safari delante y Google no admite 127.0.0.1 en clientes iOS; con *deep links* el código pasaría por el JavaScript. El plugin son unas 60 líneas de Swift sin comandos para el WebView | Dos clientes de Google en el mismo proyecto (Drive reconoce la app por el proyecto); el *bundle ID* del cliente iOS tiene que ser el de la app |
-| ADR-33 | Sin límite de quests en curso: se quitan los huecos (`maxActive`, 4 al empezar y uno más cada 3 niveles, hasta 10) | Subir el límite; dejarlo como opción | El propietario: «no tiene sentido» para tareas reales. Ninguna guarda de la proyección dependía de él (solo la acción al aceptar), así que no cambia ningún evento ni el snapshot | `PlayerState.maxActive` desaparece (diagrama de clases redibujado); la cabecera solo cuenta las quests en curso |
-| ADR-34 | Compilación release para iOS con Xcode 27: `llvm-tools` de rustup, `swift_rs_globals()` en `build.rs` (hace globales las funciones de `SwiftRs.o`), PATH con rustup y sin sandbox en el script de Xcode, sin `strip` en las macros; *bundle ID* de iOS propio (`com.requenadonacarlos.quests`) | Esperar a una versión nueva de swift-rs; un *fork* de swift-rs; desinstalar el Rust de Homebrew | swift-rs 1.0.8 deja sin exportar sus propias funciones y el enlace falla; los arreglos se limitan a iOS y no hacen nada si dejan de hacer falta; `com.quests.app` estaba registrado por otra cuenta de Apple | Si Tauri regenera el proyecto de Xcode, comprobar el sandbox y el PATH; el cliente iOS de Google tiene que usar el *bundle ID* nuevo |
-| ADR-35 | Recompensa calculada: la XP y el oro de una quest salen de sus objetivos (minutos de pomodoro, √ de la cantidad, casillas) por el peso de su categoría, y la de un encargo, de sus calaveras más un bono sobre sus quests enlazadas. La proyección los aplica en `quest_created` y en `finishProjection`; el oro, calibrado para comprar a menudo (unos 6.500 G en un día bueno) | Recompensa sugerida y editable; recalcular solo al reportar; bajar los precios del mercader | El propietario quiere que cada objetivo aporte lo suyo, que nadie se infle la recompensa y comprar a menudo sin abaratar el catálogo; en la proyección, todas las pantallas enseñan la misma cifra | `PROJECTION_VERSION` pasa a 5; lo ganado no cambia porque va copiado en `quest_completed` y `temporal_completed`; un equipo sin actualizar sigue usando la recompensa guardada en la definición hasta actualizarse |
-| ADR-36 | Coleccionables únicos (los objetos de cofre: un repetido se quema) y uno a la venta cada semana en la ventana de Hu Tao: mítico o superior, que no tienes, a 1,5 veces el precio del equipo de su rareza, sin rango y uno por semana; la oferta se calcula con la semana como semilla y cambia si te sale la ofrecida en un cofre. `ItemDef.kind` pasa a 8 tipos fijos, las secciones del almanaque | Comprarlos en la ventana de objetos; una oferta fija hasta conseguirla; requisito de rango; un evento de reposición; mantener los repetidos; tipo libre con secciones por texto | El propietario: «si tienes uno, tienes uno», se compra a la mercader, semanal y sin rango, mítico como mínimo, y secciones por tipo fijo; calcular la oferta evita sincronizarla | `PROJECTION_VERSION` pasa a 7 y los repetidos que había desaparecen; `PlayerState.collectiblesBought` apunta cuándo se compró cada uno; los textos antiguos se clasifican con palabras clave (lo que no encaja, en «otros») |
-| ADR-37 | Un almanaque por tipo de objeto (coleccionables, objetos de quest, armaduras, fondos y emblemas), con el equipo de Hu Tao como cromos que se consiguen al comprarlos; solo para mirar | Secciones por los 8 tipos de los objetos; un álbum aparte para el equipo en la ventana del personaje | El propietario quiere ver en el almanaque todo lo que se puede conseguir, separado por tipo de objeto («otro almanaque para fondos, otro para armaduras»); comprar sigue siendo cosa de Hu Tao | Sin datos nuevos: se calcula del catálogo, el inventario y las compras; los tipos de objeto pasan a verse solo en la ficha |
-| ADR-38 | Encargos aceptados o sin aceptar: `TemporalState.acceptedAt`, eventos `temporal_accepted` y `temporal_postponed`, y `TemporalDef.planned` al clavarlo; las quests de uno sin aceptar quedan en reserva (`QuestState.reserved`, calculado) con una guarda en `quest_accepted`; filtro Todos · Aceptados · Sin aceptar por equipo | Crear las quests solo al aceptar (borradores dentro del encargo); ocultarlas solo en la interfaz, sin guarda; un estado nuevo de `QuestStatus`; un *upcaster* que añada `planned` a los antiguos | El propietario planifica a largo plazo y empieza los encargos más tarde; con las quests ya creadas, el formulario, los enlaces y la recompensa no cambian, y la guarda deja a todos los equipos en el mismo estado | `PROJECTION_VERSION` pasa a 8; los encargos anteriores nacen aceptados; un equipo sin actualizar ve los sin aceptar como aceptados; no se aplaza con una quest en curso |
-| ADR-39 | Contactos escritos a mano dentro de `QuestDef` y `TemporalDef`, y abiertos con `tauri-plugin-opener`, con `opener:allow-open-url` limitado a `tel:`, `mailto:` y `https:` | Elegirlos de la agenda del sistema; eventos propios de contactos; el crate `open` (ya en la app); `opener:default`; un comando propio en Swift | El propietario los quiere escritos a mano; el crate `open` no funciona dentro de una app de iOS; `opener:default` también deja revelar archivos; dentro de la definición viajan y se sincronizan con la quest | Un plugin y un permiso más; los contactos de una quest no se editan hasta que exista `quest_updated`; los de un encargo sí (lista entera en el parche) |
-| ADR-40 | Agenda personal con eventos propios (`agenda_created`, `_updated`, `_skipped` y `_deleted`); días como texto `AAAA-MM-DD` en la hora local y horas en minutos; repetición por días de la semana con un último día opcional y días quitados como delta | Bloques como quests de la categoría repetible; milisegundos UTC; una regla RRULE completa; guardarla solo en el equipo | Es para organizarse, sin XP ni oro; un bloque de las 9:00 sigue a las 9:00 con el cambio de hora; el propietario solo pidió repetir por días; se tiene que ver en el iPhone | `PROJECTION_VERSION` pasa a 9; cambiar de zona horaria mueve los bloques con el reloj del equipo; sin repetición mensual ni avisos |
-| ADR-41 | Calendario como tercera sección (`Section` «calendar», tecla `S`) con dos vistas, semana y día por horas, calculadas sin eventos; las quests salen por su propia fecha límite y las de un encargo, con su encargo | Una ventana como el mercader; dos secciones separadas; repetir cada quest de un encargo en su día; abrir la app en el calendario | El propietario quiere ver la semana y un calendario por horas, pero que la app abra en el Quest Board; una sección tiene sitio y teclado propios; sin duplicados en el día | La barra del teléfono pasa a seis botones; los plazos (`H`) quedan solo en los tablones |
-| ADR-42 | Editar quests con `quest_updated`: un parche con solo lo que cambia, `null` para quitar, guardas en la proyección (terminada no; en curso, sin objetivos, categoría ni repetición; requisitos sin círculos) y recompensa recalculada | Un evento por campo; reemplazar la definición entera; permitir cambiar los objetivos en curso | Dos equipos que cambian cosas distintas suman; `undefined` no sobrevive al JSON; cambiar las reglas a mitad rompería el progreso y los pomodoros | Lo ganado no cambia (va copiado); un cambio de objetivos en curso hay que hacerlo tras abandonarla |
-| ADR-43 | Deshacer como otro evento (`event_undone`), válido 15 minutos y solo para ciertos tipos; `project()` / `applyAll` saltan lo deshecho y deshacer recalcula todo (también el arranque si hay uno en la cola) | Borrar el evento; eventos de compensación por tipo (devolver el oro, restaurar el progreso); retrasar el envío unos segundos | Los eventos son inmutables; una regla genérica cubre crear, editar, abandonar, retirar, encargos y agenda sin reglas por tipo; el resultado es el mismo en todos los equipos | Completar, cumplir, comprar y fallar no se deshacen (el botín se volvería a tirar); cada deshacer reproduce todo el historial (es raro); los adjuntos de un encargo retirado se borran pasada la ventana |
-| ADR-44 | Fallos como eventos (`quest_failed`, `temporal_failed`) que emite un vigilante al acabar el día de la fecha; lo fallido queda `done` con `failedAt`; sin coste; las quests de un encargo quemado fallan con él (no las que se repiten); se perdona lo vencido antes del 2026-10-06 (en la acción, no en la guarda) | Calcularlo sin eventos con la hora; un `QuestStatus` nuevo; restar oro o XP; fallar al pasar la hora exacta | Sale del tablón, se apunta en la crónica y bloquea el encargo: tiene que ser igual en todos los equipos; con `done` todas las listas ya lo quitan; el propietario quiere constancia, no castigo, y margen hasta medianoche | Un requisito fallido deja de bloquear; una quest enlazada fallida bloquea su encargo (se puede desenlazar); la animación se enseña una vez en cada equipo (`quests.failSeen`) |
-| ADR-45 | Repetición por días de la semana en las quests (`QuestDef.repeatDays`), como la agenda: vuelven a medianoche del siguiente día que toca y la racha dura hasta que acaba ese día; salen en el calendario de hoy en adelante | Solo «cada N»; una regla RRULE; quests creadas por cada día | El propietario quiere la planificación unida en el calendario («gimnasio lunes, miércoles y viernes»); un campo opcional no cambia los datos antiguos | `PROJECTION_VERSION` pasa a 10; si hay días, mandan sobre la espera |
-| ADR-46 | El calendario como sitio de planificación con «Mi día» (features/today) como primera vista; los plazos se quedan solo como filtro de los tablones | Una sección «Hoy» aparte; abrir la app en Mi día; mantener vistas por plazo | Menos conceptos que se solapan; la app sigue abriendo en el Quest Board, como quiere el propietario | Mi día se calcula sin eventos; `V` pasa por tres vistas |
-| ADR-47 | Avisos del sistema con `tauri-plugin-notification`: en iOS, programados (hasta 60, cancelados y reprogramados si cambia el plan); en el escritorio, un temporizador que avisa al momento (el plugin no programa); preferencia por equipo | Notificaciones desde Rust con un temporizador propio; *push* desde un servidor; solo avisos dentro de la app | Sin servidor y sin abrir la CSP; en el iPhone avisan con la app cerrada, que es donde más falta hace | En el escritorio no avisan con la app cerrada; cinco permisos más en `capabilities` |
-| ADR-48 | Alta rápida de una línea con marcas (`mañana`, `lunes`, `12/10`, `#área`, `@quién`, `!`, `x3`) y búsqueda sin tildes ni distinción de kana; sin eventos propios | Un formulario corto; reconocimiento de fechas en lenguaje natural completo; buscar solo en títulos | Apuntar algo tiene que costar segundos; marcas sencillas y previsibles en español y japonés | Una quest rápida lleva un objetivo «Hacerlo ×N»; el resto se completa editándola |
-| ADR-49 | Menú de opciones (features/menu): la cabecera se queda con el tablón, el rango, la XP, el oro y la búsqueda; el mercader, el personaje, los objetos, la crónica, la búsqueda, las secciones y los ajustes van en una pantalla al estilo del menú principal de un gacha (Kazuma y tarjetas en 3D con rótulos en relieve), que entra con un barrido; las ventanas se abren encima y se vuelve al menú; en el teléfono, la barra pasa a cuatro botones y el menú sustituye al «Más» | Un menú desplegable en la cabecera; otra ventana como el mercader; dejar los botones en la cabecera; rótulos traducidos en grande | El propietario: la interfaz «abruma» y pidió una pestaña de opciones con el estilo de Arknights y Kazuma; una pantalla deja sitio al personaje y a la profundidad, y es solo presentación (sin eventos ni cambios en el dominio) | Dos clics en lugar de uno para las ventanas (las teclas `I`, `C`, `P` y `J` siguen igual); el teclado del menú escucha en captura para no adelantarse a las ventanas; nada entre la rejilla y los textos puede aplanar el 3D; cada ventana nueva se añade como tarjeta del menú |
-| ADR-50 | Personajes del menú: los de serie son los `.webp` de `public/menu/` (un plugin de Vite los lista como `virtual:menu-characters`); los que añade el jugador son eventos (`character_added`, `character_removed`) con la imagen en el almacén de binarios; rotan cada día en vueltas barajadas con su número como semilla (sin repetir hasta que salen todos); elegir otro para hoy se guarda solo en el equipo y no cambia la rotación | Personajes solo en el equipo (sin eventos); guardar el historial de la rotación; elegir para hoy como evento; `import.meta.glob` en una carpeta de `src/` | El propietario quiere que lleguen a todos sus equipos; calcular la rotación da el mismo personaje en todos sin guardar nada; los recursos van en `public/` (norma) y el propietario ya deja ahí los archivos | `PROJECTION_VERSION` pasa a 11 (42 tipos); añadir o quitar un personaje vuelve a barajar la rotación desde ese día; quitar no se deshace (la imagen se borra); otro equipo puede ver la miniatura antes que la imagen |
+Cada decisión está en su archivo, con lo que se descartó y por qué, para no reabrirla sin un motivo nuevo: [índice de ADR](decisions/README.md). Las que sostienen el proyecto son ADR-01 (Tauri), ADR-02 (event sourcing), ADR-03 (local-first), ADR-16 (snapshot), ADR-24 y ADR-25 (versión y orden de los eventos) y ADR-28 y ADR-29 (sincronización desde Rust, un archivo por equipo).
 
 ## Hoja de ruta
 
-Recomiendo una fase corta de endurecimiento antes de la sincronización. Lo que se cambie en el formato de los eventos después de sincronizar obliga a migrar datos ya repartidos entre dispositivos.
+Cada fase termina cuando se cumple su puerta, no en un plazo.
 
-![Hoja de ruta: 5 fases y 3 puertas](img/hoja-de-ruta.png)
+![Hoja de ruta: fases y puertas](img/hoja-de-ruta.png)
 
-No hay fechas comprometidas: cada fase termina cuando se cumple su puerta, no en un plazo.
+**Pendiente:**
 
-**Siguientes pasos concretos:**
-
-- [x] Añadir Vitest y tests de `project()` y `levelFromXp()`
-- [x] Añadir el campo `v` a `EventMeta` y un upcaster vacío
-- [x] Sustituir `ts` por un reloj lógico híbrido
-- [x] Añadir un error boundary con pantalla de recuperación
-- [x] Configurar GitHub Actions con `tauri-action` para macOS y Windows
-- [x] CSP estricta en `tauri.conf.json`
-- [x] CI en verde en macOS y Windows (puerta de la fase 1.5). Queda probar a mano el instalador de Windows
-- [x] Crear el proyecto en Google Cloud con un OAuth Client ID de tipo «Desktop app» (lo hace el propietario de la cuenta)
-- [x] Sincronización con Google Drive: eventos y adjuntos (fase 2)
-- [ ] Publicar la app de Google Cloud en «In production» (en pruebas, la sesión caduca cada 7 días) y probar la sincronización en Windows
-- [x] App de iPhone: Tauri para iOS, interfaz de teléfono e inicio de sesión de Google con la hoja del sistema
-- [x] Crear el cliente OAuth «iOS» en Google Cloud
-- [x] Compilar, firmar e instalar la app en el iPhone
-- [x] Abrirla en el iPhone y probar la sincronización (el propietario, 2026-10-06; también en Windows)
-- [x] Uso diario: editar, deshacer, alta rápida, fallos, repetición por días, Mi día, búsqueda y avisos del sistema
-- [ ] Ver los avisos del sistema de verdad en el iPhone, macOS y Windows
+- [ ] Publicar la app de Google Cloud en «In production» (en pruebas, la sesión caduca cada 7 días).
+- [ ] Recorrer la app en un Windows real con el instalador de la CI.
+- [ ] Ver los avisos del sistema de verdad en el iPhone, macOS y Windows.
+- [ ] Logros y estadísticas.
+- [ ] Versión reducida de las animaciones que aún no respetan «reducir movimiento».
+- [ ] Instaladores firmados y notarizados (puerta de la fase 3: probados en macOS y Windows).

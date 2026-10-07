@@ -4,8 +4,4 @@ Antes de cualquier tarea, sigue la guía de trabajo del proyecto (se importa aqu
 
 @docs/AGENTES.md
 
-Contexto ampliado, cuando haga falta:
-
-- Arquitectura, diagramas, deuda y hoja de ruta: @docs/INFORME-TECNICO.md
-- Mecanismos por dentro: docs/COMO-FUNCIONA.md
-- Diseño de cada funcionalidad: src/features/<nombre>/README.md
+No cargues más documentos de los necesarios (sección 2 de la guía): para cada tarea, [docs/INDEX.md](docs/INDEX.md#por-tarea) dice cuál abrir.

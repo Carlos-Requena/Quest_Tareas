@@ -1,36 +1,35 @@
-# Objetos: inventario, almanaque y drops
-
-Los objetos dejan de ser un texto libre de la recompensa y pasan a ser **entidades del almanaque** (`ItemDef`), con nombre, imagen, rareza, tipo y descripción. Se crean desde la app. Al completar una quest, el jugador recibe el **objeto garantizado** de la quest (si tiene) y un **botín aleatorio** tirado con probabilidades por rareza al estilo de Genshin Impact. El botín sale de un **cofre** que se abre con un clic, con una celebración que crece con la rareza. Lo conseguido va al **inventario**; el **almanaque** es un libro con todos los objetos como un álbum de cromos, con los que faltan apagados.
-
-Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
-
+---
+funcionalidad: items
+titulo: Objetos
+resumen: Objetos con rareza y tipo fijo, inventario, cofre de botín con pity al estilo Genshin y un almanaque por tipo de objeto.
+tipo: dominio
+eventos: [item_created, item_updated, item_deleted]
+preferencias: []
+adr: [ADR-09, ADR-10, ADR-36, ADR-37]
 ---
 
-## Requisitos
+# Objetos
+
+Los objetos son **entidades del almanaque** (`ItemDef`) con nombre, imagen, rareza, tipo y descripción, creadas desde la app. Al completar una quest, el jugador recibe su **objeto garantizado** (si tiene) y un **botín aleatorio** con probabilidades por rareza al estilo de Genshin Impact, que sale de un **cofre** con una celebración que crece con la rareza. Lo conseguido va al **inventario**; el **almanaque** es un libro de cromos con todo lo que se puede conseguir, un libro por tipo. Se abre con la tecla `I` o la tarjeta «Collection» del [menú](../menu/README.md).
+
+## Qué hace
 
 | # | Requisito | Cómo se cumple |
 |---|---|---|
 | R1 | El objeto es una entidad propia, no un texto | `ItemDef` + eventos `item_created` / `item_updated` / `item_deleted` |
 | R2 | Seis rarezas: común, poco común, raro, épico, mítico y legendario | `RARITIES` (de menor a mayor) y `RARITY_META` (estrellas 1–6, color, etiqueta) |
-| R3 | Colores gris, verde, azul, morado, rojo y dorado | Tokens `--r-common` … `--r-legendary` en `theme.css` |
-| R4 | El color es el fondo del objeto y el de la tipografía al pasar el ratón | `.iart` (fondo degradado con `--rc`) y `.itile:hover .itile-name { color: var(--rc) }` |
+| R3 | Colores gris, verde, azul, morado, rojo y dorado | Tokens `--r-common` … `--r-legendary` |
+| R4 | El color es el fondo del objeto y el de la letra al pasar el ratón | `.iart` (degradado con `--rc`) y `.itile:hover .itile-name` |
 | R5 | El jugador tiene inventario | `PlayerState.inventory` (unidades por id), calculado por la proyección |
-| R6 | Almanaque para consultar los objetos, como colección de cromos | Ventana «Objetos» (tecla `I`): pestañas Inventario, Almanaque y Probabilidades |
-| R7 | Los objetos se crean desde la app: nombre, imagen, calidad y opciones | Formulario en el panel derecho del almanaque (`ItemForm`) |
-| R8 | Probabilidades por rareza como en Genshin | `DROP_TABLES` + pity (`PITY_RULES`) |
-| R9 | Las quests de élite mejoran el drop; el resto, estándar | `dropTableFor(category)`: élite = tabla mejorada y 2 tiradas |
+| R6 | Almanaque para consultar los objetos, como colección de cromos | Ventana «Objetos»: pestañas Inventario, Almanaque y Probabilidades |
+| R7 | Los objetos se crean desde la app | Formulario en el panel derecho del almanaque (`ItemForm`) |
+| R8 | Probabilidades por rareza como en Genshin; élite mejora el botín | `DROP_TABLES` + pity (`PITY_RULES`); `dropTableFor(category)`: élite = tabla mejorada y 2 tiradas |
 
----
+## Reglas y decisiones
 
-## Decisiones de diseño
+### Probabilidades y pity
 
-### «Clase» en el diseño, tipo + funciones en el código
-
-En el diagrama `ItemDef` es una clase. En TypeScript es una `interface` (datos planos) más funciones puras (`rollDrops`, `applyItemEvent`, `receiveItems`), igual que `QuestDef` y `Pomodoro`. La norma 5.4 de [AGENTES.md](../../../docs/AGENTES.md) lo exige: el estado tiene que poder guardarse como JSON y reconstruirse desde eventos. Una `class` con métodos no sobrevive a `JSON.parse`.
-
-### Probabilidades
-
-Tomo de Genshin los dos extremos que la gente conoce: **legendario 0,6 %** (el 5★) y **épico o superior ~9 %** (el 4★ es 5,1 %, pero aquí hay dos rarezas intermedias más).
+De Genshin se toman los dos extremos conocidos: **legendario 0,6 %** y **épico o superior ~9 %**.
 
 | Rareza | Estrellas | Encargos y repetibles | Élite |
 |---|---|---|---|
@@ -42,115 +41,60 @@ Tomo de Genshin los dos extremos que la gente conoce: **legendario 0,6 %** (el 5
 | Común | ★ | 50 % | 30 % |
 | **Tiradas por quest** | | **1** | **2** |
 
-**Pity**, calcado de Genshin:
-
-- **Legendario:** desde la tirada 74 sin legendario, su probabilidad sube un 6 % por tirada; la 90 lo garantiza. Con la tabla estándar sale de media cada **62,3 tiradas** (medido con 100.000 tiradas; en Genshin, ~62,5).
-- **Épico o superior:** garantizado cada 10 tiradas (el 4★ de Genshin).
-- El pity es **común a las dos tablas** y solo cuenta tiradas aleatorias, no los objetos garantizados.
-
-**Si no hay objetos de la rareza que sale**, cae uno de la rareza inferior más cercana (y, si no hay ninguna inferior, de la superior más cercana). Si ningún objeto puede salir en drops, no hay botín.
+- **Legendario:** desde la tirada 74 sin legendario, su probabilidad sube un 6 % por tirada; la 90 lo garantiza (de media, cada 62,3 tiradas con la tabla estándar).
+- **Épico o superior:** garantizado cada 10 tiradas.
+- El pity es **común a las dos tablas** y solo cuenta tiradas aleatorias, no los garantizados.
+- **Si no hay objetos de la rareza que sale**, cae uno de la rareza inferior más cercana (o, si no hay, de la superior). Si ninguno sale en drops, no hay botín.
 
 ### El azar vive en la acción; el resultado, en el evento
 
-`reportQuest` tira los dados (`Math.random`) y guarda el resultado dentro de `quest_completed.drops`. La proyección solo **lee** los drops, así que es determinista: todos los dispositivos calculan el mismo inventario y el mismo pity. `rollDrops` recibe `rnd` como parámetro y se prueba con un PRNG con semilla.
-
-Los drops **no son un evento aparte** porque así heredan la guarda de `quest_completed`: si dos dispositivos completan la misma quest sin conexión, la segunda se ignora entera, botín incluido. Con un evento `item_dropped` independiente se duplicarían los objetos.
-
-Cada drop copia su **rareza** (`{ itemId, rarity }`): si después se edita la rareza del objeto, el pity ya calculado no cambia.
+`reportQuest` tira los dados y guarda el resultado en `quest_completed.drops`; la proyección solo lo lee, así que es determinista y todos los equipos calculan el mismo inventario y el mismo pity. Los drops **no son un evento aparte** para heredar la guarda de `quest_completed`: si dos equipos completan la misma quest sin conexión, la segunda se ignora con su botín. Cada drop copia su **rareza**: editar después la rareza del objeto no cambia el pity ya calculado ([ADR-09](../../../docs/decisions/ADR-09-drops-en-el-evento.md)).
 
 ### Imagen dentro del evento
 
-La imagen se reduce en el navegador a **160 px** como máximo (`image.ts`, con canvas) y se guarda como *data URL* WebP (PNG si el WebView no codifica WebP) dentro de `item_created` / `item_updated`. Pesa entre 3 y 30 KB.
-
-| Alternativa | Por qué no |
-|---|---|
-| Fichero en la carpeta de la app (plugin `fs` de Tauri) | Nuevo plugin y permisos, y la fase 2 tendría que sincronizar ficheros además de eventos |
-| Guardar la imagen original | Una foto de móvil pesa varios MB y se cargaría en cada arranque |
-
-Sin imagen se pinta un **monograma** (la inicial del nombre) sobre el fondo de la rareza.
+La imagen se reduce en el navegador a **160 px** (`image.ts`) y se guarda como *data URL* WebP (PNG si el WebView no codifica WebP) dentro de `item_created` / `item_updated`: de 3 a 30 KB. Sin imagen se pinta un **monograma** sobre el fondo de la rareza ([ADR-10](../../../docs/decisions/ADR-10-imagen-en-el-evento.md)).
 
 ### Edición por campos y retirada
 
-- `item_updated` lleva solo los campos que cambian (`patch`). Dos dispositivos que editan campos distintos no se pisan (es la idea de los deltas de la norma 5.1).
-- `item_deleted` quita el objeto del almanaque y del inventario. El id queda marcado como retirado: un `item_created` repetido o un nombre antiguo no lo resucitan. Las quests que lo daban como garantizado dejan de darlo.
+- `item_updated` lleva solo los campos que cambian (`patch`): dos equipos que editan campos distintos no se pisan.
+- `item_deleted` quita el objeto del almanaque y del inventario. El id queda retirado: no lo resucita un `item_created` repetido. Las quests que lo daban como garantizado dejan de darlo.
 
 ### Coleccionables: se tienen o no se tienen
 
-Los objetos que **salen en los cofres** (`droppable`) son **coleccionables** (`isCollectible`). Desde la versión 6 de la proyección:
+Los objetos que **salen en los cofres** (`droppable`) son **coleccionables** (`isCollectible`) ([ADR-36](../../../docs/decisions/ADR-36-coleccionables-unicos.md)):
 
-- Solo se puede tener **uno**. Si sale repetido (en un cofre o como objeto garantizado), **se quema**: no suma al inventario, pero la tirada cuenta para el pity. En el cofre se ve apagado, con la marca «Repetido · se quema».
-- Los repetidos que ya había **desaparecen**: la proyección vuelve a reproducirlo todo con la regla nueva (el propietario lo quiso así).
-- Si un objeto pasa a salir en los cofres (`item_updated` con `droppable: true`), sus repetidos desaparecen en ese momento.
-- Los que **no** salen en cofres (solo recompensa fija de una quest) se siguen acumulando.
-- Si uno no te sale, Hu Tao vende uno cada semana: ver [../collectibles/README.md](../collectibles/README.md).
+- Solo se tiene **uno**. Un repetido (en un cofre o como garantizado) **se quema**: no suma, pero la tirada cuenta para el pity. En el cofre se ve apagado: «Repetido · se quema».
+- Si un objeto pasa a salir en los cofres, sus repetidos desaparecen en ese momento.
+- Los que **no** salen en cofres (solo recompensa fija) se acumulan.
+- Si uno no te sale, Hu Tao vende uno cada semana: [collectibles](../collectibles/README.md).
 
 ### Tipos fijos
 
-El tipo era un texto libre («Reliquia», «Poción»…). Ahora es uno de 8 tipos fijos (`ITEM_KINDS`), que se ven en la ficha del objeto: consumible, material, accesorio, reliquia, grimorio, trofeo, tesoro y otros. El nombre se traduce (`items.kinds.*`) y cada tipo tiene un icono (`KIND_GLYPH`).
+El tipo es uno de 8 (`ITEM_KINDS`), que se ve en la ficha: consumible, material, accesorio, reliquia, grimorio, trofeo, tesoro y otros, con su nombre traducido (`items.kinds.*`) y su icono (`KIND_GLYPH`). Los textos libres antiguos se clasifican **al leerlos** (`itemKindOf`) con palabras clave en español, japonés e inglés («Poción» → consumible, «遺物» → reliquia); lo que no encaja va a «otros».
 
-Los objetos antiguos se clasifican **al leerlos** (`itemKindOf`, en `registerItem` y en el parche de `item_updated`): se busca el texto entre palabras clave en español, japonés e inglés («Poción» → consumible, «Artefacto» → reliquia, «遺物» → reliquia…). Lo que no encaja va a «otros». Los eventos guardados no cambian.
+### Un almanaque por tipo de objeto
 
-### Reglas que he fijado (ajustables)
+El almanaque abarca todo lo que se puede conseguir, con un libro por tipo ([ADR-37](../../../docs/decisions/ADR-37-almanaque-por-tipo.md)), y **solo sirve para mirar**: comprar es cosa de Hu Tao (petición del propietario).
+
+| Almanaque | Qué tiene | Conseguido si… |
+|---|---|---|
+| Coleccionables | Los objetos que salen en los cofres | Está en el inventario |
+| Objetos de quest | Los que solo son recompensa fija (solo sale si hay alguno) | Está en el inventario |
+| Armaduras | El equipo de Hu Tao para las 8 ranuras, también el de serie | Lo compraste |
+| Fondos | Los fondos del menú | Lo compraste |
+| Emblemas | Los emblemas de la cabecera | Lo compraste |
+
+Cada almanaque numera sus cromos (#001…, por rareza y fecha de creación, no fija) y tiene su color de cinta. El equipo se pinta con su arte de ranura (`GearTile`) y su ficha (`GearAlmanacDetail`) dice cuándo y por cuánto lo compraste, si lo llevas puesto, o lleva a la tienda. El inventario es solo de objetos y se filtra por rareza.
+
+### Reglas ajustables
 
 - Los objetos de ejemplo y los creados desde la app **salen en los cofres** por defecto (casilla «Coleccionable: sale en los cofres»).
-- Los objetos convertidos desde datos antiguos (ver abajo) **no salen en drops**, porque eran recompensas fijas; se puede cambiar editándolos.
-- La numeración del almanaque (#001…) sigue el orden de la vista (rareza y fecha de creación), no es fija.
+- Los convertidos desde datos antiguos **no salen en drops** (eran recompensas fijas); se cambia editándolos.
 - NEW marca la primera unidad de un objeto que no estaba en el inventario antes de reportar.
-- Los objetos **no conseguidos** se ven en color pero apagados (saturación y opacidad bajas), sin el fondo de su rareza; al pasar el ratón se ven enteros. Al principio eran una silueta negra, pero parecía que la imagen fallaba.
+- Los **no conseguidos** se ven en color apagado (saturación y opacidad bajas), sin el fondo de su rareza; al pasar el ratón, enteros.
+- Probabilidades, tiradas y pity: `DROP_TABLES` y `PITY_RULES`. No se cambian sin preguntar al propietario.
 
-### El cofre del botín
-
-El objeto garantizado y los drops salen juntos de un cofre (`LootChest`). La secuencia está pensada para dar subidón, con las técnicas de los gachas:
-
-| Fase | Qué pasa |
-|---|---|
-| Aparición | El cofre cae sobre la mesa (rebote, polvo, la interfaz encaja el golpe) y da saltitos con motas de luz: «Haz clic para abrir el cofre» |
-| Carga (1,15 s) | Penumbra en todo lo demás; el cofre se hincha y tiembla cada vez más, la luz se escapa por la rendija y la energía se concentra en él |
-| Subida de color | El brillo empieza como mucho en **azul**, para no delatar nada. Si dentro hay algo mejor, sube durante la carga: morado (épico) → rojo (mítico), con campanada y golpe en cada paso. El **dorado** del legendario llega justo en el estallido |
-| Compresión y pausa | El cofre se aplasta y todo se congela un instante (*hit-stop*) |
-| Estallido | La tapa sale volando; destello a pantalla completa, tres ondas de choque, rayos giratorios, haz de luz, fuente de monedas, lluvia de monedas por toda la pantalla, ascuas y destellos que titilan. La interfaz vibra y hace un «zoom» elástico |
-| Objetos | Cada uno sale volando y **aterriza con un golpe proporcional a su rareza** (fogonazo, onda, chispas, sacudida). Los épicos o mejores traen fanfarria, rayos que giran detrás y un rótulo enorme (`EPIC!`, `MYTHIC!`, `LEGENDARY!`). Antes de un legendario hay una pausa dorada; al aterrizar llueven estrellas |
-| Final | El cofre se retira, la luz se calma y los objetos quedan flotando, con reflejo los raros o mejores |
-
-| Rareza | Sacudida al estallar | Sacudida al aterrizar | Destello |
-|---|---|---|---|
-| Común | 6 px | — | 35 % |
-| Poco común | 7 px | 2 px | 40 % |
-| Raro | 9 px | 4 px | 50 % |
-| Épico | 11 px | 7 px | 60 % + rótulo |
-| Mítico | 14 px | 10 px | 75 % + rótulo + estrellas |
-| Legendario | 18 px | 15 px | 90 % + rótulo + lluvia de estrellas |
-
-Reglas:
-
-- La carga dura lo mismo para todas las rarezas: si fuera más larga con un legendario, se adivinaría.
-- **Un doble clic no se salta la apertura:** los clics del primer 0,9 s se ignoran. Después, un clic o `Enter` salta al final, sin lanzar partículas ni sonidos acumulados. El siguiente clic cierra.
-- Con **«reducir movimiento»** activado en el sistema no hay sacudidas ni zoom, los destellos bajan al 40 % y las partículas a un tercio (`calm()` en `src/lib/fx.ts`). Es el primer paso para resolver la deuda de `prefers-reduced-motion`.
-- El destello, la lluvia de monedas y el rótulo van en una capa a pantalla completa, montada con un portal en `<body>`. Así no se mueven con las sacudidas de la interfaz.
-- Los efectos generales (partículas con física, implosión, destellos, sacudidas) están en `src/lib/fx.ts`. El oro de «Quest Clear» también los usa.
-
-### El almanaque como libro
-
-La pestaña Almanaque es un libro abierto (`AlmanacBook`) sin salirse del estilo de la interfaz: tapas de cuero con el filete dorado de los marcos, páginas de papel oscuro y la misma tipografía y gemas.
-
-- **Página izquierda:** 12 cromos (4 × 3). Los conseguidos van «pegados», con borde de papel, sombra y una inclinación propia (estable por objeto). Los que faltan dejan el hueco punteado del color de su rareza. Al final de la última página hay huecos vacíos, como un álbum sin estrenar.
-- **Página derecha:** la ficha del cromo elegido o el formulario. Sin nada elegido, una portadilla con el progreso del almanaque abierto, en total y por rareza.
-- **Pasar página:** flechas del pie o `←`/`→`. La hoja gira sobre el lomo, hacia delante o hacia atrás, con sonido de papel.
-- **Índice: un almanaque por tipo de objeto del juego** (`almanac.ts`), cada uno con su icono y «conseguidos/existentes»:
-
-  | Almanaque | Qué tiene | Conseguido si… |
-  |---|---|---|
-  | Coleccionables | Los objetos que salen en los cofres | Está en el inventario |
-  | Objetos de quest | Los que solo son recompensa fija (solo sale si hay alguno) | Está en el inventario |
-  | Armaduras | El equipo de Hu Tao para las 8 ranuras del muñeco, también el de serie | Lo compraste |
-  | Fondos | Los fondos del menú | Lo compraste |
-  | Emblemas | Los emblemas de la cabecera | Lo compraste |
-
-  Cada almanaque numera sus cromos (#001…) y tiene su color de cinta. El equipo se pinta con su arte de ranura (`GearTile`) y su ficha (`GearAlmanacDetail`) es solo para mirar: dice cuándo y por cuánto lo compraste, si lo llevas puesto, o lleva a la tienda de Hu Tao. El almanaque no compra ni equipa nada (petición del propietario: «el almanaque solo es una forma de mirar lo que llevas»). El inventario sigue siendo solo de objetos y se filtra por rareza.
-
----
-
-## Diagrama de clases
+## Modelo
 
 ```mermaid
 classDiagram
@@ -162,13 +106,8 @@ classDiagram
         kind: ItemKind
         description: string
         image?: data URL
-        droppable: boolean (coleccionable)
+        droppable: boolean
         createdAt: number
-    }
-    class Rarity {
-        <<enumeration>>
-        common · uncommon · rare
-        epic · mythic · legendary
     }
     class RewardDef {
         xp: number
@@ -179,10 +118,6 @@ classDiagram
         itemId: string
         rarity: Rarity
     }
-    class DropTable {
-        rolls: number
-        weights: Record~Rarity, %~
-    }
     class Pity {
         sinceLegendary: number
         sinceEpic: number
@@ -192,107 +127,125 @@ classDiagram
         discovered: Record~itemId, ts~
         pity: Pity
     }
-    class GameState {
-        items: Map~id, ItemDef~
-    }
-    ItemDef --> Rarity
     RewardDef ..> ItemDef : garantizado
     Drop ..> ItemDef
-    GameState *-- ItemDef : almanaque
-    GameState *-- PlayerState
     PlayerState *-- Pity
-    DropTable ..> Rarity
 ```
 
----
+`GameState.items` es el almanaque (`Map<id, ItemDef>`); `ItemsAcc.bought` apunta las compras de coleccionables.
 
 ## Eventos
 
 | Evento | Datos | Efecto en la proyección | Guarda |
 |---|---|---|---|
-| `item_created` | `item: ItemDef` | Añade el objeto al almanaque, con su tipo pasado a uno fijo | Se ignora si el id existe o fue retirado |
-| `item_updated` | `itemId`, `patch` (campos que cambian) | Mezcla el parche; si pasa a coleccionable, deja una unidad | Solo si el objeto existe |
+| `item_created` | `item: ItemDef` | Añade el objeto, con su tipo pasado a uno fijo | Se ignora si el id existe o fue retirado |
+| `item_updated` | `itemId`, `patch` | Mezcla el parche; si pasa a coleccionable, deja una unidad | Solo si existe |
 | `item_deleted` | `itemId` | Lo quita del almanaque y del inventario | Solo si existe; el id queda retirado |
-| `quest_completed` (ampliado) | `reward.itemId?`, `drops?: Drop[]` | Suma el garantizado y los drops al inventario (un coleccionable que ya tienes se quema) y avanza el pity | La de siempre: solo si la quest está activa |
+| `quest_completed` (núcleo) | `reward.itemId?`, `drops?: Drop[]` | Suma el garantizado y los drops (un coleccionable que ya tienes se quema) y avanza el pity | La de siempre: solo si la quest está activa |
 
-### Compatibilidad con datos antiguos (`legacy.ts`)
+**Datos antiguos** (`legacy.ts`, `upcastReward`): `RewardDef.item` era un texto («Poción de Vigor»). Al leer, pasa a `reward.itemId: "legacy:Poción de Vigor"` y se registra un objeto **común**, sin imagen y fuera de los drops, con ese id (derivado del nombre, el mismo en todos los equipos). Vale para `quest_created` y para los `quest_completed` antiguos: lo ya ganado sale en el inventario.
 
-Antes, `RewardDef.item` era un texto («Poción de Vigor») y el inventario contaba por nombre. Al leer (`upcastReward`):
+## Interfaz
 
-- `reward.item: "Poción de Vigor"` → `reward.itemId: "legacy:Poción de Vigor"`.
-- Se registra un objeto **común**, sin imagen y fuera de los drops, con ese id. El id se deriva del nombre, así que es el mismo en todos los dispositivos.
-- Vale tanto para `quest_created` como para los `quest_completed` antiguos: lo ya ganado aparece en el inventario.
+### El cofre del botín
 
-Esos objetos se pueden editar (imagen, rareza…) como cualquier otro.
+El garantizado y los drops salen juntos de un cofre (`LootChest`), con técnicas de gacha:
 
----
+| Fase | Qué pasa |
+|---|---|
+| Aparición | El cofre cae (rebote, polvo, la interfaz encaja el golpe) y da saltitos: «Haz clic para abrir el cofre» |
+| Carga (1,15 s) | Penumbra; el cofre se hincha y tiembla, la luz se escapa por la rendija |
+| Subida de color | El brillo empieza como mucho en **azul**, para no delatar nada; si hay algo mejor, sube durante la carga: morado → rojo, con campanada en cada paso. El **dorado** llega en el estallido |
+| Compresión | El cofre se aplasta y todo se congela un instante (*hit-stop*) |
+| Estallido | La tapa sale volando; destello a pantalla completa, ondas, rayos, haz de luz, fuente y lluvia de monedas, ascuas. La interfaz vibra y hace un «zoom» elástico |
+| Objetos | Cada uno **aterriza con un golpe proporcional a su rareza**; los épicos o mejores traen fanfarria, rayos y un rótulo (`EPIC!`, `MYTHIC!`, `LEGENDARY!`). Antes de un legendario, una pausa dorada; al aterrizar, lluvia de estrellas |
+| Final | El cofre se retira y los objetos quedan flotando |
+
+| Rareza | Sacudida al estallar | Al aterrizar | Destello |
+|---|---|---|---|
+| Común | 6 px | — | 35 % |
+| Poco común | 7 px | 2 px | 40 % |
+| Raro | 9 px | 4 px | 50 % |
+| Épico | 11 px | 7 px | 60 % + rótulo |
+| Mítico | 14 px | 10 px | 75 % + rótulo + estrellas |
+| Legendario | 18 px | 15 px | 90 % + rótulo + lluvia de estrellas |
+
+- La carga dura lo mismo para todas las rarezas (si no, se adivinaría).
+- **Un doble clic no se salta la apertura:** los clics del primer 0,9 s se ignoran. Después, un clic o `Enter` salta al final sin partículas ni sonidos acumulados; el siguiente cierra.
+- Con **«reducir movimiento»**, sin sacudidas ni zoom, destellos al 40 % y partículas a un tercio (`calm()` de `src/lib/fx.ts`).
+- El destello, la lluvia de monedas y el rótulo van en un portal en `<body>`, para no moverse con las sacudidas. Detalles técnicos en [COMO-FUNCIONA.md](../../../docs/COMO-FUNCIONA.md#96-el-cofre-del-botín).
+
+### El almanaque como libro
+
+`AlmanacBook`: tapas de cuero con el filete dorado, páginas de papel oscuro. Página izquierda, 12 cromos (4 × 3): los conseguidos «pegados» con borde, sombra e inclinación estable; los que faltan, hueco punteado del color de su rareza. Página derecha: la ficha, el formulario o, sin nada elegido, una portadilla con el progreso. Se pasa página con las flechas del pie o `←`/`→` (la hoja gira sobre el lomo, con sonido de papel); en el teléfono, deslizando el dedo.
 
 ## Archivos
 
 | Archivo | Contenido |
 |---|---|
-| `model.ts` | Rarezas, `ItemDef`, tablas de drop, pity, `rollDrops`, acumulador de la proyección. Puro |
+| `model.ts` | Rarezas, `ItemDef`, tipos fijos, tablas de drop, pity, `rollDrops`, `receiveItems`, acumulador de la proyección. Puro |
 | `events.ts` | `ItemEventBody` |
 | `legacy.ts` | `upcastReward`: texto antiguo → objeto del almanaque |
-| `actions.ts` | `createItem`, `updateItem`, `deleteItem` (validan y llaman a `dispatch`) |
+| `almanac.ts` | Los almanaques por tipo: qué entra en cada uno, orden y progreso. Puro, solo para la interfaz (importa el modelo del mercader) |
+| `actions.ts` | `createItem`, `updateItem`, `deleteItem` |
 | `image.ts` | Reducción de la imagen con canvas (DOM) |
-| `i18n.ts` | Textos es + ja, y los objetos de ejemplo |
-| `items.css` | Estilos propios |
-| `components/ItemTile.tsx` | Cromo y arte del objeto |
-| `components/CollectionModal.tsx` | Ventana con las pestañas Inventario, Almanaque y Probabilidades |
-| `almanac.ts` | Los almanaques por tipo de objeto: qué entra en cada uno, orden y progreso. Puro, pero solo para la interfaz (importa el modelo del mercader) |
-| `components/AlmanacBook.tsx` | El almanaque como libro: cromos, páginas, índice de almanaques y portadilla |
+| `components/CollectionModal.tsx` | Ventana con Inventario, Almanaque y Probabilidades |
+| `components/AlmanacBook.tsx` | El almanaque como libro |
+| `components/ItemTile.tsx`, `ItemDetail.tsx`, `ItemForm.tsx` | Cromo, ficha y formulario de un objeto |
 | `components/GearTile.tsx`, `GearAlmanacDetail.tsx` | Cromo y ficha de una pieza de equipo en el almanaque |
-| `components/ItemDetail.tsx` | Ficha de un objeto (en el inventario y en el libro) |
-| `components/ItemForm.tsx` | Crear y editar objetos |
 | `components/DropRates.tsx` | Tablas de probabilidad y pity actual |
 | `components/QuestLoot.tsx` | Recompensas en el detalle de la quest, selector del garantizado y aviso del botín en el formulario |
-| `components/LootChest.tsx` | El cofre del botín en «Quest Clear» y toda su celebración |
-| `components/BagIcon.tsx` | Icono de la bolsa (el botón está en el menú, features/menu) |
+| `components/LootChest.tsx` | El cofre y su celebración |
+| `components/BagIcon.tsx` | Icono de la bolsa (el botón está en el menú) |
+| `items.css`, `i18n.ts` | Estilos y textos es + ja (con los objetos de ejemplo) |
+| `model.test.ts`, `legacy.test.ts`, `almanac.test.ts` | Distribución y pity con semilla, retroceso de rareza, guardas, datos antiguos, almanaques |
 
-## Puntos de integración
+### Dónde está cada cosa
+
+| Concepto | Símbolo |
+|---|---|
+| Tirar el botín (tablas, tiradas y pity) | [`rollDrops`](model.ts), [`DROP_TABLES`](model.ts), [`dropTableFor`](model.ts), [`PITY_RULES`](model.ts), [`advancePity`](model.ts), [`legendaryChance`](model.ts) |
+| Recibir objetos (un coleccionable repetido se quema) | [`receiveItems`](model.ts) e [`isCollectible`](model.ts) |
+| Guardas de los eventos de objetos | [`applyItemEvent`](model.ts) |
+| Tipos fijos y textos antiguos | [`ITEM_KINDS`](model.ts) e [`itemKindOf`](model.ts) |
+| Contenido del cofre (garantizado + drops) | [`chestContents`](components/LootChest.tsx) |
+| Control desde «Quest Clear»: aparecer, abrir y saltar | [`ChestHandle`](components/LootChest.tsx) (`appear`, `advance`), que usa [`ClearOverlay`](../../components/ClearOverlay.tsx) |
+| Subida de color sin delatar la rareza | `teaser` en [`LootChest`](components/LootChest.tsx), con los momentos de [`UP_AT`](components/LootChest.tsx) |
+| Intensidad según la rareza | [`POP_SHAKE`](components/LootChest.tsx), [`LAND_SHAKE`](components/LootChest.tsx) y [`FLASH`](components/LootChest.tsx) |
+| Doble clic que no se salta la apertura; salto sin partículas | [`SKIP_AFTER`](components/LootChest.tsx); `skipping` en `LootChest` |
+| Almanaques por tipo | [`ALMANACS`](almanac.ts), [`almanacEntries`](almanac.ts) y [`almanacProgress`](almanac.ts) |
+| Ventana y libro | [`CollectionModal`](components/CollectionModal.tsx) y [`AlmanacBook`](components/AlmanacBook.tsx) |
+
+## Integración
 
 | Fuera de la carpeta | Cambio |
 |---|---|
-| `domain/types.ts` | `RewardDef.itemId` (sustituye a `item`); `PlayerState.inventory`, `discovered`, `pity` (sustituyen a `items`); `GameState.items` |
-| `domain/events.ts` | `ItemEventBody` en la unión; `quest_completed.drops?` |
-| `domain/projection.ts` | `upcastReward` al leer; `applyItemEvent`; `receiveItems` en `quest_completed` |
-| `domain/seed.ts` | Almanaque inicial (10 objetos, con su tipo fijo vía `itemKindOf`) y objeto garantizado de las quests de ejemplo |
-| `domain/projection.ts` (versión 7) | Coleccionables únicos y tipos fijos, y `ItemsAcc.bought` (features/collectibles): `PROJECTION_VERSION` 5 → 7 |
-| `store/game.ts` | `ClearResult.drops` y `guaranteed`; estado de UI `collection` |
-| `store/actions.ts` | `reportQuest` tira los drops con `rollDrops` |
-| `i18n/locales/{es,ja}.ts` | Montan `items`; se quitan `modal.item`, `modal.itemPh` y el `item` de las quests de ejemplo |
-| `styles/theme.css` | Tokens `--r-*` (rarezas), `--wood*` (cofre), `--leather*` y `--paper*` (libro), `--star` |
-| `styles/app.css` | Partículas `.fx-coin`, `.fx-spark`, `.fx-star`, `.fx-glow` y la capa `.cl-fx` |
-| `lib/fx.ts` | Nuevo, general: partículas con física (`burst`, `implode`, `twinkle`), sacudidas (`quake`, `tremble`) y `calm()` |
-| `lib/sfx.ts` | Compresor en la salida (las capas de la celebración no saturan) y sonidos `reveal`, `coins`, `chestLand`, `chestCharge`, `chestUpgrade`, `chestOpen`, `fanfare` y `page` |
-| `App.tsx` | Tecla `I` y `<CollectionModal />` |
-| `components/Header.tsx`, `Footer.tsx` | Botón de la bolsa y tecla `I` |
-| `components/QuestDetail.tsx` | `<QuestLoot />` en la recompensa |
-| `components/CreateQuestModal.tsx` | Selector del objeto garantizado y aviso del botín |
-| `components/ClearOverlay.tsx` | `<LootChest />` al final; con botín, el primer clic (o `Enter`) abre el cofre y el aviso de continuar espera a que se abra. Monedas que saltan del oro y chispas de la XP |
+| `src/domain/types.ts` | `RewardDef.itemId`; `PlayerState.inventory`, `discovered`, `pity`; `GameState.items` |
+| `src/domain/events.ts` | `ItemEventBody` en la unión; `quest_completed.drops?` |
+| `src/domain/projection.ts` | `upcastReward` al leer; `applyItemEvent`; `receiveItems` en `quest_completed` |
+| `src/domain/seed.ts` | Almanaque inicial (10 objetos) y objeto garantizado de las quests de ejemplo |
+| `src/store/game.ts` | `ClearResult.drops` y `guaranteed`; estado de UI `collection` |
+| `src/store/actions.ts` | `reportQuest` tira los drops con `rollDrops` |
+| `src/styles/theme.css` | Tokens `--r-*` (rarezas), `--wood*` (cofre), `--leather*` y `--paper*` (libro), `--star` |
+| `src/styles/app.css` | Partículas `.fx-coin`, `.fx-spark`, `.fx-star`, `.fx-glow` y la capa `.cl-fx` |
+| `src/lib/fx.ts` | Partículas con física (`burst`, `implode`, `twinkle`), sacudidas (`quake`, `tremble`) y `calm()`, de uso general |
+| `src/lib/sfx.ts` | Compresor de salida y sonidos `reveal`, `coins`, `chestLand`, `chestCharge`, `chestUpgrade`, `chestOpen`, `fanfare` y `page` |
+| `src/App.tsx` | Tecla `I` y `<CollectionModal />` |
+| `src/components/QuestDetail.tsx` | `<QuestLoot />` en la recompensa |
+| `src/components/CreateQuestModal.tsx` | Selector del objeto garantizado y aviso del botín |
+| `src/components/ClearOverlay.tsx` | `<LootChest />` al final; con botín, el primer clic (o `Enter`) abre el cofre |
+| `src/i18n/locales/{es,ja}.ts` | Montan `items` |
 
----
+## Dependencias
 
-## Verificación
+- **features/merchant** (`model.ts`, `ui.ts`, `GearArt`, `SlotGlyph`): el equipo de los almanaques de armaduras, fondos y emblemas, y «Ir a la tienda». Para tocar el catálogo, lee su README.
+- **features/armory** (`model.ts`, `labels.ts`): arte y nombres de las piezas de serie.
+- **features/mobile** (`index`): deslizar para pasar página y «Toca el cofre…».
+- **La usan:** casi todo lo que habla de rarezas o del almanaque: `armory`, `chronicle`, `collectibles`, `equipment`, `merchant`, `menu` y `search`.
 
-Hecho el 2026-10-01 con `pnpm dev` en el navegador integrado (viewport de 1280 × 780):
+## Estado actual
 
-- **Distribución** (200.000 tiradas con semilla, sin pity): estándar 50 / 28,1 / 13 / 6 / 2,4 / 0,58 %; élite 29,8 / 30 / 20,1 / 12 / 6 / 1,97 %.
-- **Pity** (100.000 tiradas encadenadas): media de 62,3 tiradas por legendario, máximo 87; nunca más de 9 seguidas sin épico o superior. `legendaryChance`: 0,6 % hasta la 73, 6,6 % en la 74, 100 % en la 90.
-- **Retroceso de rareza**, élite con 2 tiradas y catálogo sin objetos que puedan salir (sin botín).
-- **Proyección** con eventos fijos: conversión de `item` antiguo, `quest_completed` duplicado ignorado (ni XP ni botín), parche por campos, re-creación ignorada y retirada sin resurrección.
-- **Datos antiguos** reales del navegador de pruebas (31 eventos v1, objetos en japonés): el inventario y las recompensas se ven como objetos comunes.
-- **Instalación nueva:** 10 objetos de ejemplo y quests con objeto garantizado.
-- **Interfaz:** crear un objeto legendario con imagen (SVG de 512 px → WebP de 3 KB), almanaque, inventario, filtros por rareza, color al pasar el ratón, probabilidades, «Quest Clear» con garantizado, botín y NEW, formulario de quest en japonés con el selector agrupado por rareza.
-
-Cofre y libro, el 2026-10-02 con el mismo método. El panel del navegador estaba en segundo plano, así que GSAP no avanzaba solo: pausé su reloj global y lo avancé a mano para capturar cada fase.
-
-- **Legendario + mítico + garantizado:** la subida de color va de azul a morado (0,56 s), rojo (0,96 s) y dorado en el estallido. En el estallido había 264 partículas en el cofre y 46 monedas por la pantalla; el rótulo «LEGENDARY!» salía con lluvia de estrellas, y al final los objetos quedaban flotando con rayos.
-- **Común:** sin subida de color (gris), con luz blanca y lluvia de monedas.
-- **Doble clic** a los 0,3 s ignorado; **salto** pasado el segundo, sin partículas nuevas; el siguiente clic cierra.
-- **«Reducir movimiento»** simulado: sin sacudidas y con un tercio de partículas.
-- **Libro:** 12 huecos por página; los no conseguidos con el filtro nuevo en lugar del negro.
-- Sin errores en consola; `tsc` y `build` correctos.
-
-**No verificado:** ningún sonido nuevo (cofre, monedas, fanfarria, pasar página) se ha escuchado; el giro de página y el libro no se han visto en movimiento; tampoco el rendimiento de tantas partículas en el WKWebView de macOS. Además, la app nativa con SQLite (`pnpm tauri dev`), Windows, la codificación WebP en el WKWebView de macOS (si no la soporta, cae a PNG) y la selección de imagen con el diálogo de archivos real (se probó inyectando el archivo en el `<input>`).
+- **Última verificación:** 2026-10-03, la ventana de objetos en el navegador al llevar la compra de coleccionables a Hu Tao; el cofre y el libro, el 2026-10-02 (fase a fase con el reloj de GSAP parado).
+- **Tests:** `model.test.ts`, `legacy.test.ts` y `almanac.test.ts`.
+- **Sin verificar:** ningún sonido nuevo se ha escuchado; el giro de página en movimiento; el rendimiento de tantas partículas en el WKWebView de macOS; la app nativa con SQLite, Windows, la codificación WebP en el WKWebView y el diálogo de archivos real.
+- **Historial:** [docs/history/verificacion/items.md](../../../docs/history/verificacion/items.md).

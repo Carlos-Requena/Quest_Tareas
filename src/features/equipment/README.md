@@ -1,108 +1,57 @@
-# Personaje: el muñeco, su equipo y la decoración del menú
-
-Lo que se compra al mercader ([src/features/merchant/README.md](../merchant/README.md)) se usa aquí. La ventana **Personaje** (tecla `P`) tiene un **muñeco que te representa**, con ocho ranuras de armadura alrededor, las dos ranuras de **decoración del menú** debajo y, a la derecha, los **atributos** ([src/features/attributes/README.md](../attributes/README.md)). Al elegir una ranura, el panel de la derecha pasa a ser el **armario** de esa ranura: lo que tienes para ella, para ponértelo o quitártelo.
-
-Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
-
+---
+funcionalidad: equipment
+titulo: Personaje
+resumen: Muñeco que te representa con el equipo comprado puesto, su armario y la decoración del menú (fondo de la app y emblema de la cabecera).
+tipo: dominio
+eventos: [gear_equipped, gear_unequipped]
+preferencias: []
+adr: [ADR-20]
 ---
 
-## Requisitos
+# Personaje
 
-| # | Requisito (del propietario) | Cómo se cumple |
+Lo que se compra al [mercader](../merchant/README.md) se usa aquí. La ventana **Personaje** (tecla `P` o la tarjeta «Character» del [menú](../menu/README.md)) tiene un **muñeco que te representa** con ocho ranuras de armadura alrededor, las dos ranuras de **decoración** debajo y, a la derecha, los [atributos](../attributes/README.md). Al elegir una ranura, el panel derecho pasa a ser el **armario** de esa ranura: lo que tienes para ella, para ponértelo o quitártelo.
+
+## Qué hace
+
+| # | Requisito del propietario | Cómo se cumple |
 |---|---|---|
 | R1 | Las armaduras se usan en un muñequito que te represente | `Doll`: un muñeco en SVG que se pone cada pieza en su sitio, con el color de su rareza |
-| R2 | El muñeco va junto al menú de atributos | Ventana `CharacterModal`: muñeco y ranuras a la izquierda, atributos a la derecha |
-| R3 | Lo que se compra puede ser decoración del menú | Ranuras de fondo y emblema; el fondo se pinta detrás de toda la app (también del menú de opciones, features/menu) y el emblema, en el rombo de la cabecera |
+| R2 | El muñeco va junto a los atributos | `CharacterModal`: muñeco y ranuras a la izquierda, atributos a la derecha |
+| R3 | Lo que se compra puede ser decoración del menú | Ranuras de fondo y emblema: el fondo se pinta detrás de toda la app (también del menú de opciones) y el emblema, en el rombo de la cabecera |
 
----
+## Reglas y decisiones
 
-## Decisiones de diseño
+- **Ponerse algo es un evento**, así el muñeco y el menú se ven igual en todos los equipos. Solo se pone lo que es tuyo (`owned`), cada pieza va en su ranura y ponerte otra quita la anterior (no hace falta un `gear_unequipped`).
+- **Lo que deja de existir se quita solo**: si una pieza puesta se retira o cambia de ranura, `pruneEquipment` (tras cada `gear_updated` y `gear_deleted`) la quita.
+- **Un muñeco dibujado, no las imágenes de las piezas encima.** Cada ranura tiene una **forma** sobre el muñeco (yelmo, coraza con hombreras, guanteletes, botas, espada, escudo, capa y amuleto) pintada con el color de su rareza y un brillo metálico común. De épico para arriba lleva filo dorado; mítico y legendario brillan, y lo legendario late. Pegar la imagen de cada pieza sobre el cuerpo no funciona con imágenes del usuario (cualquier estilo y encuadre), y pedir capas de *paper doll* haría difícil añadir mercancía ([ADR-20](../../../docs/decisions/ADR-20-atributos-calculados.md)). La imagen de la pieza se ve en su **ranura** y en el armario.
+- **Prestigio**: la suma de estrellas de rareza de lo que llevas (1 común … 6 legendario; como máximo 60). Se calcula (`prestige`).
+- **Fondo** (`Backdrop`, detrás de toda la app): la imagen grande del almacén de binarios (o, en los fondos de serie, su escena SVG con `builtinArt`), a pantalla completa y oscurecida para que el tablón se lea. Mientras carga, o si este equipo aún no tiene el archivo (la referencia puede llegar por Drive antes que la imagen), usa el icono difuminado.
+- **Emblema** (`DecorEmblem`, en la cabecera): la imagen recortada en rombo dentro del marco dorado, con el filo del color de su rareza.
+- **Estado de interfaz propio** (`ui.ts`): ventana abierta y ranura elegida, sin eventos.
 
-### Ponerse algo es un evento
+## Modelo
 
-`gear_equipped` y `gear_unequipped` se sincronizarán con los demás eventos: el muñeco y el menú se verán igual en todos los equipos. Solo se puede poner lo que es tuyo (`owned`), cada pieza va en su ranura y ponerte otra quita la anterior (no hace falta un `gear_unequipped`).
-
-Si una pieza puesta se retira del catálogo o cambia de ranura al editarla, deja de estar puesta: `pruneEquipment` se aplica después de cada `gear_updated` y `gear_deleted`.
-
-### Un muñeco dibujado, no las imágenes de las piezas encima
-
-Cada ranura tiene una **forma** sobre el muñeco (yelmo, coraza con hombreras, guanteletes, botas, espada, escudo, capa y amuleto) que se pinta con el **color de su rareza** y un brillo metálico común (un degradado de luz arriba y sombra abajo). De épico para arriba lleva filo dorado; mítico y legendario brillan, y lo legendario late.
-
-| Alternativa | Por qué no |
-|---|---|
-| Pegar la imagen de cada pieza sobre el cuerpo | Las imágenes las sube el usuario, de cualquier estilo, tamaño y encuadre: un PNG sin recortar taparía medio muñeco |
-| Pedir imágenes con una plantilla (capas de un *paper doll*) | Añadir mercancía dejaría de ser fácil (R5 del mercader) |
-
-La imagen de la pieza se ve en su **ranura**, junto al muñeco, y en el armario.
-
-Al pasar el ratón por una ranura vacía, el muñeco dibuja el **contorno** de dónde iría la pieza; si está llena, la pieza brilla. Al ponértela, cae con un pequeño golpe (muelle de Motion). El muñeco respira despacio (CSS), salvo con «reducir movimiento».
-
-### Prestigio
-
-La cabecera de la ventana muestra el **prestigio**: la suma de estrellas de rareza de todo lo que llevas puesto (1 común … 6 legendario; como máximo 60). Se calcula, no se guarda (`prestige`).
-
-### Decoración del menú
-
-- **Fondo** (`Backdrop`, en lugar del `<div className="backdrop">` de `App`): la imagen grande del almacén de binarios (o, en los fondos de serie, su escena en SVG: `builtinArt` de features/armory), a pantalla completa y oscurecida para que el tablón se siga leyendo. Mientras carga, o si este equipo no tiene el archivo (en la fase 2 la referencia puede llegar antes), usa el icono difuminado.
-- **Emblema** (`DecorEmblem`, en lugar de `<Emblem />` en la cabecera): la imagen recortada en rombo dentro del marco dorado, con el filo del color de su rareza.
-
-### Estado de interfaz propio
-
-`ui.ts` guarda si la ventana está abierta y qué ranura está elegida. No es estado de juego: no genera eventos (igual que `features/temporal/ui.ts`).
-
----
-
-## Diagrama de clases
-
-```mermaid
-classDiagram
-    direction LR
-    class EquipmentAcc {
-        equipped: Equipped
-    }
-    class Equipped {
-        <<Record~GearSlot, gearId~>>
-    }
-    class PlayerState {
-        owned: Record~id, Purchase~
-        equipped: Equipped
-    }
-    class GearDef {
-        id
-        slot: GearSlot
-        rarity: Rarity
-        image?
-        art?: GearArt
-    }
-    EquipmentAcc *-- Equipped
-    PlayerState *-- Equipped
-    Equipped ..> GearDef : solo si es tuya y de esa ranura
-```
-
----
+`EquipmentAcc { equipped: Equipped }`, con `Equipped = Record<GearSlot, gearId>`. `PlayerState.equipped` es su copia en el estado; solo contiene piezas que existen, son tuyas y son de esa ranura (invariante de los tests de la proyección).
 
 ## Eventos
 
 | Evento | Datos | Efecto en la proyección | Guarda |
 |---|---|---|---|
-| `gear_equipped` | `gearId` | La pone en su ranura (y quita la que hubiera) | Solo si la pieza existe y es tuya |
+| `gear_equipped` | `gearId` | La pone en su ranura (y quita la que hubiera) | Solo si la pieza existe (también las de serie, con `gearOf`) y es tuya |
 | `gear_unequipped` | `slot` | Vacía la ranura | Solo con una ranura que exista |
 | `gear_updated` / `gear_deleted` (del mercader) | — | Quita lo que ya no se puede llevar (`pruneEquipment`) | — |
 
-Son eventos nuevos, sin datos antiguos que convertir. `PROJECTION_VERSION` pasa a 2 por ellos y por los del mercader.
+## Interfaz
 
----
-
-## Teclado (ventana abierta)
-
-| Tecla | Acción |
+| Tecla (ventana abierta) | Acción |
 |---|---|
-| `P` | Abrir (desde los tablones) o cerrar |
+| `P` | Abrir (desde los tablones o el menú) o cerrar |
 | `↑` / `↓` | Ranura anterior o siguiente (izquierda, derecha y decoración) |
 | `←` / `→` | Saltar a la otra columna, a la misma altura |
 | `Esc` | Volver a los atributos; si no, cerrar |
 
----
+Al pasar el ratón por una ranura vacía, el muñeco dibuja el **contorno** de dónde iría la pieza; si está llena, la pieza brilla. Al ponértela, cae con un muelle de Motion (`AnimatePresence`, una clave por pieza). El muñeco respira despacio (CSS), salvo con «reducir movimiento». En el teléfono, el muñeco va entre dos columnas estrechas de ranuras y, al elegir una, el armario ocupa la ventana (`is-picking`).
 
 ## Archivos
 
@@ -111,41 +60,44 @@ Son eventos nuevos, sin datos antiguos que convertir. `PROJECTION_VERSION` pasa 
 | `model.ts` | `EquipmentAcc`, `applyEquipmentEvent`, `pruneEquipment`, `wornIn`, `prestige`. Puro |
 | `events.ts` | `EquipmentEventBody` |
 | `actions.ts` | `equipGear`, `unequipSlot` |
-| `ui.ts` | Estado de la ventana (abierta, ranura elegida) |
-| `useBlobUrl.ts` | URL de un binario del almacén (la imagen del fondo) |
-| `i18n.ts` | Textos es + ja |
-| `equipment.css` | Estilos propios: ventana, ranuras, muñeco, armario, fondo y emblema |
+| `ui.ts` | Ventana abierta y ranura elegida; `characterBusy` |
+| `useBlobUrl.ts` | URL de un binario del almacén (la imagen del fondo; también la usa el menú) |
 | `components/CharacterModal.tsx` | La ventana: ranuras, muñeco, decoración, armario y atributos |
 | `components/Doll.tsx` | El muñeco y la forma de cada pieza |
 | `components/Decor.tsx` | `Backdrop` (fondo de la app) y `DecorEmblem` (emblema de la cabecera) |
-| `components/HelmetIcon.tsx` | Icono del yelmo (el botón está en el menú, features/menu) |
+| `components/HelmetIcon.tsx` | Icono del yelmo (el botón está en el menú) |
+| `equipment.css`, `i18n.ts` | Estilos (ventana, ranuras, muñeco, armario, fondo y emblema) y textos es + ja |
+| `model.test.ts` | Solo lo tuyo y en su ranura, sustituir, quitar, retirar o cambiar de ranura quita lo puesto, prestigio |
 
-## Puntos de integración
+## Integración
 
 | Fuera de la carpeta | Cambio |
 |---|---|
-| `domain/types.ts` | `PlayerState.equipped` |
-| `domain/events.ts` | `EquipmentEventBody` en la unión |
-| `domain/projection.ts` | `ProjectionAcc.equipment`; `case` de sus dos eventos y `pruneEquipment` tras editar o retirar una pieza. Las piezas se buscan con `gearOf` (también las de serie) |
-| `i18n/locales/{es,ja}.ts` | Montan `equipment` |
-| `styles/theme.css` | Tokens del muñeco: `--doll-skin`, `--doll-skin-lo`, `--doll-cloth`, `--doll-cloth-lo` y `--doll-hair` |
-| `components/Header.tsx` | `DecorEmblem` alrededor del emblema y el botón del yelmo junto al nivel |
-| `components/Footer.tsx` | Tecla `P` |
-| `App.tsx` | Tecla `P`, `<CharacterModal />`, `<Backdrop />` y el teclado del tablón espera mientras está abierta |
-| `test/streams.ts` | Los eventos del equipo en `randomStream` |
+| `src/domain/types.ts` | `PlayerState.equipped` |
+| `src/domain/events.ts` | `EquipmentEventBody` en la unión |
+| `src/domain/projection.ts` | `ProjectionAcc.equipment`; `case` de sus dos eventos y `pruneEquipment` tras editar o retirar una pieza |
+| `src/components/Header.tsx` | `DecorEmblem` alrededor del emblema |
+| `src/App.tsx` | Tecla `P`, `<CharacterModal />`, `<Backdrop />` y el teclado del tablón espera mientras está abierta |
+| `src/styles/theme.css` | Tokens del muñeco: `--doll-skin`, `--doll-skin-lo`, `--doll-cloth`, `--doll-cloth-lo` y `--doll-hair` |
+| `src/i18n/locales/{es,ja}.ts` | Montan `equipment` |
+| `src/test/streams.ts` | Los eventos del equipo en `randomStream` |
 
----
+## Dependencias
 
-## Verificación
+- **features/merchant** (`model.ts`, `ui.ts`, `GearArt`, `SlotGlyph`): el catálogo, lo comprado, el arte de las piezas y «Ir al mercader» desde un armario vacío. Para cambiar qué se vende o cuánto cuesta, lee su README.
+- **features/armory** (`model.ts`, `labels.ts`): el arte de los fondos de serie y los nombres traducidos.
+- **features/attributes** (`AttributesPanel`): el panel de la derecha. Para cambiar el radar, lee su README.
+- **features/items** (`model.ts`): las rarezas y sus colores.
+- **La usan:** `menu` (tarjeta Character, fondo detrás del menú y `useBlobUrl`), `merchant` (equipar desde la ficha), `calendar` y `temporal` (su teclado espera con la ventana abierta).
 
-Hecho el 2026-10-02:
+## Estado actual
 
-- **Tests**: `model.test.ts` (solo lo tuyo y en su ranura, sustituir, quitar, la decoración igual que la armadura, retirar o cambiar de ranura quita lo puesto, prestigio) y `features/merchant/actions.test.ts` con el store de verdad (no te pones lo que no has comprado, ponérselo dos veces no emite otro evento, lo puesto sobrevive a cerrar y abrir). En `domain/projection.test.ts`, el invariante: solo llevas puesto lo que existe, es tuyo y es de esa ranura.
-- **Navegador** (`pnpm dev`, 1280 × 780): las diez ranuras equipadas desde el armario, una a una; el muñeco con las ocho piezas de seis rarezas distintas; el contorno de una ranura vacía al pasar el ratón; el prestigio (39); el fondo comprado detrás del tablón y el emblema en la cabecera; el armario vacío con «Ir al mercader»; la ventana en japonés.
+- **Última verificación:** 2026-10-02, tests y navegador a 1280 × 780 (las diez ranuras equipadas, el contorno de una ranura vacía, el prestigio, el fondo y el emblema, en japonés).
+- **Tests:** `model.test.ts`, `src/features/merchant/actions.test.ts` (con el store) y el invariante de `src/domain/projection.test.ts`.
+- **Sin verificar:** la app nativa y Windows; el fondo leído de la tabla `blobs` de SQLite; el muñeco con «reducir movimiento».
+- **Historial:** [docs/history/verificacion/equipment.md](../../../docs/history/verificacion/equipment.md).
 
-**No verificado:** la app nativa y Windows; el fondo leído de la tabla `blobs` de SQLite; cómo se ve el muñeco con «reducir movimiento» (está en el CSS, no se ha simulado).
-
-## Posibles mejoras
+## Pendiente
 
 - Que el muñeco se parezca más a ti: color de pelo y de piel, peinado.
 - Variantes de forma por pieza (no solo por ranura), elegidas en el formulario.

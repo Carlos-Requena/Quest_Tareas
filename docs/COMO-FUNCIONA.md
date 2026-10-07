@@ -1,29 +1,26 @@
 # Cómo funciona Quests por dentro
 
-Esta guía explica **cómo se construyó la app y qué ocurre por detrás** cuando la usas. Está pensada para leerla con el código abierto al lado: cada sección indica los archivos implicados.
-
-Para la visión de arquitectura (diagramas de clases, stack, riesgos y hoja de ruta) consulta el informe técnico. Aquí vamos al detalle de mecanismos.
+Los mecanismos generales de la app, tal como funcionan hoy, para leerlos con el código al lado: cada sección dice los archivos implicados. Lo propio de cada funcionalidad está en su README; la arquitectura, la deuda y la hoja de ruta, en el [informe técnico](INFORME-TECNICO.md); cómo se llegó hasta aquí y los fallos ya resueltos, en el [changelog técnico](history/CHANGELOG-TECNICO.md).
 
 ---
 
 ## Índice
 
 1. [La idea en un minuto: qué pasa al pulsar Enter](#1-la-idea-en-un-minuto-qué-pasa-al-pulsar-enter)
-2. [Cómo se construyó, paso a paso](#2-cómo-se-construyó-paso-a-paso)
+2. [Dónde está cada mecanismo](#2-dónde-está-cada-mecanismo)
 3. [Tauri por dentro: dos procesos y un puente](#3-tauri-por-dentro-dos-procesos-y-un-puente)
 4. [Event sourcing: guardar hechos, no estado](#4-event-sourcing-guardar-hechos-no-estado)
 5. [Niveles y rangos](#5-niveles-y-rangos)
 6. [Almacenamiento: SQLite y su sustituto en el navegador](#6-almacenamiento-sqlite-y-su-sustituto-en-el-navegador)
 7. [El estado global con Zustand](#7-el-estado-global-con-zustand)
-8. [La interfaz: tablón, selección y teclado](#8-la-interfaz-tablón-selección-y-teclado)
+8. [La interfaz: secciones, selección y teclado](#8-la-interfaz-secciones-selección-y-teclado)
 9. [Las animaciones por dentro](#9-las-animaciones-por-dentro)
 10. [El sonido: sintetizado, sin archivos](#10-el-sonido-sintetizado-sin-archivos)
-11. [Estilos, fuentes y el problema de los 26 MB](#11-estilos-fuentes-y-el-problema-de-los-26-mb)
+11. [Estilos y fuentes](#11-estilos-y-fuentes)
 12. [Idiomas: español y japonés](#12-idiomas-español-y-japonés)
-13. [Cómo se verificó y los fallos que aparecieron](#13-cómo-se-verificó-y-los-fallos-que-aparecieron)
-14. [Recetas para ampliar la app](#14-recetas-para-ampliar-la-app)
-15. [Comandos útiles](#15-comandos-útiles)
-16. [Glosario](#16-glosario)
+13. [Tests: qué protege cada archivo](#13-tests-qué-protege-cada-archivo)
+14. [Dónde se ajusta el equilibrio del juego](#14-dónde-se-ajusta-el-equilibrio-del-juego)
+15. [Glosario](#15-glosario)
 
 ---
 
@@ -43,9 +40,9 @@ sequenceDiagram
 
     Tú->>App: pulsa Enter
     App->>Act: primaryAction(id)
-    Act->>Act: ¿disponible? ¿requisitos?
+    Act->>Act: ¿disponible? ¿requisitos? ¿en reserva?
     Act->>Store: dispatch({type: "quest_accepted", questId})
-    Store->>Store: añade id, deviceId y ts al evento
+    Store->>Store: añade id, deviceId, ts (nextTs) y v
     Store->>Dom: applyEvent(copia del acumulador, evento)
     Dom-->>Store: nuevo GameState (finishProjection)
     Store-->>Card: React vuelve a pintar (status = "active")
@@ -57,130 +54,111 @@ La regla de oro: **nadie modifica el estado directamente**. Solo se emiten event
 
 ---
 
-## 2. Cómo se construyó, paso a paso
+## 2. Dónde está cada mecanismo
 
-Este fue el orden de trabajo, y el motivo de cada paso:
-
-1. **Analizar el vídeo de referencia.** Con `ffmpeg` se extrajeron fotogramas en una cuadrícula para estudiar el diseño: fondo oscuro, acentos dorados, un color por categoría, el sello «受注中» con destello y las grietas sobre las tarjetas aceptadas.
-2. **Crear el proyecto.** `pnpm create tauri-app` con la plantilla `react-ts`. Se quitó el plugin `opener` que no se usaba y se añadió `tauri-plugin-sql` con SQLite.
-3. **Dominio primero** (`src/domain/`): tipos, eventos, proyección y niveles, sin ninguna interfaz. Es la parte que más importa que sea correcta.
-4. **Almacenamiento** (`src/storage/`): una interfaz `EventStore` y dos implementaciones.
-5. **Store y acciones** (`src/store/`): conectan el dominio con React.
-6. **Interfaz** (`src/components/`): primero estructura y estilos, después las animaciones.
-7. **Verificación**: primero en el navegador integrado (más rápido de inspeccionar) y luego en la app nativa con SQLite. Aparecieron varios fallos, que se explican en la [sección 13](#13-cómo-se-verificó-y-los-fallos-que-aparecieron).
-
-El backend de Rust se compiló en segundo plano mientras se escribía el frontend, porque la primera compilación tarda.
+| Mecanismo | Archivos | Sección |
+|---|---|---|
+| Ventana nativa, plugins, permisos y CSP | `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` | [3](#3-tauri-por-dentro-dos-procesos-y-un-puente) |
+| Eventos, versión, orden y proyección | `src/domain/events.ts`, `upcast.ts`, `projection.ts` | [4](#4-event-sourcing-guardar-hechos-no-estado) |
+| Curva de XP y rangos | `src/domain/leveling.ts` | [5](#5-niveles-y-rangos) |
+| Eventos y binarios en disco | `src/storage/eventStore.ts`, `blobStore.ts` | [6](#6-almacenamiento-sqlite-y-su-sustituto-en-el-navegador) |
+| Store, `dispatch`, snapshot y deshacer | `src/store/game.ts`, `src/features/snapshot/`, `src/features/undo/` | [7](#7-el-estado-global-con-zustand) |
+| Secciones, teclado y avisos | `src/App.tsx`, `src/components/*` | [8](#8-la-interfaz-secciones-selección-y-teclado) |
+| Animaciones, partículas y sacudidas | `src/components/QuestCard.tsx`, `ClearOverlay.tsx`, `src/lib/fx.ts`, `src/lib/motion.ts` | [9](#9-las-animaciones-por-dentro) |
+| Sonido | `src/lib/sfx.ts` | [10](#10-el-sonido-sintetizado-sin-archivos) |
+| Idiomas | `src/i18n/` | [12](#12-idiomas-español-y-japonés) |
+| Sincronización con Google Drive | `src/features/sync/`, `src-tauri/src/sync/` | [README de sync](../src/features/sync/README.md) |
+| Interfaz de teléfono | `src/features/mobile/` | [README de mobile](../src/features/mobile/README.md) |
 
 ---
 
 ## 3. Tauri por dentro: dos procesos y un puente
 
-**Archivos:** `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`
-
 Una app Tauri son **dos programas que se hablan**:
 
 | Proceso | Qué es | Qué hace en Quests |
 |---|---|---|
-| **Núcleo nativo (Rust)** | Un ejecutable compilado | Abre la ventana, carga los plugins y accede a disco y sistema |
-| **WebView** | El motor web del sistema operativo: WKWebView en macOS, WebView2 en Windows | Ejecuta React, las animaciones y toda la lógica de la app |
+| **Núcleo nativo (Rust)** | Un ejecutable compilado | Abre la ventana, carga los plugins, accede a disco y al llavero, y hace todas las llamadas a Google |
+| **WebView** | El motor web del sistema: WKWebView en macOS e iOS, WebView2 en Windows | Ejecuta React, las animaciones y toda la lógica de la app |
 
-A diferencia de Electron, Tauri **no empaqueta un navegador**: usa el que ya trae el sistema. Por eso la app ocupa megas en lugar de cientos de megas. La contrapartida es que en Mac y en Windows el motor web es distinto, y hay que probar en los dos.
+Tauri **no empaqueta un navegador**: usa el del sistema. Por eso la app ocupa megas en lugar de cientos de megas, y por eso hay que probar en los dos motores.
 
 ### El puente (IPC)
-
-Cuando el código JavaScript hace esto:
 
 ```ts
 const db = await Database.load("sqlite:quests.db");
 await db.execute("INSERT OR IGNORE INTO events ...", [id, ...]);
 ```
 
-…no está tocando SQLite directamente. `@tauri-apps/plugin-sql` serializa la llamada y la envía por IPC al proceso Rust. Allí, `tauri-plugin-sql` (que usa la librería `sqlx`) ejecuta la consulta y devuelve el resultado.
-
-El lado Rust de Quests es pequeño: registra el plugin y los comandos propios de la sincronización (`src-tauri/src/sync`):
+Esto no toca SQLite directamente: `@tauri-apps/plugin-sql` serializa la llamada y la envía por IPC al proceso Rust, donde `tauri-plugin-sql` (sobre `sqlx`) ejecuta la consulta. El lado Rust registra los plugins y los comandos propios de la sincronización:
 
 ```rust
 tauri::Builder::default()
     .plugin(tauri_plugin_sql::Builder::default().build())
-    .plugin(tauri_plugin_opener::init()) // contactos: tel:, mailto:, https:
-    .plugin(tauri_plugin_notification::init()) // avisos del sistema (features/notifications)
+    .plugin(tauri_plugin_opener::init())       // contactos: tel:, mailto:, https:
+    .plugin(tauri_plugin_notification::init()) // avisos del sistema
+    .plugin(tauri_plugin_web_auth::init())     // inicio de sesión de Google en iOS
     .manage(sync::SyncState::default())
     .invoke_handler(tauri::generate_handler![sync::sync_sign_in, sync::drive_list, /* … */])
     .run(tauri::generate_context!())
 ```
 
-Los comandos propios se llaman con `invoke("drive_list", { kind })` desde `@tauri-apps/api/core`. Los argumentos van en camelCase (`fileId` llega a Rust como `file_id`). Un error de Rust llega al JavaScript como el objeto que serializa (`{ code, status, detail }` en `SyncError`). Para devolver binarios sin pasar por JSON, el comando devuelve un `tauri::ipc::Response`, que llega como `ArrayBuffer`.
+Los comandos propios se llaman con `invoke("drive_list", { kind })` (`@tauri-apps/api/core`). Los argumentos van en camelCase (`fileId` llega a Rust como `file_id`). Un error de Rust llega al JavaScript como el objeto que serializa (`{ code, status, detail }` en `SyncError`). Para devolver binarios sin pasar por JSON, el comando devuelve un `tauri::ipc::Response`, que llega como `ArrayBuffer`.
 
 ### Permisos (capabilities)
 
-Tauri 2 deniega todo por defecto. El WebView solo puede llamar a lo que se declara en `capabilities/default.json`:
+Tauri 2 deniega todo por defecto. El WebView solo puede llamar a lo que declara `src-tauri/capabilities/default.json`, que es la fuente (aquí, solo para qué sirve cada grupo):
 
-```json
-"permissions": [
-  "core:default", "sql:default", "sql:allow-execute", "core:window:allow-destroy",
-  "notification:allow-is-permission-granted", "notification:allow-request-permission",
-  "notification:allow-notify", "notification:allow-cancel", "notification:allow-get-pending",
-  { "identifier": "opener:allow-open-url", "allow": [{ "url": "tel:*" }, { "url": "mailto:*" }, { "url": "https://*" }] }
-]
-```
+| Permisos | Para qué | Dónde se explica |
+|---|---|---|
+| `core:default`, `core:window:allow-destroy` | Lo básico de la ventana; cerrarla desde el JavaScript tras sincronizar al salir | [sync](../src/features/sync/README.md) |
+| `sql:default`, `sql:allow-execute` | Abrir la base y leer (`SELECT`); escribir | Esta sección |
+| `notification:allow-*` (cinco) | Pedir permiso, avisar y, en iOS, programar y cancelar avisos; nada de canales ni acciones | [notifications](../src/features/notifications/README.md) |
+| `opener:allow-open-url` con `tel:*`, `mailto:*` y `https://*` | Abrir los contactos con la app del sistema; sin `file:` ni `revealItemInDir` (que trae `opener:default`) | [contacts](../src/features/contacts/README.md) |
 
-`sql:default` permite abrir la base de datos y hacer `SELECT`; `sql:allow-execute` permite escribir. `opener:allow-open-url` abre los contactos de las quests con la app del sistema (Teléfono, Mail, el navegador, WhatsApp o Mapas), **solo** con esos tres esquemas: nada de `file:` ni de otros programas, y sin `revealItemInDir`, que trae `opener:default`. Si mañana la app cargara contenido malicioso, no podría, por ejemplo, leer archivos arbitrarios del disco. Los permisos de `notification:` son los justos para pedir permiso, avisar y, en iOS, programar y cancelar avisos (features/notifications); no se usan los canales ni las acciones.
+Un plugin nuevo necesita su permiso aquí, lo mínimo posible, y su registro en `src-tauri/src/lib.rs`.
 
 ### Content Security Policy (CSP)
 
-La segunda barrera es la CSP de `tauri.conf.json` (`app.security.csp`): qué puede cargar el WebView. Solo lo de la propia app (`'self'`), sin nada de internet:
+La segunda barrera es la CSP de `tauri.conf.json` (`app.security.csp`): qué puede cargar el WebView. Solo lo de la propia app, sin nada de internet:
 
 | Directiva | Valor | Por qué |
 |---|---|---|
-| `default-src`, `script-src` | `'self'` | Ningún script de fuera ni `eval`. Tauri añade solo los *nonces* de sus propios scripts |
-| `style-src` | `'self' 'unsafe-inline'` | Motion, GSAP y React escriben estilos en línea. Por eso `dangerousDisableAssetCspModification: ["style-src"]`: si Tauri añadiera un *nonce* aquí, el navegador ignoraría `'unsafe-inline'` |
-| `img-src` | `'self' data: blob:` | Miniaturas y objetos (`data:`), arte SVG de las piezas de serie (`data:`), adjuntos y fondo del menú (`blob:`) |
-| `media-src` | `'self' blob:` | Música y el vídeo de Hu Tao, que se reproduce desde memoria (`blob:`) |
+| `default-src`, `script-src` | `'self'` | Ningún script de fuera ni `eval`. Tauri añade los *nonces* de sus propios scripts |
+| `style-src` | `'self' 'unsafe-inline'` | Motion, GSAP y React escriben estilos en línea. Por eso `dangerousDisableAssetCspModification: ["style-src"]`: un *nonce* aquí anularía `'unsafe-inline'` |
+| `img-src` | `'self' data: blob:` | Miniaturas, objetos y arte SVG de serie (`data:`); adjuntos, fondo del menú y personajes añadidos (`blob:`) |
+| `media-src` | `'self' blob:` | Música y el vídeo de Hu Tao, reproducidos desde memoria (`blob:`) |
 | `font-src` | `'self' data:` | Fontsource; Vite puede incrustar fuentes pequeñas como `data:` |
-| `frame-src`, `object-src` | `blob:` | El visor de PDF de los adjuntos: un `<iframe>` con el PDF en `blob:`. El documento `blob:` hereda la CSP, y el visor de PDF cuenta como `object` |
-| `connect-src` | `'self' ipc: http://ipc.localhost` | El puente con Rust (IPC) y `fetch` de los archivos propios |
+| `frame-src`, `object-src` | `blob:` | El visor de PDF de los adjuntos (un `<iframe>` con el PDF en `blob:`, que hereda la CSP y cuenta como `object`) |
+| `connect-src` | `'self' ipc: http://ipc.localhost` | El puente con Rust y `fetch` de los archivos propios |
 | `base-uri`, `form-action` | `'none'` | No hay `<base>` ni formularios que se envíen |
 
-`devCsp` es la misma para `pnpm tauri dev`, más lo que necesita Vite: scripts en línea (el preámbulo de React) y el WebSocket de la recarga en caliente. Si una funcionalidad nueva carga algo de otro origen (la fase 2, Google Drive), hay que añadirlo aquí de forma explícita y mínima, como los permisos.
+`devCsp` es la misma para `pnpm tauri dev`, más lo que necesita Vite: scripts en línea (el preámbulo de React) y el WebSocket de la recarga en caliente. Google Drive no aparece porque todas sus llamadas las hace Rust. Si algo tuviera que cargar de otro origen, se añadiría aquí, en la directiva exacta y en las dos políticas ([ADR-26](decisions/ADR-26-csp-estricta.md)).
 
-### Dónde vive la base de datos
+### Base de datos y modos
 
-Tauri resuelve `sqlite:quests.db` dentro de la carpeta de datos de la app, que depende del `identifier` (`com.quests.app`):
-
-- macOS: `~/Library/Application Support/com.quests.app/quests.db`
-- Windows: `%APPDATA%\com.quests.app\quests.db`
-
-### Desarrollo frente a producción
-
-- `pnpm tauri dev` arranca Vite en `localhost:1420` y abre la ventana nativa apuntando a él, con recarga en caliente.
-- `pnpm tauri build` compila el frontend a `dist/`, lo incrusta en el ejecutable y genera el instalador.
+- Tauri resuelve `sqlite:quests.db` en la carpeta de datos de la app, según el `identifier` (`com.quests.app`): `~/Library/Application Support/com.quests.app/` en macOS y `%APPDATA%\com.quests.app\` en Windows.
+- `pnpm tauri dev` arranca Vite en `localhost:1420` y abre la ventana nativa apuntando a él. `pnpm tauri build` compila el frontend a `dist/`, lo incrusta en el ejecutable y genera el instalador.
 
 ---
 
 ## 4. Event sourcing: guardar hechos, no estado
 
-**Archivos:** `src/domain/events.ts`, `src/domain/projection.ts`
+**Archivos:** `src/domain/events.ts`, `src/domain/upcast.ts`, `src/domain/projection.ts`
 
 ### La idea
 
-Una app tradicional guardaría «nivel = 4, XP = 1150, quest X = completada». Quests guarda en cambio **lo que pasó**:
+Una app tradicional guardaría «nivel = 4, XP = 1150». Quests guarda **lo que pasó**:
 
 ```
 1. quest_created    «Recado del Mercado»
 2. quest_accepted   «Recado del Mercado»
 3. progress_added   Fruta +1
-4. progress_added   Fruta +1
    …
-9. quest_completed  «Recado del Mercado», recompensa {xp: 150, gold: 80}
+9. quest_completed  «Recado del Mercado», recompensa {xp: 85, gold: 1560}
 ```
 
-El estado actual se obtiene **reproduciendo** esa lista desde el principio. Es como un libro de contabilidad: el saldo no se apunta, se calcula sumando los movimientos.
-
-### Por qué así
-
-- **Sincronizar es trivial.** Si el portátil y el sobremesa trabajan sin conexión, basta con *unir* sus listas de eventos y reproducirlas. No hay «quién tiene la versión buena».
-- **Historial gratis.** Se puede saber qué hiciste cada día, sacar estadísticas o deshacer.
-- **El dominio es una función pura**, lo que lo hace fácil de testear: misma lista de eventos, mismo resultado, siempre.
+El estado se obtiene **reproduciendo** esa lista. Es un libro de contabilidad: el saldo no se apunta, se calcula sumando los movimientos. Por eso **sincronizar es unir listas** (sin «quién tiene la versión buena»), el historial sale gratis (la crónica, deshacer) y el dominio es una función pura: misma lista, mismo resultado.
 
 ### Anatomía de un evento
 
@@ -188,9 +166,9 @@ El estado actual se obtiene **reproduciendo** esa lista desde el principio. Es c
 type GameEvent = EventMeta & EventBody;
 
 interface EventMeta {
-  id: string;       // UUID único: permite deduplicar al fusionar
+  id: string;       // UUID: permite deduplicar al fusionar
   deviceId: string; // qué equipo lo generó
-  ts: number;       // cuándo (reloj lógico híbrido, en milisegundos)
+  ts: number;       // reloj lógico híbrido, en milisegundos
   v?: number;       // versión del formato (EVENT_VERSION); falta en los anteriores a la 1
 }
 
@@ -198,28 +176,21 @@ type EventBody =
   | { type: "quest_created"; quest: QuestDef }
   | { type: "quest_accepted"; questId: string }
   | { type: "progress_added"; questId: string; conditionId: string; amount: number }
-  | { type: "quest_completed"; questId: string; reward: RewardDef }
-  | ... // quest_deleted, quest_abandoned
+  | { type: "quest_completed"; questId: string; reward: RewardDef; drops?: Drop[] }
+  | /* quest_deleted, quest_abandoned y los de cada funcionalidad (PomodoroEventBody, TemporalEventBody…) */
 ```
 
-TypeScript trata `EventBody` como una *unión discriminada*: dentro de un `switch (e.type)`, sabe qué campos tiene cada caso.
+`EventBody` es una *unión discriminada*: dentro de un `switch (e.type)`, TypeScript sabe qué campos tiene cada caso. Los seis eventos del núcleo están en el [informe técnico](INFORME-TECNICO.md#modelo-de-eventos-y-persistencia); los de cada funcionalidad, en su README (la lista completa, generada, en [INDEX.md](INDEX.md#eventos--funcionalidad)).
 
 ### Versión de los eventos
 
-Cada evento nuevo lleva `v: EVENT_VERSION` (`src/domain/events.ts`, ahora 1). Los anteriores no la llevan y cuentan como versión 0. Al aplicarlos, `applyEvent` pasa cada evento por `upcastEvent` (`src/domain/upcast.ts`), que lo sube de versión paso a paso con `UPCASTERS[n]` (de n a n + 1) sin tocar el original. El paso de 0 a 1 no cambia nada: los formatos de antes de versionar (el pomodoro único, el objeto de texto) ya los convierten por su forma los `legacy.ts` de cada funcionalidad.
+Cada evento nuevo lleva `v: EVENT_VERSION` (`src/domain/events.ts`); los anteriores no la llevan y cuentan como versión 0. `applyEvent` pasa cada evento por `upcastEvent` (`src/domain/upcast.ts`), que lo sube paso a paso con `UPCASTERS[n]` (de `n` a `n + 1`) sin tocar el original. Los formatos de antes de versionar (el pomodoro único, el objeto de texto) los convierten por su forma los `legacy.ts` de cada funcionalidad.
 
-Un evento de una versión **más nueva** que la app (llegará con la sincronización, desde un equipo actualizado) se **ignora**: la proyección no sabe interpretarlo. Al actualizar la app, `PROJECTION_VERSION` habrá subido, el snapshot se descarta y el evento se aplica.
+Un evento de una versión **más nueva** que la app (de un equipo ya actualizado) se **ignora**: la proyección no sabe interpretarlo. Al actualizar, `PROJECTION_VERSION` habrá subido, el snapshot se descarta y el evento se aplica. Cómo cambiar un formato: [runbooks/migrar-evento.md](runbooks/migrar-evento.md).
 
-Para cambiar el formato de un evento:
+### La proyección
 
-1. Sube `EVENT_VERSION`.
-2. Añade el paso en `UPCASTERS` (el test comprueba que hay uno por versión).
-3. Sube `PROJECTION_VERSION`.
-4. Prueba con datos antiguos: `randomStream` ya mezcla eventos sin `v`, de la versión actual y de una futura.
-
-### La proyección, línea a línea
-
-`project(events)` recorre los eventos en orden y va construyendo el estado. Por dentro son tres funciones: `newProjectionAcc()` crea un acumulador vacío, `applyEvent(acc, e)` aplica **un** evento (el `switch` de abajo) y `finishProjection(acc)` calcula lo que depende del conjunto (nivel, rango y el encargo de cada quest). Así el store puede aplicar solo el evento nuevo y el arranque puede partir de un snapshot (sección 7). Simplificado:
+`project(events)` recorre los eventos en orden y construye el estado. Por dentro son tres funciones: `newProjectionAcc()` crea un acumulador vacío, `applyEvent(acc, e)` aplica **un** evento y `finishProjection(acc)` calcula lo que depende del conjunto (nivel, rango, el encargo de cada quest, las quests en reserva, la recompensa de los encargos pendientes). Antes de recorrer, `project()` aparta los eventos deshechos (`undoneIn`, [undo](../src/features/undo/README.md)). Simplificado:
 
 ```ts
 for (const e of events) {
@@ -234,66 +205,53 @@ for (const e of events) {
     case "quest_completed":
       if (q?.status === "active") {
         xp += e.reward.xp;
-        ...
+        // …
       }
       break;
   }
 }
 ```
 
-Fíjate en las **guardas** (`if q?.status === "active"`). Hacen que los eventos «imposibles» se ignoren en lugar de romper nada. Por ejemplo: si dos equipos completan la misma quest sin conexión, al fusionar habrá dos `quest_completed`. El primero la pasa a `done` y el segundo ya no la encuentra activa, así que **la XP no se duplica**.
+Las **guardas** (`if (q?.status === "active")`) hacen que los eventos imposibles se ignoren en lugar de romper nada: si dos equipos completan la misma quest sin conexión, al fusionar habrá dos `quest_completed`; el primero la pasa a `done` y el segundo ya no la encuentra activa, así que **la XP no se duplica**.
 
-### Tres decisiones finas
+Tres decisiones finas:
 
-1. **El progreso es un delta (`amount: +1`), no un valor (`value: 3`).** Si dos equipos suman +1 cada uno, el total es +2. Con valores absolutos, uno pisaría al otro.
-2. **La recompensa se copia dentro de `quest_completed`.** Si en el futuro editas la quest para dar más XP, lo que ya ganaste no cambia.
-3. **La espera de las repetibles no genera eventos.** La proyección guarda `availableAt` y la función `effectiveStatus(q, now)` decide en el momento de pintar:
-
-   ```ts
-   if (q.status === "cooldown" && now >= q.availableAt) return "available";
-   ```
-
-   Así, una repetible «vuelve» sola aunque la app esté cerrada, sin que nadie emita nada. Desde las quests complejas, **cualquier** quest con `cooldownMinutes` vuelve igual: la proyección pregunta `recurs(q)` en lugar de mirar la categoría ([src/features/complex/README.md](../src/features/complex/README.md)).
+1. **El progreso es un delta** (`amount: +1`), no un valor: si dos equipos suman +1 cada uno, el total es +2.
+2. **La recompensa se copia dentro de `quest_completed`**: si la fórmula o la quest cambian, lo ya ganado no.
+3. **La espera de las que se repiten no genera eventos**: la proyección guarda `availableAt` y `effectiveStatus(q, now)` decide al pintar (`if (q.status === "cooldown" && now >= q.availableAt) return "available"`). Una quest vuelve sola aunque la app esté cerrada. Cualquier quest que se repita (`recurs(q)`, [complex](../src/features/complex/README.md)) funciona igual.
 
 ### Guardas que miran otras entidades
 
-Algunas guardas no dependen solo de la entidad del evento, sino del estado de otras **en ese punto de la reproducción**:
+Algunas guardas dependen del estado de otras entidades **en ese punto de la reproducción**. Como se evalúan en el orden de los eventos, el resultado es el mismo en todos los equipos.
 
 | Evento | Se ignora si… | Función |
 |---|---|---|
-| `quest_accepted` | La quest pide requisitos que aún no se han completado | `prerequisitesMet(q, quests)` (`features/complex/model.ts`) |
-| `temporal_completed` | Alguna quest enlazada al encargo no está terminada | `linkDone(questId, since)`, que `project()` pasa a `applyTemporalEvent` (`features/temporal/model.ts`) |
-| `gear_purchased` | El oro no llega en ese punto del historial, la pieza no existe o ya es tuya | `applyMerchantEvent(acc.merchant, e, ts, acc.gold)` devuelve el oro gastado (`features/merchant/model.ts`) |
-| `gear_equipped` | La pieza no es tuya | `applyEquipmentEvent(acc.equipment, acc.merchant, e)` (`features/equipment/model.ts`) |
+| `quest_accepted` | Faltan requisitos, o la quest está en reserva (su encargo no está aceptado) | `prerequisitesMet` (`features/complex`), `inReserve` (`features/temporal`) |
+| `temporal_completed` | El encargo no está aceptado o alguna quest enlazada no está terminada | `linkDone(questId, since)`, que `project()` pasa a `applyTemporalEvent` |
+| `gear_purchased`, `collectible_purchased` | El oro no llega en ese punto, el artículo no existe o ya es tuyo | `applyMerchantEvent`, `applyCollectibleEvent` (devuelven el oro gastado) |
+| `gear_equipped` | La pieza no es tuya | `applyEquipmentEvent` |
+| `quest_failed`, `temporal_failed` | No ha acabado el día de su fecha, o ya está terminado | `failsAt` (`features/failure`) |
 
-Una guarda de oro es la del doble gasto: si dos equipos gastan el mismo oro sin conexión, al fusionar solo vale la compra que llega primero. Lo que puede cambiar al fusionar (el escaparate de esa semana, el rango) no se comprueba aquí sino en la acción; si no, una compra legítima podría desaparecer.
-
-Además, `quest_completed` suma su XP al **atributo** del área de la quest (`gainAttribute`, `features/attributes/model.ts`). No es un evento nuevo: los atributos salen de los `quest_completed` que ya había, así que aparecen también para las quests completadas antes de existir.
-
-`applyTemporalEvent` no conoce las quests: `project()` le pasa una función que las consulta. Así el modelo de los encargos sigue siendo puro y la regla vive en un solo sitio. Como las guardas se evalúan en el orden de los eventos, el resultado es el mismo en todos los dispositivos.
-
-Al terminar el recorrido, `finishProjection()` calcula además **a qué encargo pendiente pertenece cada quest** (`QuestState.temporalId`, con `questOwners`). No se guarda en ningún evento: sale de los enlaces de los encargos. Lo recalcula entero, poniéndolo o quitándolo, porque se ejecuta tras cada evento sobre un estado que ya lo tenía.
+Lo que puede cambiar al fusionar (el escaparate de esa semana, el rango) **no** se comprueba en la guarda sino en la acción: si no, una compra legítima podría desaparecer. Además, `quest_completed` suma su XP al **atributo** del área ([attributes](../src/features/attributes/README.md)), avanza la **racha** ([streaks](../src/features/streaks/README.md)) y apunta la **crónica** ([chronicle](../src/features/chronicle/README.md)); ninguno es un evento propio, así que también salen para lo completado antes de que existieran.
 
 ### Lo que depende de la hora, en la interfaz
 
-El **plazo** de una quest o un encargo (1 día, 7 días, 2 semanas, 1 mes, +1 mes) también se calcula al pintar: `horizonOf({ dueAt, allDay }, now)` en `features/horizon/model.ts`. La fecha de una quest es la suya (`QuestDef.dueAt`) o la de su encargo (`questDue`). Nada de esto genera eventos.
-
-El **escaparate del mercader** también: `showcase(catalog, owned, now)` elige 5 piezas con la semana como semilla (`seededRandom("2026-10-5:<id>")`) y añade las recién llegadas. Cambia solo cada lunes y todos los equipos ven el mismo.
+El plazo de una quest ([horizon](../src/features/horizon/README.md)), la urgencia de un encargo, el escaparate de la semana, el coleccionable de la semana y el personaje del día se calculan al pintar con `now`. Nada de eso genera eventos.
 
 ### El azar también se guarda
 
-Los drops de objetos son aleatorios, pero la proyección no puede tirar dados: dos dispositivos reproducirían botines distintos. Por eso el azar se resuelve **en la acción** (`reportQuest` llama a `rollDrops(…, Math.random)`) y el resultado viaja **dentro** de `quest_completed.drops`. La proyección solo lo lee, y así el inventario y el pity son idénticos en todos los equipos. Al ir dentro de `quest_completed`, los drops heredan su guarda: si la quest se completa dos veces sin conexión, el botín tampoco se duplica. Detalles en [src/features/items/README.md](../src/features/items/README.md).
+Los drops son aleatorios, pero la proyección no puede tirar dados: dos equipos reproducirían botines distintos. El azar se resuelve **en la acción** (`reportQuest` llama a `rollDrops(…, Math.random)`) y el resultado viaja **dentro** de `quest_completed.drops`; la proyección solo lo lee. Al ir dentro de `quest_completed`, los drops heredan su guarda: el botín tampoco se duplica ([items](../src/features/items/README.md)).
 
 ### El orden
 
-Los eventos se ordenan por `ts` y, en caso de empate, por `id` (`compareEvents`). Así el orden es **determinista**: todos los dispositivos reproducen exactamente la misma secuencia.
+Los eventos se ordenan por `ts` y, en caso de empate, por `id` (`compareEvents`): todos los equipos reproducen exactamente la misma secuencia.
 
-`ts` no es el reloj tal cual, sino un **reloj lógico híbrido** (HLC): `dispatch` lo calcula con `nextTs(now, último)`, donde «último» es el último evento aplicado, sea de este equipo o fusionado de otro:
+`ts` no es el reloj tal cual, sino un **reloj lógico híbrido** (HLC): `dispatch` lo calcula con `nextTs(now, último)`, donde «último» es el último evento aplicado, de este equipo o fusionado de otro ([ADR-25](decisions/ADR-25-reloj-hibrido.md)):
 
-- **max(reloj, último + 1).** Lo que se hace después de ver un evento va siempre detrás de él. Sin esto, una acción que emite varios eventos en el mismo milisegundo los dejaba en el orden de su `id` aleatorio (un `quest_completed` antes de su `quest_accepted`), y un equipo con el reloj atrasado podía abandonar una quest «antes» de que otro la aceptara.
-- **Deriva máxima de 1 minuto** (`MAX_DRIFT_MS`). Si «último» va más de un minuto por delante del reloj (un equipo con la hora mal), no se le sigue: el evento lleva la hora del reloj, cae en medio del historial y se recalcula todo. Así un reloj del año 2099 no arrastra a los demás. Un minuto es menos que la precisión de las esperas y los pomodoros.
+- **max(reloj, último + 1).** Lo que se hace después de ver un evento va siempre detrás de él. Así, una acción que emite varios eventos en el mismo milisegundo no los deja en el orden de su `id` aleatorio, y un equipo con el reloj atrasado no puede abandonar una quest «antes» de que otro la aceptara.
+- **Deriva máxima de 1 minuto** (`MAX_DRIFT_MS`). Si «último» va más de un minuto por delante del reloj (un equipo con la hora mal), no se le sigue: el evento lleva la hora del reloj, cae en medio del historial y se recalcula todo. Así un reloj del año 2099 no arrastra a los demás.
 
-Un HLC clásico guarda la hora física y un contador por separado. Aquí van juntos en los milisegundos: el contador «se come» 1 ms por evento. Así el formato de los eventos, las consultas de SQLite y el snapshot no cambian (ADR-25).
+Un HLC clásico guarda la hora física y un contador por separado. Aquí van juntos en los milisegundos (el contador «se come» 1 ms por evento), y así el formato de los eventos, las consultas de SQLite y el snapshot no cambian.
 
 ---
 
@@ -301,13 +259,13 @@ Un HLC clásico guarda la hora física y un contador por separado. Aquí van jun
 
 **Archivo:** `src/domain/leveling.ts`
 
-La XP necesaria para pasar de un nivel al siguiente crece algo más rápido que lineal:
+La XP para pasar de un nivel al siguiente crece algo más rápido que lineal:
 
 ```ts
 xpToNext(level) = Math.round(100 * level ** 1.4)
 ```
 
-Los rangos van por umbrales de nivel (F, E, D, C, B, A, S). **No hay límite de quests en curso**: antes había «huecos» (4 al empezar, uno más cada 3 niveles, hasta 10), pero el propietario los quitó porque no tenían sentido para tareas reales; la cabecera solo cuenta las que llevas en curso.
+Los rangos van por umbrales de nivel: F (1), E (3), D (5), C (8), B (12), A (17) y S (24). El rango es también el requisito de las piezas del mercader. **No hay límite de quests en curso** ([ADR-33](decisions/ADR-33-sin-limite-de-quests.md)).
 
 | Nivel | XP para subir | XP total al llegar | Rango |
 |---:|---:|---:|:---:|
@@ -321,43 +279,31 @@ Los rangos van por umbrales de nivel (F, E, D, C, B, A, S). **No hay límite de 
 | 10 | 2.512 | 9.237 | C |
 | 12 | 3.242 | 14.619 | B |
 
-`levelFromXp(total)` va restando `xpToNext` nivel a nivel hasta que no llega, y devuelve el nivel, la XP dentro del nivel y la que falta. Con las quests de ejemplo, completar el «Dragón del Papeleo» (400 XP) te lleva directamente a nivel 3.
-
-Para cambiar el ritmo del juego basta con tocar el exponente `1.4` o la base `100`. Como la XP se recalcula desde los eventos, **el cambio se aplica también a todo lo ya jugado**.
+`levelFromXp(total)` va restando `xpToNext` nivel a nivel y devuelve el nivel, la XP dentro del nivel y la que falta. Se calcula en `finishProjection`: cambiar la base `100` o el exponente `1.4` se aplica a todo lo ya jugado y no hace falta subir `PROJECTION_VERSION`. Pero cambia el ritmo del juego: pregunta antes al propietario.
 
 ---
 
 ## 6. Almacenamiento: SQLite y su sustituto en el navegador
 
-**Archivo:** `src/storage/eventStore.ts`
+**Archivos:** `src/storage/eventStore.ts`, `src/storage/blobStore.ts`
 
-### La interfaz
+### La interfaz `EventStore`
 
 ```ts
 interface EventStore {
   deviceId: string;
-  all(): Promise<GameEvent[]>;          // todos, ordenados
-  since(pos): Promise<GameEvent[]>;      // los posteriores a { ts, id }: la cola de un snapshot
-  countUpTo(pos): Promise<number>;       // cuántos hay hasta { ts, id }: ¿sigue valiendo el snapshot?
-  append(event): Promise<void>;          // uno nuevo, local
-  merge(events): Promise<number>;        // remotos (fase 2): inserta solo los nuevos
-  unsynced(): Promise<GameEvent[]>;      // los que faltan por subir (fase 2)
-  markSynced(ids): Promise<void>;        // marcarlos como subidos (fase 2)
+  all(): Promise<GameEvent[]>;              // todos, ordenados
+  since(pos): Promise<GameEvent[]>;         // los posteriores a { ts, id }: la cola de un snapshot
+  countUpTo(pos): Promise<number>;          // cuántos hay hasta { ts, id }: ¿sigue valiendo el snapshot?
+  byDevice(deviceId): Promise<GameEvent[]>; // los de un equipo (para subir su archivo a Drive)
+  append(event): Promise<void>;             // uno nuevo, local
+  merge(events): Promise<number>;           // remotos: inserta solo los nuevos y dice cuántos
+  unsynced(): Promise<GameEvent[]>;         // los que faltan por subir
+  markSynced(ids): Promise<void>;           // marcarlos como subidos
 }
 ```
 
-El resto de la app solo conoce esta interfaz. Por eso cambiar de SQLite a otra cosa, o añadir la sincronización, no obliga a tocar la UI.
-
-### ¿Tauri o navegador?
-
-```ts
-const isTauri = () => "__TAURI_INTERNALS__" in window;
-export async function openEventStore() {
-  return isTauri() ? openSqliteStore() : openLocalStore();
-}
-```
-
-Tauri inyecta `__TAURI_INTERNALS__` en su WebView. Si no existe, la app está en un navegador normal (`pnpm dev`) y se usa `localStorage`. Esto permitió desarrollar y probar la interfaz sin abrir la app nativa.
+El resto de la app solo conoce esta interfaz. `openEventStore()` elige la implementación: si existe `__TAURI_INTERNALS__` (lo inyecta Tauri en su WebView), SQLite; si no, el navegador de `pnpm dev`, con `localStorage` (`quests.events`, `quests.deviceId`, `quests.synced`).
 
 ### SQLite
 
@@ -370,53 +316,37 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 ```
 
-- `body` guarda el JSON con el `type` y sus datos. Los metadatos (`id`, `device_id`, `ts`) van en columnas propias para poder indexar y ordenar.
-- `meta` guarda el `device_id`, generado la primera vez que se abre la app en ese equipo, y el `snapshot` de la proyección (sección 7).
-- Se inserta con **`INSERT OR IGNORE`**: si llega un evento cuyo `id` ya existe, no pasa nada. Fusionar dos veces lo mismo es inofensivo (*idempotente*).
-- `synced` distingue los eventos ya subidos a Drive (fase 2).
+- `body` guarda el JSON con el `type` y sus datos; `id`, `device_id` y `ts` van en columnas para indexar y ordenar (índice `(ts, id)`).
+- `meta` guarda el `device_id`, el `snapshot` de la proyección y, de la sincronización, los cursores y la cuenta conectada.
+- Se inserta con **`INSERT OR IGNORE`**, por lotes: fusionar dos veces lo mismo es inofensivo (*idempotente*).
+- `synced` distingue los eventos ya subidos a Drive.
 
-### Archivos adjuntos: el almacén de binarios
+### Archivos: el almacén de binarios
 
-**Archivo:** `src/storage/blobStore.ts`
-
-Los PDF e imágenes que se adjuntan a los encargos temporales **no van en los eventos**: un archivo de varios MB se leería en cada arranque y no cabría en el `localStorage` del navegador. El evento lleva una referencia (`AttachmentRef`: nombre, tipo, tamaño, una miniatura de 320 px y el `blobId`), y el contenido va a un almacén aparte:
+Los PDF e imágenes de los encargos, la imagen grande de los fondos del mercader y las imágenes de los personajes añadidos **no van en los eventos**: el evento lleva una referencia y el contenido va aquí.
 
 ```ts
 interface BlobStore {
-  put(data: Blob): Promise<string>;      // guarda y devuelve su SHA-256
-  get(id): Promise<Blob | undefined>;    // undefined si este equipo no lo tiene
+  put(data: Blob): Promise<string>;     // guarda y devuelve su SHA-256
+  get(id): Promise<Blob | undefined>;   // undefined si este equipo aún no lo tiene
   remove(id): Promise<void>;
+  ids(): Promise<Set<string>>;          // todo lo guardado (para saber qué falta subir o bajar)
+  readBase64(id): Promise<{ mime; data } | undefined>;  // tal como viaja por el puente con Rust
 }
 ```
 
-- **Direccionado por contenido**: la clave es el SHA-256 del archivo. El mismo archivo tiene el mismo id en todos los dispositivos, y guardarlo dos veces no ocupa el doble.
-- **Tauri**: tabla `blobs` en el mismo `quests.db` (`id`, `mime`, `size`, `data` en base64, `created`, `synced`). Usa la misma conexión que los eventos (`sqliteDb()` en `eventStore.ts`), así que no hacen falta plugins ni permisos nuevos. El puente JS↔Rust viaja en JSON, por eso el binario va en base64.
+- **Direccionado por contenido**: la clave es el SHA-256 del archivo. El mismo archivo tiene el mismo id en todos los equipos y guardarlo dos veces no ocupa el doble.
+- **Tauri**: tabla `blobs` en el mismo `quests.db` (`id`, `mime`, `size`, `data` en base64, `created`, `synced`), con la misma conexión que los eventos (`sqliteDb()`): sin plugins ni permisos nuevos. El puente JS↔Rust viaja en JSON, por eso el binario va en base64.
 - **Navegador**: IndexedDB (`quests.blobs`), que admite archivos grandes.
-- **Limpieza**: al quitar un adjunto o retirar un encargo, las acciones borran los binarios que ya no usa nadie.
-- **También el fondo del menú**: el mercader guarda ahí la imagen grande de los fondos que se venden (`GearDef.art`), con la misma norma. Como el almacén es compartido, las dos limpiezas miran las referencias de ambos (`liveBlobIds` de los encargos y `gearBlobIds` del mercader) antes de borrar.
-
-Detalles y límites en el [README de los encargos temporales](../src/features/temporal/README.md).
+- **Limpieza compartida**: antes de borrar un binario se comprueba que no lo use ningún encargo, pieza ni personaje (`liveBlobIds`, `gearBlobIds` y `characterBlobIds`).
 
 ### Datos de ejemplo
 
-Si la base está vacía al arrancar, `seedEvents()` (`src/domain/seed.ts`) crea cinco quests y diez objetos de ejemplo. Son eventos `quest_created` normales, así que el usuario puede retirarlas como cualquier otra. Sus ids son fijos (`seed:quest:dragon`, `seed:item:potion`…): si dos equipos arrancan vacíos y se sincronizan, los ejemplos se juntan en uno, porque la proyección ignora crear algo que ya existe. Tampoco vuelve una quest retirada: `quest_deleted` la apunta en `ProjectionAcc.deletedQuests`.
+Si la base está vacía, `seedEvents()` (`src/domain/seed.ts`) crea cinco quests y diez objetos de ejemplo en el idioma activo, como eventos normales. Sus ids son fijos (`seed:quest:dragon`, `seed:item:potion`…): si dos equipos arrancan vacíos y se sincronizan, los ejemplos se juntan en uno, porque la proyección ignora crear algo que ya existe; y una quest retirada no vuelve, porque `quest_deleted` la apunta en `ProjectionAcc.deletedQuests` ([ADR-30](decisions/ADR-30-ids-fijos-y-lapida.md)).
 
-### Sincronización con Google Drive
+### Sincronización
 
-**Archivos:** `src/features/sync/`, `src-tauri/src/sync/`. Diseño completo en [su README](../src/features/sync/README.md).
-
-Cada equipo sube **su** archivo, `events-<deviceId>.jsonl` (todos sus eventos, un JSON por línea), a la carpeta `QuestsApp/` de tu Drive. También baja los de los demás y los fusiona con `EventStore.merge`, que ignora los que ya tiene. Como nunca hay dos equipos escribiendo el mismo archivo, no hay conflictos de escritura. El orden (reloj híbrido) y las guardas de la proyección hacen que todos lleguen al mismo estado. Los binarios viajan aparte, uno por archivo y con su SHA-256 como nombre, así que cada uno se sube y se baja una sola vez.
-
-Lo que hace cada parte:
-
-| Parte | Hace |
-|---|---|
-| `src-tauri/src/sync/oauth.rs` | Inicio de sesión de Google con PKCE. En el escritorio abre el navegador y espera la vuelta en `127.0.0.1:<puerto libre>`; en el iPhone abre la hoja del sistema (`ASWebAuthenticationSession`, plugin `src-tauri/plugins/web-auth`) con el cliente «iOS», que vuelve a su esquema `com.googleusercontent.apps.…`. Guarda el refresh token en el llavero y renueva el access token, que solo vive en memoria |
-| `src-tauri/src/sync/drive.rs` | Listar archivos de Quests (por `appProperties`), bajar y subir (subida reanudable, vale para 20 MB) |
-| `features/sync/engine.ts` | `runSync`: bajar lo nuevo de los demás (por la `version` de cada archivo, guardada como cursor en `meta`), fusionar, recalcular, subir lo propio y mover los binarios |
-| `features/sync/actions.ts` | Cuándo: al abrir, cada 5 minutos, al volver a la ventana, al ocultarla si hay algo sin subir (en el iPhone, al salir de la app) y al cerrarla (como mucho 8 s). Una sincronización a la vez |
-
-El token nunca llega al JavaScript y la CSP no cambia: toda conexión con Google sale de Rust. La credencial de la app (no la tuya) se incrusta al compilar desde `src-tauri/google-client.json`, que no está en el repositorio.
+Cada equipo sube **su** archivo de eventos a Google Drive y baja los de los demás, que fusiona con `EventStore.merge`. Nunca hay dos equipos escribiendo el mismo archivo, y el orden (reloj híbrido) y las guardas hacen que todos lleguen al mismo estado. El token nunca llega al JavaScript: toda conexión con Google sale de Rust. Detalle en el [README de sync](../src/features/sync/README.md).
 
 ---
 
@@ -428,20 +358,23 @@ El token nunca llega al JavaScript y la CSP no cambia: toda conexión con Google
 
 ```ts
 {
-  projected: Projected; // acumulador de la proyección + último evento aplicado + cuántos lleva
-  state: GameState;     // finishProjection(projected.acc): quests + jugador
-  store?: EventStore;   // el almacén abierto (la fuente de verdad)
-  // estado de UI:
-  tab, selectedId, creating, clear, toast
+  ready, error?,          // arranque y fallo al abrir la base (app.dbError)
+  store?: EventStore,     // el almacén abierto (la fuente de verdad)
+  projected: Projected,   // acumulador de la proyección + último evento aplicado + cuántos lleva
+  state: GameState,       // finishProjection(projected.acc)
+  // estado de UI común:
+  section, tab, selectedId?, creating, clear?, collection?, toast?
 }
 ```
+
+El estado de interfaz de cada funcionalidad (ventanas abiertas, filtros, selección) vive en el `ui.ts` de la funcionalidad, no aquí.
 
 ### `dispatch`: el único punto de escritura
 
 ```ts
-async dispatch(body) {
-  const e = { ...body, id: uid(), deviceId: store.deviceId, ts: nextTs(Date.now(), projected.last) };
-  // Reloj atrasado o deshacer (features/undo): cambia el pasado, se recalcula todo.
+async dispatch(body) {   // simplificado
+  const e = newEvent(store, body, projected.last); // id, deviceId, ts = nextTs(Date.now(), último) y v
+  // Reloj atrasado o deshacer: cambia el pasado, se recalcula todo.
   if (!goesAfter(projected, e) || e.type === "event_undone") { await store.append(e); await rebuild(); return e; }
   const next = applyAll({ ...projected, acc: cloneAcc(projected.acc) }, [e]);
   set({ projected: next, state: finishProjection(next.acc) }); // 1. la UI se actualiza ya
@@ -451,69 +384,60 @@ async dispatch(body) {
 }
 ```
 
-Primero se actualiza la memoria y **después** se escribe en disco (actualización *optimista*): la animación arranca sin esperar a SQLite.
-
-Solo se aplica **el evento nuevo**, sobre una copia del acumulador (`structuredClone`): el estado anterior no cambia y React ve objetos nuevos. Hasta octubre de 2026 se reproducían todos los eventos en cada clic. Si el reloj del equipo va atrasado y el evento cae en medio del historial, se recalcula todo (`rebuild()`).
-
-**Deshacer** (features/undo) no borra nada: es otro evento, `event_undone`, y `project()` / `applyAll` saltan el evento deshecho (`undoneIn`) al reproducirlo todo. Como cambia el pasado, deshacer siempre recalcula todo, y el arranque también si la cola tras el snapshot trae un deshacer. `dispatch` devuelve el evento guardado y `say(texto, acción?)` pinta el aviso con un botón («Deshacer»).
+- **Optimista:** primero la memoria, después el disco. La animación arranca sin esperar a SQLite.
+- **Solo el evento nuevo**, sobre una copia del acumulador (`structuredClone`): el estado anterior no cambia y React ve objetos nuevos. Si el evento cae en medio del historial (reloj atrasado), se recalcula todo (`rebuild()`).
+- **Deshacer** no borra nada: es otro evento, `event_undone`, y como cambia el pasado siempre recalcula todo ([undo](../src/features/undo/README.md)). `dispatch` devuelve el evento guardado y `say(texto, acción?)` pinta el aviso con su botón.
 
 ### Snapshot: arrancar sin reproducirlo todo
 
-Cada 100 eventos se guarda el acumulador en la tabla `meta` (en el navegador, en `localStorage`). Al arrancar, `restore()` lo carga, comprueba que es de la misma `PROJECTION_VERSION` y que la base tiene exactamente `count` eventos hasta `upTo`, y aplica solo los posteriores. Si algo no cuadra, reproduce todos. Es una caché: los eventos siguen siendo la verdad. **Si cambias el resultado de `project()` para eventos ya guardados, sube `PROJECTION_VERSION`.** En desarrollo, cada arranque desde un snapshot se compara con la proyección completa y avisa en la consola si no coinciden. Detalles en [src/features/snapshot/README.md](../src/features/snapshot/README.md).
+Cada 100 eventos se guarda el acumulador (tabla `meta`; en el navegador, `localStorage["quests.snapshot"]`). Al arrancar, `restore()` lo carga, comprueba la `PROJECTION_VERSION` y que la base tiene exactamente `count` eventos hasta `upTo`, y aplica solo los posteriores; si algo no cuadra, reproduce todos. Es una caché: si falta o no vale, se recalcula sin perder nada (en la base del propietario, aun así, no se toca). **Si cambias el resultado de `project()` para eventos ya guardados, sube `PROJECTION_VERSION`.** Detalle en el [README de snapshot](../src/features/snapshot/README.md).
 
 ### Acciones fuera de React
 
-`actions.ts` contiene los casos de uso (`acceptQuest`, `addProgress`, `reportQuest`, `abandonQuest`). Leen el store con `useGame.getState()` en lugar de un hook, así que se pueden llamar desde cualquier sitio: un botón, un atajo de teclado o, en el futuro, un test.
-
-`reportQuest` es el más interesante: guarda el jugador **antes**, emite el evento, lee el jugador **después** y pasa ambos a la pantalla «Quest Clear». Con eso sabe desde dónde y hasta dónde animar la barra de XP, y si hay subida de nivel.
+`src/store/actions.ts` (y el `actions.ts` de cada funcionalidad) contiene los casos de uso. Leen el store con `useGame.getState()` en lugar de un hook, así que se llaman desde un botón, un atajo de teclado o un test. `reportQuest` guarda el jugador **antes**, emite el evento, lee el jugador **después** y pasa ambos a «Quest Clear»: con eso sabe desde dónde y hasta dónde animar la barra de XP y si hay subida de nivel.
 
 ### Inicialización una sola vez
 
-En desarrollo, React (modo estricto) ejecuta los efectos **dos veces** a propósito. Si `init()` se llamaba dos veces a la vez, las dos veían la base vacía y metían las quests de ejemplo por duplicado. La solución es guardar la promesa:
+En desarrollo, React (modo estricto) ejecuta los efectos **dos veces**; si `init()` corriera dos veces a la vez, las dos verían la base vacía y sembrarían los ejemplos por duplicado. Por eso se guarda la promesa:
 
 ```ts
 let initOnce: Promise<void> | undefined;
 init() { initOnce ??= load(); return initOnce; }
 ```
 
-La segunda llamada recibe la misma promesa que la primera.
-
 ---
 
-## 8. La interfaz: tablón, selección y teclado
+## 8. La interfaz: secciones, selección y teclado
 
 **Archivos:** `src/App.tsx`, `src/components/*`
 
-- **Filtrado y orden.** `App` toma las quests de la proyección, oculta las `done`, filtra por pestaña y ordena por categoría (élite, repetible, encargo) y fecha de creación. El orden no cambia al aceptar una quest, para que la tarjeta no salte de sitio a mitad de la animación. Después filtra por **plazo** (`features/horizon`): los contadores del filtro cuentan las quests de la pestaña, y el plazo elegido vive en el store de la funcionalidad (`useHorizonUi`), uno por tablón.
-- **Selección.** Si la quest seleccionada desaparece (completada o retirada), se selecciona automáticamente la primera visible.
-- **Teclado.** Un único `keydown` en `window` traduce teclas a acciones. Se ignora mientras escribes en un campo o hay un modal o el overlay abierto (estos tienen sus propios atajos). Las flechas mueven ±1 en horizontal y ±2 en vertical, porque la cuadrícula tiene 2 columnas.
-- **Reloj.** `useNow()` actualiza `now` cada 20 segundos para que «Vuelve en 3 h» avance y las repetibles reaparezcan sin recargar.
-- **Avisos.** `say(texto)` muestra el mensaje dorado junto a los botones y lo borra a los 4,5 s, salvo que haya llegado otro aviso entretanto. Se ve también con el tablón vacío y, en el tablón de encargos, abajo, sobre la madera.
-- **Dos tablones.** `section` (en el store) elige entre el Quest Board y los encargos temporales. Se cambia con el selector de la cabecera o la tecla `T`. `App` maneja las teclas comunes (`T`, `H`, `I`, `C` mercader, `P` personaje, `L`, `M`) y, en el tablón de encargos, deja el resto a `TemporalBoard`, que mueve la selección por la posición de los carteles en pantalla (su rejilla es irregular).
-- **Menú de opciones.** `features/menu`: una pantalla encima de todo (capa 47, debajo de las ventanas, 50) con el mercader, el personaje, los objetos, la crónica, la búsqueda, las secciones y los ajustes. Se abre con la pestaña «MENU», la tecla `O` o la barra del teléfono. Con él abierto, `App` no atiende el teclado (`menuBusy`); el menú escucha **en captura**, para correr antes que las ventanas, y no hace nada si hay una abierta encima (`windowOpen`): así `Escape` cierra primero la ventana y luego el menú. Las tarjetas son una rejilla en 3D (`perspective` + `preserve-3d`); nada entre la rejilla y los textos puede llevar `overflow`, `opacity`, `filter` ni `clip-path`, que aplanarían el 3D. Los personajes de serie son los `.webp` de `public/menu/`: como `import.meta.glob` no ve `public/`, un plugin de `vite.config.ts` (`menuCharacters`) lista la carpeta como el módulo virtual `virtual:menu-characters`. Ver [su README](../src/features/menu/README.md).
-- **Saltar de un tablón a otro.** Desde el cartel abierto se va a una de sus quests (`goToQuest`) y desde el detalle de una quest, a su encargo (`goToTemporal`). Los dos ponen el plazo del tablón de destino en «Todo»: si no, lo elegido podría quedar oculto por el filtro y `App` seleccionaría otra cosa.
-- **Fallos al dibujar.** `<ErrorBoundary>` (`features/recovery`) envuelve a `App` en `main.tsx`. Si un componente falla, sale una pantalla de recuperación en lugar de la ventana en negro: el progreso está a salvo, «Volver a intentarlo» monta la app otra vez (el store se conserva) y «Reiniciar Quests» recarga la ventana.
-- **En el teléfono** (`features/mobile`, por debajo de 760 px): el pie con las teclas se cambia por una barra de abajo (tablones, calendario y menú), la cabecera pasa a dos filas y el detalle es una hoja a pantalla completa que se abre al tocar una tarjeta. Aceptar cierra antes la hoja, para que el sello caiga sobre la tarjeta. Casi todo es CSS: cada funcionalidad tiene su bloque `@media (max-width: 760px)`. Ver [su README](../src/features/mobile/README.md).
-- **Borrado en dos pasos.** «Retirar del tablón» pide un segundo clic («¿Seguro? Retirar») durante 3 s. No se usa `window.confirm` porque no está garantizado que funcione en el WebView de Tauri en todas las plataformas.
+- **Tres secciones.** `section` (en el store) elige entre el Quest Board, los encargos ([temporal](../src/features/temporal/README.md)) y el calendario ([calendar](../src/features/calendar/README.md)). Se cambia con el selector de la cabecera, `T` y `S`, o la barra del teléfono. La app abre en el Quest Board.
+- **Filtrado y orden.** `App` toma las quests de la proyección, oculta las terminadas y las que están en reserva, filtra por pestaña y por plazo, y ordena por categoría y fecha de creación. El orden no cambia al aceptar, para que la tarjeta no salte a mitad de la animación.
+- **Selección.** Si la quest elegida desaparece, se elige la primera visible. Al saltar de un tablón a otro (`goToQuest`, `goToTemporal`), el plazo del destino vuelve a «Todo» para que lo elegido no quede oculto.
+- **Teclado.** Un único `keydown` en `window` traduce teclas a acciones. Las comunes a las tres secciones (`T`, `S`, `I`, `C`, `P`, `J`, `L`, `M`, `O`, `/`, `H`) las maneja `App`; el tablón de encargos y el calendario manejan las suyas. Se ignora mientras escribes en un campo o hay algo abierto: cada ventana exporta un `…Busy()` desde su `ui.ts` y `App` (y los teclados de las otras secciones) esperan si alguno es verdadero. El menú de opciones escucha **en captura**, para correr antes que las ventanas ([menu](../src/features/menu/README.md)). Las flechas mueven ±1 en horizontal y ±2 en vertical (la rejilla tiene 2 columnas). El mapa completo de teclas está en el [README](../README.md#atajos) de la raíz.
+- **Reloj.** `useNow()` actualiza `now` cada 20 segundos para que «Vuelve en 3 h» avance y las quests que se repiten reaparezcan sin recargar.
+- **Avisos.** `say(texto, acción?)` muestra el aviso dorado y lo borra a los 4,5 s (7 s si lleva «Deshacer»), salvo que llegue otro antes. Se ve también con el tablón vacío; el menú y el calendario pintan el suyo; en el teléfono, encima de la barra.
+- **Menú de opciones.** Una pantalla encima de todo (capa 47, debajo de las ventanas, 50) con el mercader, el personaje, los objetos, la crónica, la búsqueda, las secciones y los ajustes ([menu](../src/features/menu/README.md)).
+- **Fallos al dibujar.** `<ErrorBoundary>` envuelve a `App` en `main.tsx`: si un componente falla, sale una pantalla de recuperación en vez de la ventana en negro ([recovery](../src/features/recovery/README.md)).
+- **En el teléfono** (por debajo de 760 px): barra de abajo, cabecera en dos filas y el detalle como hoja a pantalla completa. Casi todo es CSS ([mobile](../src/features/mobile/README.md)).
+- **Borrado en dos pasos.** «Retirar del tablón» pide un segundo clic («¿Seguro? Retirar») durante 3 s. No se usa `window.confirm` porque no está garantizado en el WebView de Tauri.
 
 ---
 
 ## 9. Las animaciones por dentro
 
-Se usan dos librerías, cada una para lo que mejor hace:
-
 | Librería | Para qué | Ejemplos |
 |---|---|---|
-| **Motion** (`motion/react`) | Animaciones declarativas ligadas a React: aparecer, desaparecer, cambiar de posición | Entrada de tarjetas, resaltado de pestaña que se desliza (`layoutId`), panel de detalle con escalonado, barras de progreso con muelle |
-| **GSAP** | Secuencias largas y encadenadas con tiempos precisos | Sello «EN CURSO», pantalla «Quest Clear», «Level Up!» |
+| **Motion** (`motion/react`) | Animaciones ligadas a React: aparecer, desaparecer, cambiar de posición | Entrada de tarjetas, pestaña que se desliza (`layoutId`), panel de detalle escalonado, barras con muelle |
+| **GSAP** | Secuencias largas y encadenadas con tiempos precisos | Sello «EN CURSO», «Quest Clear», «Level Up!», el cofre, los carteles |
 
-Regla práctica: si es «este elemento aparece o se mueve», Motion; si es «primero pasa esto, luego aquello, y a la vez lo otro», GSAP.
+Regla práctica: si es «este elemento aparece o se mueve», Motion; si es «primero esto, luego aquello, y a la vez lo otro», GSAP. Las animaciones propias de cada funcionalidad (carteles de encargos, fallos, sello SOLD, muñeco, menú, diario) se explican en la sección «Interfaz» de su README.
 
 ### 9.1 El sello al aceptar
 
 **Archivo:** `src/components/QuestCard.tsx`
 
-La tarjeta guarda el estado anterior en una referencia y, cuando detecta el paso a `active`, lanza una **línea de tiempo** de GSAP:
+La tarjeta guarda el estado anterior en una referencia y, cuando detecta el paso a `active`, lanza una línea de tiempo:
 
 ```ts
 const tl = gsap.timeline();
@@ -527,51 +451,27 @@ tl.set(cracks, { opacity: 1 })
   .fromTo(crackPaths, { strokeDashoffset: 1 }, { strokeDashoffset: 0, stagger: 0.05 }, "<");
 ```
 
-Claves para leerla:
-
-- Cada paso empieza **cuando acaba el anterior**, salvo que lleve `"<"`, que significa «a la vez que el anterior».
-- `ease: "power4.in"` hace que el sello **acelere** al caer, como un golpe real. Al impactar suena el «clac», tiembla la tarjeta y estallan las líneas.
-- `fromTo` define el estado inicial y el final, así la animación es igual aunque se repita.
+Cada paso empieza cuando acaba el anterior, salvo con `"<"` («a la vez que el anterior»). `ease: "power4.in"` hace que el sello acelere al caer, como un golpe real. `fromTo` fija el inicio y el final, así la animación es igual aunque se repita.
 
 ### 9.2 Las grietas: aleatorias pero siempre iguales
 
-Las líneas tipo mapa se generan con un **generador pseudoaleatorio con semilla** (`seededRandom`, algoritmo mulberry32 en `src/lib/id.ts`). La semilla es el `id` de la quest. Resultado: cada quest tiene su propio dibujo de grietas, pero **el mismo cada vez** que se pinta.
-
-Para que «se dibujen», se usa un truco clásico de SVG:
-
-```tsx
-<path d={...} pathLength={1} strokeDasharray="1 2" />
-```
-
-- `pathLength={1}` hace que el navegador trate la línea como si midiera 1, mida lo que mida.
-- `strokeDasharray="1 2"`: un trazo de longitud 1 seguido de un hueco de longitud 2.
-- Con `strokeDashoffset` en 1 se ve el hueco (línea invisible); al animarlo hasta 0, el trazo «avanza» y la línea se dibuja.
+Las líneas se generan con un **PRNG con semilla** (`seededRandom`, mulberry32, en `src/lib/id.ts`) cuya semilla es el `id` de la quest: cada quest tiene su dibujo, el mismo cada vez. Para que «se dibujen», el truco de SVG: `pathLength={1}` hace que la línea mida 1 mida lo que mida, `strokeDasharray="1 2"` deja un trazo de 1 y un hueco de 2, y animar `strokeDashoffset` de 1 a 0 hace avanzar el trazo. El SVG entero está oculto (`opacity: 0`) hasta aceptar, porque el `dasharray` deja asomar puntos con algunos renderizados.
 
 ### 9.3 La tarjeta que se rompe
 
 **Archivo:** `src/components/ClearOverlay.tsx`
 
-1. **Trocear.** `makeShards()` crea una rejilla de 4×3 puntos. Desplaza aleatoriamente los interiores (los bordes se quedan en su sitio) y divide cada celda en 2 triángulos: 24 pedazos.
-2. **Recortar.** Cada pedazo es una **copia completa de la tarjeta** recortada con `clip-path: polygon(...)` a su triángulo. Juntos parecen una sola tarjeta.
-3. **Estallar.** GSAP mueve cada pedazo alejándolo del centro (según dónde está su centroide), le añade gravedad (`+120` en y), lo gira y lo desvanece.
+`makeShards()` crea una rejilla de 4 × 3 puntos, desplaza al azar los interiores y divide cada celda en 2 triángulos: 24 pedazos. Cada pedazo es una **copia completa de la tarjeta** recortada con `clip-path: polygon(...)`; juntos parecen una sola. GSAP aleja cada uno del centro (según su centroide), le añade gravedad, lo gira y lo desvanece.
 
 ### 9.4 La secuencia «Quest Clear»
 
-Es una sola línea de tiempo de GSAP (acelerada un 25 % con `timeScale(1.25)`):
+Una sola línea de tiempo (acelerada un 25 % con `timeScale(1.25)`): fundido y tarjeta con rebote (`back.out`); temblor, brillo y cristal; estallido de los 24 pedazos con un anillo y chispas; el título, cuyo espaciado pasa de `0.9em` a `0.22em` mientras crecen las líneas doradas; las filas de recompensa con **contadores** (GSAP anima un objeto `{xp: 0, gold: 0}` y `onUpdate` escribe el número redondeado); la **barra de nivel** (si subes, se llena, suena el arpegio, aparece «Level Up!» y se llena hasta la posición nueva); y «Pulsa Enter para continuar» (en el teléfono, «Toca»).
 
-1. Fundido del fondo y aparición de la tarjeta con rebote (`back.out`).
-2. Temblor, brillo y sonido de cristal.
-3. Estallido de los 24 pedazos, un anillo y chispas.
-4. Aparición del título: el espaciado entre letras pasa de `0.9em` a `0.22em` mientras las líneas doradas crecen desde el centro.
-5. Filas de recompensa con escalonado y **contadores**: GSAP anima un objeto normal `{xp: 0, gold: 0}` y en cada fotograma `onUpdate` escribe el número redondeado en el DOM.
-6. **Barra de nivel**: si subes de nivel, se llena hasta el 100 %, suena el arpegio, se reinicia a 0, aparece «Level Up!» y se llena hasta la posición nueva.
-7. Aparece «Pulsa Enter para continuar».
-
-Al pulsar Enter durante la animación, `tl.progress(1)` **salta al final**; un segundo Enter cierra. Todo vive dentro de `gsap.context(..., el)`, que permite deshacer limpiamente todas las animaciones al cerrar (`ctx.revert()`).
+`Enter` durante la animación salta al final (`tl.progress(1)`: es saltar, no limpiar); un segundo `Enter` cierra. Todo vive dentro de `gsap.context(..., el)`, que deshace limpiamente todas las animaciones al cerrar (`ctx.revert()`). Si la escena usa una referencia de React en un `onUpdate`, se captura en una constante (`const el = root.current`), porque al revertir la referencia ya puede ser `null`.
 
 ### 9.5 Estado inicial sin animación
 
-Si abres la app con quests ya aceptadas, el sello debe aparecer **ya puesto**, sin animarse. Por eso el efecto distingue dos casos:
+Si abres la app con quests ya aceptadas, el sello aparece **ya puesto**. El efecto distingue los dos casos y, salvo en la transición que interesa, fija el estado final:
 
 ```ts
 if (!active || was === "active") {
@@ -581,57 +481,20 @@ if (!active || was === "active") {
 // …solo si pasa de no-activa a activa: línea de tiempo completa
 ```
 
+La limpieza es siempre `tl.kill()`: `tl.progress(1)` en la limpieza volvería a aplicar estilos después de React (dejaba el sello en una quest en espera).
+
 ### 9.6 El cofre del botín
 
-Al final de «Quest Clear», si hay objetos, cae un cofre (`src/features/items/components/LootChest.tsx`). El overlay lo controla con dos métodos: `appear()` al terminar su línea de tiempo y `advance()` con cada clic o `Enter` (abrir, saltar al final). La apertura es una línea de tiempo larga con cinco fases: carga, compresión, estallido, objetos y final. El diseño completo está en el [README de los objetos](../src/features/items/README.md).
+Al final de «Quest Clear», si hay objetos, cae un cofre (`src/features/items/components/LootChest.tsx`), que el overlay controla con `appear()` y `advance()` (abrir, saltar al final). El diseño fase a fase está en el [README de items](../src/features/items/README.md). Las técnicas sirven para cualquier celebración:
 
-Tres detalles técnicos:
+- **Partículas fuera de React.** `src/lib/fx.ts` crea `<span>` sueltos, los anima con el plugin `Physics2D` de GSAP (velocidad, ángulo y gravedad) y los borra al acabar: React no reconcilia cientos de nodos. `calm()` reduce todo con «reducir movimiento».
+- **Sacudidas en el contenido, destellos fuera.** La vibración mueve `.cl-stage`; el destello a pantalla completa y la lluvia de monedas van en un portal en `<body>` (un `transform` en un antecesor rompería el `position: fixed`).
+- **`immediateRender: false`** en las líneas de tiempo largas: un `fromTo()` pinta su estado inicial nada más crearse, aunque empiece a los 2 s.
+- **Variables CSS desde GSAP:** `gsap.set(el, { "--rc": "var(--r-epic)" })` no aplica un valor `var(...)`; se usa `el.style.setProperty("--rc", …)`.
 
-- **Partículas fuera de React.** `src/lib/fx.ts` crea `<span>` sueltos, los anima con el plugin `Physics2D` de GSAP (velocidad, ángulo y gravedad) y los borra al acabar. Así React no tiene que reconciliar cientos de nodos.
-- **Sacudidas en el contenido y destellos fuera.** La vibración mueve `.cl-stage`. El destello a pantalla completa y la lluvia de monedas van en un portal en `<body>`, para no moverse con ella (un `transform` en un antecesor rompería el `position: fixed`).
-- **`immediateRender: false` en las líneas de tiempo largas.** Un `fromTo()` pinta su estado inicial nada más crearse, aunque empiece a los 2 s. Sin esa opción, el destello y las ondas se verían encendidos desde el primer clic.
+### 9.7 Ventanas
 
----
-
-### 9.7 Los encargos temporales
-
-**Archivos:** `src/features/temporal/components/PostedOverlay.tsx` y `ClearedOverlay.tsx`
-
-Dos líneas de tiempo largas que imitan los vídeos de referencia: el texto que irrumpe gigante con una **estela de zoom** (tres copias del texto, más grandes y transparentes, que se cierran sobre él mientras el original pierde el desenfoque), el golpe con sacudida, un **destello que recorre las letras** (un degradado recortado al texto con `background-clip: text` cuyo `background-position` anima GSAP) y, al final, la «cámara» que se lanza contra el pergamino y se funde en blanco. Al cumplir, los dígitos giran como una tragaperras: un tween vacío de 1,19 s escribe dígitos al azar en su `onUpdate` y cada dígito se detiene en su momento.
-
-Tres detalles técnicos:
-
-- **El cartel no está en el tablón hasta que llega.** Mientras dura «cartel clavado» se pinta oculto (`visibility: hidden`); el fogonazo blanco llama a `land(id)` y el cartel cae con su chincheta mientras la luz se aclara.
-- **El salto al final no dispara lo pendiente.** `tl.seek("finale", true)` y `tl.progress(1, true)` suprimen los callbacks (sonidos y partículas); el estado final que ponían esos callbacks (dígitos, calaveras de oro) lo fija `settle()`.
-- **Bordes rasgados estables.** `look.ts` genera con el PRNG con semilla (el id del encargo) el `clip-path` del papel, la inclinación y dónde caen las calaveras: el mismo cartel se ve igual siempre.
-
-El diseño completo, fase a fase y comparado con los vídeos, está en el [README de los encargos temporales](../src/features/temporal/README.md).
-
-### 9.7 bis Los fallos: la tarjeta que se rompe y el cartel que arde
-
-**Archivos:** `src/features/failure/components/FailureOverlay.tsx`, `failure.css`
-
-- **Los pedazos** son 24 copias de la cara de la tarjeta, cada una recortada con un `clip-path: polygon(…)`: una rejilla de 4 × 3 con los vértices interiores movidos (con la semilla del id) y cada celda partida en dos triángulos. Al romperse, la tarjeta entera se oculta y los pedazos ocupan su sitio y caen con `power2.in`, girando y alejándose del centro según dónde estaba cada uno.
-- **El fuego** es una sola variable CSS, `--burn` (de −6 % a 110 %), que anima GSAP: la máscara del cartel (`mask-image: linear-gradient(to top, transparent var(--burn), #000 …)`) borra lo quemado, una capa con `mix-blend-mode: multiply` oscurece lo que está a punto de arder y la línea de la brasa (`bottom: var(--burn)`) sube con ellas. Las ascuas salen cada 0,14 s de la altura actual de la línea (`burst` con gravedad negativa).
-- **Una vez en cada equipo:** la marca `quests.failSeen` dice hasta cuándo se han enseñado; nunca retrocede. Saltar (`Enter` o clic) mata la línea de tiempo (`tl.kill()`) y fija el final con `gsap.set`.
-
-### 9.8 El mercader y el personaje
-
-**Archivos:** `src/features/merchant/components/HuTaoStage.tsx`, `SoldSeal.tsx` y `src/features/equipment/components/Doll.tsx`
-
-- **Hu Tao es un `<video>` en bucle**, no una animación de la app, con un póster. El archivo se **descarga entero y se reproduce desde memoria** (`blob:`), una vez por sesión: MP4 si el WebView sabe leer H.264 (`canPlayType`) y, si no, WebM. Así no depende de que el protocolo con el que Tauri sirve la app atienda las peticiones por trozos (`Range`) del WebView de macOS, que dejaban el vídeo en el póster. Se marca mudo (propiedad y atributo, porque React no pone el atributo `muted`) antes de darle la fuente, se llama a `play()` al poder reproducirse y, si el WebView no lo deja arrancar solo, con el primer clic. Se mueve también con «reducir movimiento» (es un bucle suave, sin desplazamientos).
-- **El diálogo se escribe letra a letra** con un intervalo de 24 ms. El resto de la frase ya está en el cuadro, invisible (`visibility: hidden`), así que el cuadro no cambia de alto. Se reinicia en un `useLayoutEffect`, para que la frase nueva no asome entera un fotograma.
-- **El sello «SOLD»** es una línea de tiempo de GSAP: cae girando con `power4.in` y, al tocar, lanza el sonido, las monedas (`burst`) y la sacudida (`quake`) del escaparate. El sello se pinta con `mix-blend-mode: multiply`, así parece tinta sobre el fondo claro del vídeo. Su opacidad inicial está en el CSS, no en React (GSAP controla su visibilidad).
-- **El muñeco es un SVG**: cada pieza es una forma pintada con `var(--rc)` (el color de su rareza) y, encima, la misma forma con un degradado de luz y sombra común a todas. Las piezas entran con un muelle de Motion (`AnimatePresence`, una clave por pieza), y el muñeco respira con una animación CSS.
-
-### 9.9 La crónica del aventurero
-
-**Archivos:** `src/features/chronicle/components/ChronicleModal.tsx`, `chronicle.css`
-
-- **El papel viejo es solo CSS**: un degradado radial más oscuro hacia los bordes, renglones (`repeating-linear-gradient`) con un margen rojo, fibras y grano (dos `feTurbulence` en SVG como imagen de fondo) y una mancha con su posición en variables CSS. El borde exterior de la página derecha está «comido» con un `clip-path` de 21 puntos.
-- **El desgaste sale de una semilla** con el número de página (`seededRandom`): manchas, cerco de taza (un SVG con trazo discontinuo), oreja doblada (`::after` con un degradado de 315°) e inclinación de medio grado. Siempre igual para la misma página.
-- **Pasar página** es una transición de Motion por pliego (`AnimatePresence` con `mode="popLayout"`): el pliego nuevo entra girando unos grados desde el lado al que se pasa.
-- **Cuánto cabe en una página** se mide: un `ResizeObserver` sobre el libro da los renglones (alto ÷ 26 px) y los medios caracteres por renglón; cada entrada pesa los renglones de su texto ya escrito (un kana cuenta doble). Con eso se reparte el diario (`paginate`).
+Todas las ventanas salen con `MODAL_EXIT` y su fondo con `BACKDROP_EXIT` (`src/lib/motion.ts`): el fondo deja de recibir clics en cuanto empieza a irse. Si no, el fondo invisible se quedaría encima hasta 1,4 s, mientras terminan las animaciones de dentro, y se tragaría el clic siguiente.
 
 ---
 
@@ -641,8 +504,10 @@ El diseño completo, fase a fase y comparado con los vídeos, está en el [READM
 
 No hay archivos de audio: cada sonido se fabrica con la **Web Audio API** a partir de dos piezas:
 
-- **`tone(frecuencia, inicio, duración, onda, volumen)`**: un oscilador con una envolvente de volumen. Sube en 10 ms y cae de forma exponencial, lo que suena a «golpe» y no a pitido.
-- **`noise(duración, volumen, corte)`**: ruido blanco que se apaga solo, pasado por un filtro paso bajo. Es la base de los impactos y del cristal.
+- **`tone(frecuencia, inicio, duración, onda, volumen)`**: un oscilador con una envolvente que sube en 10 ms y cae de forma exponencial (suena a «golpe», no a pitido).
+- **`noise(duración, volumen, corte)`**: ruido blanco que se apaga solo, con un filtro paso bajo. Es la base de los impactos y del cristal.
+
+Para las celebraciones grandes hay piezas más elaboradas: `hiss` (ruido con un filtro que barre), `stab` (acorde de sierras con un filtro que se cierra, el «golpe de orquesta»), `celesta` y `chime` (campana con parciales inarmónicos), y un compresor en la salida para que las capas no saturen.
 
 | Efecto | Receta |
 |---|---|
@@ -651,33 +516,22 @@ No hay archivos de audio: cada sonido se fabrica con la **Web Audio API** a part
 | Cristal roto | Ruido brillante (6.000 Hz) + cuatro tintineos agudos escalonados |
 | Quest Clear | Arpegio de do mayor (do, mi, sol, do) |
 | Level Up | Arpegio más largo de 6 notas |
-| Encargo clavado | Silbido que sube (ruido filtrado en barrido), golpe grave con palmada de papel y acorde de orquesta en do mayor, destello agudo y una calavera que «sella» por cada una |
-| Encargo cumplido | Estallido brillante con crepitar, tic-tic de tragaperras, campanilla en do7 y la melodía re-fa-mi-fa-sol-mi-fa |
-| Quest fracturada | Grieta: chasquido agudo (`hiss` paso alto) y golpe a 140 Hz; al romperse, ruido, golpe a 70 Hz y un acorde de la menor que cae (`stab` y `sweep`) |
+| Quest fracturada | Chasquido agudo y golpe a 140 Hz; al romperse, ruido, golpe a 70 Hz y un acorde de la menor que cae |
 | Cartel quemado | Soplo del fuego que crece, crepitar (18 chasquidos al azar) y un acorde grave sostenido |
 
-Para los encargos temporales se añadieron cuatro piezas más: `hiss` (ruido con filtro que barre y envolvente propia), `stab` (acorde de sierras con un filtro que se cierra, el «golpe de orquesta»), `celesta` y `chime` (campana con parciales inarmónicos). Las recetas se sacaron midiendo el audio de los vídeos de referencia con un espectrograma; el detalle está en el README de la funcionalidad.
-
-El silencio se guarda en `localStorage` (`quests.muted`).
+Los sonidos de los encargos, el cofre, el mercader y el menú están en el README de cada funcionalidad. Todo respeta el **silencio general** (`isMuted()`, guardado en `localStorage` como `quests.muted`), que también calla la música ([music](../src/features/music/README.md)). Sin una interacción previa, el WebView no deja sonar audio: lo que suene al arrancar comprueba `navigator.userActivation.hasBeenActive`.
 
 ---
 
-## 11. Estilos, fuentes y el problema de los 26 MB
+## 11. Estilos y fuentes
 
 **Archivos:** `src/styles/theme.css`, `src/styles/app.css`, `src/main.tsx`
 
-- **Tokens.** Todos los colores son variables CSS (`--gold`, `--elite`, `--repeat`…). Cada tarjeta recibe `--cat` con el color de su categoría, y los estilos lo usan sin saber cuál es.
-- **Grano del fondo.** Es un SVG con el filtro `feTurbulence` incrustado como `data:` URI, al 7 % de opacidad. No hay ninguna imagen que cargar.
-- **Botones inclinados.** El corte en diagonal de los botones es un `clip-path: polygon(...)`, no una imagen.
-- **Fuentes locales** con Fontsource: Cormorant Garamond (título), Cinzel (etiquetas en versalitas) y Shippori Mincho (texto, con aire de JRPG). La crónica del aventurero usa además IM Fell English (letra de imprenta antigua, unos 60 KB por estilo), importada desde su componente; en japonés usa el mincho.
-
-**El problema.** Shippori Mincho es una fuente japonesa. Al importar `@fontsource/shippori-mincho/500.css` se incluían cientos de ficheros con los subconjuntos japoneses: **26 MB** de un build de 27 MB. Se cambió a importar solo el subconjunto latino:
-
-```ts
-import "@fontsource/shippori-mincho/latin-500.css";
-```
-
-El build bajó a **852 KB**. Los pocos caracteres que no están en el subconjunto latino (`「」`, `−`) los dibuja una fuente del sistema.
+- **Tokens.** Todos los colores son variables CSS (`--gold`, `--elite`, `--repeat`, las rarezas `--r-*`…). Cada tarjeta recibe `--cat` con el color de su categoría y los estilos lo usan sin saber cuál es.
+- **Grano del fondo**: un SVG con `feTurbulence` incrustado como `data:` URI, al 7 % de opacidad.
+- **Botones inclinados**: `clip-path: polygon(...)`, no imágenes.
+- **Rejilla**: `.app` usa `grid-template-columns: minmax(0, 1fr)`, para que una cabecera que no cabe no ensanche toda la ventana. La cabecera se compacta por debajo de 1.260 px y el pie por debajo de 1.180 px (la ventana mínima es de 1.024 px).
+- **Fuentes locales** con Fontsource: Cormorant Garamond (título), Cinzel (etiquetas en versalitas), Shippori Mincho (texto) e IM Fell English (la crónica). **Solo el subconjunto latino** (`@fontsource/shippori-mincho/latin-500.css`): con los subconjuntos japoneses, las fuentes sumaban 26 MB de un build de 27. Los caracteres que faltan (`「」`, `−` y todo el japonés) los dibuja el mincho del sistema.
 
 ---
 
@@ -685,237 +539,100 @@ El build bajó a **852 KB**. Los pocos caracteres que no están en el subconjunt
 
 **Archivos:** `src/i18n/index.ts`, `src/i18n/locales/es.ts`, `src/i18n/locales/ja.ts`, `src/i18n/i18next.d.ts`
 
-La interfaz usa **i18next** con **react-i18next**. Se cambia con el selector `ES | 日本語` de la cabecera o con la tecla `L`.
-
-### Qué se traduce y qué no
+La interfaz usa **i18next** con **react-i18next**. Se cambia con el selector `ES | 日本語` de los ajustes del menú de opciones o con la tecla `L`.
 
 | Se traduce | No se traduce |
 |---|---|
-| Todos los textos de la interfaz, avisos, tiempos («3 h 20 min» / 「3時間20分」) y números (1.150 / 1,150) | Lo que escribe el usuario: títulos, descripciones y objetivos de sus quests |
-| Las quests de ejemplo, que se crean en el idioma activo **la primera vez** que se abre la app | Las etiquetas decorativas en inglés (ELITE, REQUEST, QUEST CLEAR), como en el vídeo de referencia |
-| Las **áreas conocidas** de las quests (Salud, Estudio, Hogar… `KNOWN_AREAS` de features/attributes): «Salud» se ve como «健康» en japonés, y las dos suben el mismo atributo | Las áreas que no están en esa lista |
-| Las **piezas de serie** del mercader (features/armory): nombre y descripción | Las piezas que añade el usuario |
+| Todos los textos de la interfaz, avisos, tiempos («3 h 20 min» / 「3時間20分」) y números (1.150 / 1,150) | Lo que escribe el usuario: títulos, descripciones y objetivos |
+| Las quests y objetos de ejemplo, que se crean en el idioma activo **la primera vez** | Las etiquetas decorativas en inglés (ELITE, REQUEST, QUEST CLEAR, los rótulos del menú) |
+| Las **áreas conocidas** (`KNOWN_AREAS`): «Salud» se ve como «健康», y las dos suben el mismo atributo | Las áreas que no están en esa lista |
+| Las **piezas de serie** del mercader y los nombres de los personajes de serie | Las piezas y personajes que añade el usuario |
 
 ### Diccionarios con tipos
 
-`es.ts` es el diccionario de referencia y `ja.ts` se declara con su tipo:
+`es.ts` es el diccionario de referencia y `ja.ts` se declara con su tipo (`export const ja: Translation = { ... }`, con `Translation = typeof es`). Si falta o sobra una clave en japonés, **TypeScript da error al compilar**. `i18next.d.ts` registra las claves: `t("detail.reward")` tiene autocompletado y `t("detail.rewrad")` no compila. Cada funcionalidad tiene sus textos en su `i18n.ts` y los diccionarios los montan bajo su nombre.
 
-```ts
-export const ja: Translation = { ... };   // Translation = typeof es
-```
+### Cómo se usa
 
-Si falta una clave en japonés, o sobra alguna, **TypeScript da error al compilar**. Además, `i18next.d.ts` registra las claves en i18next, de modo que `t("detail.reward")` tiene autocompletado y `t("detail.rewrad")` no compila.
-
-### Cómo se usa en el código
-
-- **En componentes**: `const { t } = useTranslation();` y luego `t("actions.accept")`. El hook hace que el componente se vuelva a pintar al cambiar de idioma.
-- **Fuera de React** (acciones, `formatRemaining`): `i18n.t("toast.accepted", { title })`.
-- **Frases con etiquetas dentro** (como `<kbd>N</kbd>`): `<Trans i18nKey="detail.emptyHint" components={{ kbd: <kbd /> }} />`.
-- **Plurales**: las claves `hours_one` / `hours_other` se eligen solas según `count` («1 hora», «4 horas»). En japonés no hay plural: las dos formas son iguales.
+- **En componentes**: `const { t } = useTranslation();` y `t("actions.accept")`. El hook repinta al cambiar de idioma.
+- **Fuera de React**: `i18n.t("toast.accepted", { title })`.
+- **Frases con etiquetas dentro**: `<Trans i18nKey="detail.emptyHint" components={{ kbd: <kbd /> }} />`.
+- **Plurales**: `hours_one` / `hours_other` según `count`. En japonés las dos formas son iguales.
 - **Números**: `num(n)` formatea con el separador del idioma activo.
-
-### Avisos que siguen al idioma
-
-Un aviso no se guarda como texto, sino como una **función** que lo traduce al pintarse:
-
-```ts
-say(() => i18n.t("toast.accepted", { title: q.title }));
-```
-
-Así, si cambias de idioma con un aviso en pantalla, el aviso cambia también.
+- **Avisos que siguen al idioma**: un aviso se guarda como una **función** que lo traduce al pintarse (`say(() => i18n.t("toast.accepted", { title: q.title }))`); si cambias de idioma con un aviso en pantalla, cambia también.
 
 ### Idioma inicial y preferencia
 
-1. Si hay una preferencia guardada en `localStorage` (`quests.lang`), se usa.
-2. Si no, se mira el idioma del sistema (`navigator.language`): japonés si empieza por `ja`, español en cualquier otro caso.
-
-El idioma es una **preferencia de cada equipo**, no un evento: no se sincroniza entre dispositivos.
-
-### Fuentes japonesas
-
-Shippori Mincho solo se incluye con el subconjunto latino (ver la sección 11). Los caracteres japoneses caen en el mincho del sistema, que está en la lista `--f-body`: Hiragino Mincho en macOS y Yu Mincho o MS PMincho en Windows. Coste en tamaño: cero. En japonés se ajusta el espaciado entre letras con selectores `:lang(ja)`, porque `<html lang>` se actualiza al cambiar de idioma.
-
-### Añadir un texto nuevo
-
-1. Añade la clave en `es.ts`.
-2. TypeScript marcará `ja.ts` en rojo hasta que añadas la traducción.
-3. Úsala con `t("seccion.clave")`.
+Si hay una preferencia guardada (`localStorage`, `quests.lang`), se usa; si no, japonés si `navigator.language` empieza por `ja` y español en cualquier otro caso. Es una **preferencia de cada equipo**: no se sincroniza. En japonés, el espaciado se ajusta con selectores `:lang(ja)` (`<html lang>` se actualiza al cambiar de idioma).
 
 ### Añadir un idioma (por ejemplo, inglés)
 
-1. Crea `src/i18n/locales/en.ts` con `export const en: Translation = { ... }`.
-2. Regístralo en `LANGS`, `locales` y `resources` en `src/i18n/index.ts`.
-3. El selector de la cabecera lo mostrará solo, porque recorre `LANGS`.
+1. `src/i18n/locales/en.ts` con `export const en: Translation = { ... }` (y la parte de cada funcionalidad en su `i18n.ts`).
+2. Regístralo en `LANGS`, `locales` y `resources` de `src/i18n/index.ts`.
+3. El selector lo mostrará solo, porque recorre `LANGS`.
 
 ---
 
-## 13. Cómo se verificó y los fallos que aparecieron
+## 13. Tests: qué protege cada archivo
 
-### Método
-
-- **CI** (`.github/workflows/ci.yml`): en cada push a `main` o a una rama `feature/`, `fix/` o `docs/`, y en cada pull request, GitHub Actions comprueba tipos, pasa los tests y compila la app con `tauri-action` en macOS y en Windows. Los instaladores sin firmar quedan 14 días como artefactos del run.
-- **Navegador integrado** con `pnpm dev`: capturas durante las animaciones, inspección del DOM y llamadas directas a las acciones importando los módulos desde Vite (`await import('/src/store/actions.ts')`).
-- **App nativa** con `pnpm tauri dev`: lectura de los logs y comprobación de la base real con `sqlite3`.
-- **Tests** con Vitest (`pnpm test`): 332 tests en 24 archivos, en un par de segundos. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo.
+`pnpm test` (Vitest) corre en un par de segundos y la CI lo pasa en macOS y Windows. La zona horaria está fija en Europe/Madrid (`vitest.config.ts`), para que «hoy», los plazos y los cambios de hora den lo mismo en cualquier equipo. Cuántos tests hay: la salida de `pnpm test`.
 
 | Archivo | Qué protege |
 |---|---|
-| `src/domain/projection.test.ts` | Contabilidad (XP y oro cobrados una vez, recompensa copiada), cada guarda de las quests, fusión de dispositivos en cualquier orden, determinismo e invariantes sobre 40 historiales aleatorios (progreso dentro de su rango, inventario solo con objetos del almanaque, una quest en un solo encargo pendiente…). Además, la XP total se recalcula a mano y tiene que coincidir |
-| `src/domain/events.test.ts`, `upcast.test.ts`, `leveling.test.ts` | Orden de los eventos y el reloj híbrido (`nextTs`, también entre dos equipos con los relojes desfasados); versión de los eventos (sin `v`, actual y futura); curva de XP y rangos |
-| `src/features/*/model.test.ts`, `legacy.test.ts` | Reglas de cada funcionalidad: fases del pomodoro, pity y tiradas (200.000 tiradas con semilla), requisitos y repetición, plazos con sus bordes y los cambios de hora de 2026, guardas de los encargos, y los formatos antiguos (`pomodoroConfig`, `item` de texto) |
-| `src/features/snapshot/*.test.ts` | Snapshot + cola = reproducirlo todo, serialización y arranque |
-| `src/features/merchant/*.test.ts`, `equipment/model.test.ts`, `attributes/model.test.ts` | Precios y rangos, el escaparate semanal (con los cambios de hora), las guardas de la compra y del equipo, los atributos por área; con el store de verdad, comprar con cada bloqueo y ponerse lo comprado. En `projection.test.ts`, además: el oro solo baja al comprar, el doble gasto entre dispositivos y los invariantes del equipo |
-| `src/features/armory`, `checklist`, `streaks`, `chronicle` (`model.test.ts`) | El catálogo de serie completo, en los dos idiomas y sin SVG rotos, y que no se edita con eventos; la lista (casillas limpias, marcar dos veces cuenta una, solo en curso); las rachas (plazos, se rompen solas, un duplicado no las sube); la crónica (una entrada por hecho que cuenta, su XP cuadra con la del jugador en historiales aleatorios, las páginas no se pasan de renglones) |
+| `src/domain/projection.test.ts` | Contabilidad (XP y oro cobrados una vez, recompensa copiada), cada guarda, fusión de equipos en cualquier orden, determinismo e invariantes sobre historiales aleatorios (progreso dentro de su rango, inventario solo con objetos del almanaque, una quest en un solo encargo pendiente, ninguna quest en reserva en curso, el oro solo baja al comprar, los atributos no suman más XP que el jugador, solo llevas puesto lo tuyo). La XP total se recalcula a mano y tiene que coincidir |
+| `src/domain/events.test.ts`, `upcast.test.ts`, `leveling.test.ts` | Orden y reloj híbrido (también entre dos equipos desfasados); versión de los eventos (sin `v`, actual y futura); curva de XP y rangos |
+| `src/features/*/model.test.ts`, `legacy.test.ts`, `almanac.test.ts` | Las reglas de cada funcionalidad: fases del pomodoro, pity y tiradas con semilla, requisitos y repetición, plazos con sus bordes y los cambios de hora, guardas de cada evento, precios y escaparate, calendario y agenda, Mi día, fallos, deshacer, alta rápida, búsqueda, avisos, rotación de personajes y los formatos antiguos |
+| `src/features/snapshot/*.test.ts` | Snapshot + cola = reproducirlo todo, con historiales cortados en varios puntos; serialización y arranque |
+| `src/features/sync/engine.test.ts` | La puerta de la fase 2: dos y tres equipos en memoria con un Drive falso llegan al mismo estado en cualquier orden; sin novedades no se mueve nada; lo hecho durante la subida no se pierde; archivos dañados; eventos de una versión futura; adjuntos; ejemplos de dos equipos |
+| `src/features/merchant/actions.test.ts`, `src/features/mobile/actions.test.ts` | Acciones con el store de verdad: comprar con cada bloqueo y ponerse lo comprado; aceptar en el teléfono espera a que salga la hoja |
 | `src/storage/eventStore.test.ts` | El almacén del navegador: orden, `since` / `countUpTo` y `merge` idempotente |
-| `src/features/sync/engine.test.ts` | La puerta de la fase 2: dos y tres equipos en memoria con un Drive falso (`src/test/memory.ts`) llegan al mismo estado en cualquier orden. Además: sin novedades no se mueve nada, lo que se hace durante la subida no se pierde, archivos dañados, eventos de una versión futura, adjuntos y los datos de ejemplo de dos equipos |
-| `src/store/game.test.ts` | El store tal como lo usa la app (happy-dom): arranque, `dispatch` incremental, snapshot, reloj atrasado, eventos fusionados de un equipo adelantado (reloj híbrido) y las acciones de quests, encargos, objetos y pomodoro |
-| `src/features/recovery/model.test.ts` | Lo que muestra y copia la pantalla de recuperación |
+| `src/store/game.test.ts` | El store tal como lo usa la app (happy-dom): arranque, `dispatch` incremental, snapshot, reloj atrasado, eventos fusionados de un equipo adelantado, deshacer (también tras volver a abrir) y las acciones de cada funcionalidad |
 
-`src/test/streams.ts` genera historiales aleatorios con semilla que mezclan todos los tipos de evento (también imposibles y antiguos); `src/test/sfxMock.ts` silencia el sonido, porque en Node no hay `AudioContext`. Para comprobar que los tests sirven, se hizo una prueba de mutación: de 20 errores introducidos a propósito, detectan 19, y el que queda está en una rama inalcanzable (ver el README del snapshot). En el mercader, el equipo y los atributos, detectan los 11 que se probaron.
+`src/test/streams.ts` genera historiales aleatorios con semilla que mezclan **todos los tipos de evento** (también imposibles, antiguos y de una versión futura); `src/test/memory.ts` da almacenes y un Drive en memoria; `src/test/sfxMock.ts` silencia el sonido (en Node no hay `AudioContext`). Sin tests: el almacén de binarios real (IndexedDB y SQLite), los adjuntos de las acciones de encargos, los componentes React y las animaciones ([deuda](INFORME-TECNICO.md#deuda-técnica-y-riesgos)).
 
-### Fallos encontrados y corregidos
+---
 
-| Síntoma | Causa | Solución |
+## 14. Dónde se ajusta el equilibrio del juego
+
+**Nada de esto se cambia sin preguntar al propietario** ([AGENTES §12](AGENTES.md#12-cómo-trabajar-con-el-propietario)).
+
+| Qué | Dónde | ¿Sube `PROJECTION_VERSION`? |
 |---|---|---|
-| Quests de ejemplo duplicadas | El modo estricto de React llamaba a `init()` dos veces a la vez | Memorizar la promesa (`initOnce`) |
-| Trocitos de grieta visibles en tarjetas no aceptadas | El truco del `dasharray` deja asomar puntos con algunos renderizados | Ocultar el SVG entero (`opacity: 0`) hasta aceptar |
-| Repetible en espera con el sello «EN CURSO» | Al limpiar el efecto, `tl.progress(1)` volvía a dejar el sello visible justo después de que React lo ocultara | Que GSAP controle siempre la visibilidad; la limpieza solo hace `tl.kill()` |
-| Ventana en negro tras «Quest Clear» en la app nativa | Al cerrar, GSAP revertía el contador y su `onUpdate` usaba una referencia de React que ya era `null` | Capturar el elemento en una constante (`const el = root.current`) |
-| El aviso «aceptada» se quedaba para siempre | No había caducidad | Borrado automático a los 4,5 s |
-| Build de 27 MB | Subconjuntos japoneses de la fuente | Solo subconjunto latino |
-| Hu Tao quieta en la app de macOS (visto por el propietario) | Varias posibles: «reducir movimiento» la dejaba quieta a propósito; el WebView de macOS pide el vídeo por trozos (`Range`) y la app empaquetada puede no atenderlos; WebKit no arranca solo un vídeo sin el atributo `muted` | Vídeo en memoria (`blob:`), mudo antes de la fuente, `play()` al poder y con el primer clic, y se mueve también con «reducir movimiento». Sin verificar aún en macOS |
-| Los atributos salían en español con la interfaz en japonés | Las áreas son texto del usuario y las de ejemplo se escriben en el idioma del primer arranque | Áreas conocidas con su traducción (`KNOWN_AREAS`); «Salud» y «健康» son el mismo atributo |
-| En japonés, la última línea de una página de la crónica se cortaba | Las páginas se llenaban estimando por la longitud del título, y el japonés ocupa el doble | Medir el libro y pesar cada entrada por su texto ya escrito (`textUnits`) |
-| El color del cofre no subía de rareza | `gsap.set(el, { "--rc": "var(--r-epic)" })` no aplica un valor `var(...)` a una variable CSS | `el.style.setProperty("--rc", …)` |
-| Imágenes del almanaque en negro | El estilo de «no conseguido» era una silueta (`brightness(0)`) | Color apagado (`saturate` + `opacity`) |
-| Con el selector de tablón, toda la ventana se ensanchaba y se cortaba por la derecha | La cabecera no cabía y la columna implícita de la rejilla de `.app` crecía hasta su contenido | `grid-template-columns: minmax(0, 1fr)` y una cabecera más compacta por debajo de 1.180 px (ya se desbordaba a 1.024 px antes) |
-| Los recordatorios no se veían con el tablón de quests vacío | El aviso (`Toast`) solo se pintaba con una quest seleccionada | Pintarlo también en el estado vacío |
-| La campana del recordatorio al abrir la app daba avisos de autoplay | El WebView bloquea el audio antes de la primera interacción | Sin interacción previa (`navigator.userActivation`), solo el aviso |
-| Eventos del mismo milisegundo en orden inverso: un `quest_completed` antes de su `quest_accepted` se ignoraba (lo destaparon los tests del store) | El desempate de `ts` es el `id`, un UUID aleatorio; las acciones que emiten varios eventos seguidos los producían en el mismo milisegundo | `nextTs`: cada evento nuevo va al menos 1 ms después del último aplicado |
-| El pie se desbordaba en la ventana mínima (1.024 px) al añadir las teclas `C` y `P` | La regla estrecha de `.ft` estaba antes que la base en `app.css`: con la misma especificidad gana la última, así que **nunca se había aplicado** | Moverla detrás de la regla base; en ventana estrecha, las teclas de las ventanas (objetos, mercader, personaje) quedan con su icono |
-| La cabecera se desbordaba entre 1.181 y 1.249 px con los botones del mercader y del personaje | El ajuste compacto empezaba en 1.180 px | Empieza en 1.260 px |
-| Tras cerrar una ventana (mercader, personaje…), el clic siguiente no hacía nada; en el teléfono, el primer toque en la barra | El fondo, ya invisible, seguía encima hasta 1,4 s, mientras terminaban las animaciones de dentro (la escala con muelle, el muñeco, Hu Tao) | `BACKDROP_EXIT` (`src/lib/motion.ts`): el fondo deja de recibir clics en cuanto empieza a irse; la ventana sale con duración fija |
-
-### Trampas del entorno de pruebas (no son fallos de la app)
-
-- **Dos copias del mismo módulo.** Tras una recarga en caliente, Vite sirve el módulo editado como `game.ts?t=123…`. Importar `/src/store/game.ts` a mano daba **otra instancia** del store, con otros datos. Pasa incluso tras recargar la página si cambió alguna de sus dependencias. Solución: importar la URL exacta que cargó la app, que está en `performance.getEntriesByType("resource")`.
-- **Vídeo en el Chromium de Playwright.** No reproduce H.264: sin el WebM, el escaparate de Hu Tao enseñaría el cartel de respaldo. En macOS (WebKit) y Windows (WebView2) se usa el MP4.
-- **Oír sin altavoces.** Para revisar los sonidos de una animación, una prueba sustituye `window.AudioContext` por un `OfflineAudioContext` cuyo `currentTime` es el reloj de GSAP (pausado y avanzado a mano). Al final, `startRendering()` da el audio exacto de la animación, que se guarda como WAV, se mide con un espectrograma y se une a los fotogramas con `ffmpeg`. El reproductor de música debe estar desactivado (`quests.music`), porque `OfflineAudioContext` no tiene `createMediaElementSource`.
-- **Software sin GPU.** En Chromium sin interfaz, los textos gigantes con filtros tardan tanto en pintarse que GSAP frena su reloj (*lag smoothing*) y las capturas por tiempo real salen desfasadas. Con el reloj avanzado a mano no pasa.
-- **Simulador de iOS.** Las capturas pueden ir un paso por detrás de los toques: espera antes de capturar y no repitas el toque. Xcode compila el Rust sin tus variables de entorno: lo que `build.rs` lea en iOS, en archivo. Y en un Mac con el Rust de Homebrew y el de rustup, pon `~/.cargo/bin` delante en el PATH o no compila para iOS.
-- **Animaciones que no avanzan.** Si la pestaña está oculta (`document.hidden`), el navegador frena `requestAnimationFrame`, que es el reloj de GSAP. En la ventana real de la app esto no ocurre. Para revisar una animación fotograma a fotograma, se importa la misma instancia de GSAP que usa la app (la URL `/node_modules/.vite/deps/gsap.js?v=…` aparece en el código que sirve Vite, por ejemplo en `fetch('/src/lib/fx.ts')`). Después se pausa `gsap.globalTimeline` y se avanza con `.time(t + 1/60)` en bucle: los callbacks se disparan en orden. La captura de pantalla puede repetir un fotograma viejo hasta que algo fuerza el repintado, como cambiar el tamaño del viewport.
+| Curva de XP y rangos | `src/domain/leveling.ts` | No (se calcula en `finishProjection`) |
+| XP y oro de cada objetivo, peso de cada categoría y recompensa de los encargos | `REWARD_RATES`, `CATEGORY_FACTOR` y `TEMPORAL_GOLD_FACTOR` en `src/features/rewards/model.ts` | Sí (lo ganado no cambia: va copiado en los eventos) |
+| Probabilidades de drop, tiradas por quest y pity | `DROP_TABLES` y `PITY_RULES` en `src/features/items/model.ts` | No (el botín va guardado en los eventos) |
+| Precios, recargo por ranura, rango mínimo y escaparate | `PRICES`, `SLOT_PRICE_FACTOR`, `LEVEL_REQUIRED`, `SHOWCASE_SIZE` y `NEW_ARRIVAL_DAYS` en `src/features/merchant/model.ts` | No (el precio pagado va copiado) |
+| Coleccionable de la semana | `OFFER_MIN_RARITY` y `COLLECTIBLE_SURCHARGE` en `src/features/collectibles/model.ts` | No |
+| Opciones de repetición del formulario | `RECURRENCE_PRESETS` en `src/features/complex/model.ts` | No |
 
 ---
 
-## 14. Recetas para ampliar la app
-
-### Añadir un tipo de evento (ejemplo: editar una quest)
-
-1. **`src/domain/events.ts`**: añade el caso a la unión:
-   ```ts
-   | { type: "quest_updated"; questId: string; changes: Partial<QuestDef> }
-   ```
-2. **`src/domain/projection.ts`**: añade el `case` a `applyEvent`, con su guarda, y sube `PROJECTION_VERSION`:
-   ```ts
-   case "quest_updated":
-     if (q) Object.assign(q, e.changes);
-     break;
-   ```
-3. **`src/store/actions.ts`**: crea `updateQuest(id, changes)`, que valida y llama a `dispatch`.
-4. **UI**: llama a la acción desde un formulario.
-
-No hay que tocar el almacenamiento: guarda cualquier evento sin saber qué es. TypeScript avisará si te dejas algún `switch` sin cubrir. Un tipo nuevo no cambia el formato de los que ya existen, así que no sube `EVENT_VERSION`. Cambiar la forma de uno que ya existe sí: ver «Versión de los eventos» en la sección 4.
-
-### Añadir una funcionalidad completa
-
-Cada funcionalidad nueva va en su propia carpeta, `src/features/<nombre>/`. El pomodoro es la plantilla de referencia: [src/features/pomodoro/README.md](../src/features/pomodoro/README.md).
-
-1. `model.ts`: tipos y funciones puras (sin React ni store).
-2. `events.ts`: sus eventos, que se suman a `EventBody`.
-3. `actions.ts`: casos de uso que validan y llaman a `dispatch`.
-4. `components/`, `i18n.ts`, estilos y un `README.md` con el diseño.
-5. Integración mínima fuera de la carpeta: tipos, proyección y el componente que la aloja.
-
-El dominio importa solo `model.ts` y `events.ts` de la funcionalidad, nunca su `index.ts`, para no crear ciclos con el store.
-
-No todas necesitan eventos: `complex` (repetición y requisitos) y `horizon` (plazos) solo añaden campos opcionales a `QuestDef` y funciones puras. Si una funcionalidad necesita la proyección para su lógica de interfaz (`effectiveStatus`), esa parte va fuera de `model.ts` (por ejemplo, `features/temporal/links.ts`), porque el dominio importa `model.ts` y se crearía un ciclo.
-
-### Añadir una animación a un cambio de estado
-
-Sigue el patrón de `QuestCard`: guarda el valor anterior en un `useRef`, compara en `useLayoutEffect`, lanza la línea de tiempo solo en la transición que te interesa y, en cualquier otro caso, coloca el estado final con `gsap.set`. Limpia con `tl.kill()`.
-
-### Añadir una pieza de serie al mercader
-
-1. En `src/features/armory/catalog.ts`, una entrada nueva con una `key` que no exista: ranura, rareza, origen y su icono (una forma de `ICON_KINDS` y una paleta) o, si es un fondo, su escena.
-2. Su nombre y descripción en `src/features/armory/i18n.ts`, en español y en japonés (los tests fallan si falta alguno).
-3. No hace falta subir `PROJECTION_VERSION`: las piezas de serie no van en el snapshot. Sí hay que subirla si cambias la rareza o la ranura de una que ya existe, y **nunca** se borra ni se renombra una `key` (las compras la nombran).
-4. Para ver el arte, una hoja de muestra: en la consola de la app, `await import('/src/features/armory/model.ts')` y pinta cada `image` de `BUILTIN_GEAR`.
-
-### Cambiar el equilibrio del juego
-
-- Curva de XP y rangos: `src/domain/leveling.ts`.
-- Probabilidades de drop, tiradas por quest y pity: `DROP_TABLES` y `PITY_RULES` en `src/features/items/model.ts`.
-- XP y oro de cada tipo de objetivo, peso de cada categoría y recompensa de los encargos: `REWARD_RATES`, `CATEGORY_FACTOR` y `TEMPORAL_GOLD_FACTOR` en `src/features/rewards/model.ts`. Si cambias la fórmula, sube `PROJECTION_VERSION` (lo ya ganado no cambia: va copiado en los eventos).
-- Tiempos de reaparición disponibles: `COOLDOWNS` en el mismo archivo.
-- Coleccionable de la semana de Hu Tao: rareza mínima y recargo sobre el precio del equipo en `OFFER_MIN_RARITY` y `COLLECTIBLE_SURCHARGE` de `src/features/collectibles/model.ts`.
-
----
-
-## 15. Comandos útiles
-
-```bash
-pnpm tauri dev          # app nativa con recarga en caliente
-pnpm dev                # solo la UI en el navegador (datos en localStorage)
-pnpm build              # comprobar tipos y compilar el frontend a dist/
-npx tsc --noEmit        # solo comprobar tipos
-pnpm test               # tests (Vitest): proyección, snapshot y niveles
-pnpm tauri build        # instalador para el sistema actual
-pnpm tauri build --debug --no-bundle   # app nativa de prueba, sin instalador (más rápido)
-```
-
-Inspeccionar la base de datos de la app nativa en macOS:
-
-```bash
-sqlite3 ~/Library/Application\ Support/com.quests.app/quests.db \
-  "SELECT json_extract(body, '$.type') AS tipo, count(*) FROM events GROUP BY tipo;"
-```
-
-Ver los archivos adjuntos guardados (encargos temporales):
-
-```bash
-sqlite3 ~/Library/Application\ Support/com.quests.app/quests.db \
-  "SELECT substr(id, 1, 12), mime, size FROM blobs;"
-```
-
-Empezar de cero (borra todo tu progreso):
-
-```bash
-rm ~/Library/Application\ Support/com.quests.app/quests.db*
-```
-
----
-
-## 16. Glosario
+## 15. Glosario
 
 | Término | Significado |
 |---|---|
-| **Evento** | Hecho inmutable que ya ocurrió («se aceptó la quest X»). Nunca se modifica ni se borra. |
-| **Proyección** | Estado calculado reproduciendo los eventos (`project()`). |
-| **Event sourcing** | Guardar eventos en lugar de estado. |
-| **Local-first** | Los datos viven en tu equipo; la nube solo sincroniza. La app funciona sin conexión. |
-| **Idempotente** | Hacerlo dos veces da el mismo resultado que una (`INSERT OR IGNORE`). |
-| **IPC** | Comunicación entre procesos: cómo el WebView pide cosas al núcleo Rust. |
-| **Capability** | Permiso explícito de Tauri para que el WebView use una función nativa. |
-| **WebView** | Motor web del sistema operativo que pinta la interfaz. |
-| **Línea de tiempo (timeline)** | Secuencia de animaciones de GSAP con tiempos relativos entre sí. |
-| **Easing** | Curva de aceleración de una animación (`power4.in`, `back.out`…). |
-| **PRNG con semilla** | Generador de números «aleatorios» que da siempre la misma serie para la misma semilla. |
-| **Drop / botín** | Objeto aleatorio que se recibe al completar una quest. |
-| **Pity** | Contador de tiradas que garantiza una rareza alta tras muchas sin ella (legendario a las 90, épico cada 10), como en Genshin. |
-| **Upcasting** | Convertir datos antiguos al formato actual al leerlos, sin reescribir los eventos (`legacy.ts`). |
-| **Optimista** | Actualizar la interfaz antes de confirmar la escritura en disco. |
-| **i18n** | Internacionalización: preparar la app para varios idiomas (18 letras entre la «i» y la «n»). |
-| **HLC** | Reloj lógico híbrido: ordena eventos entre dispositivos aunque sus relojes no coincidan (pendiente). |
-| **Blob / binario** | El contenido de un archivo (PDF, imagen). Los adjuntos viven en el almacén de binarios, no en los eventos. |
-| **Direccionado por contenido** | La clave de un dato es la huella de su contenido (SHA-256): el mismo archivo tiene la misma clave en todas partes. |
-| **Encargo temporal** | Algo con fecha (una cita, una entrega) clavado en su propio tablón, con calaveras según su dificultad. |
+| **Evento** | Hecho inmutable que ya ocurrió («se aceptó la quest X»). Nunca se modifica ni se borra |
+| **Proyección** | Estado calculado reproduciendo los eventos (`project()`) |
+| **Acumulador** | El estado a medio calcular (`ProjectionAcc`) sobre el que se aplica cada evento; es lo que guarda el snapshot |
+| **Guarda** | Condición de la proyección que ignora un evento imposible en ese punto del historial |
+| **Event sourcing** | Guardar eventos en lugar de estado |
+| **Local-first** | Los datos viven en tu equipo; la nube solo sincroniza. La app funciona sin conexión |
+| **Idempotente** | Hacerlo dos veces da lo mismo que una (`INSERT OR IGNORE`) |
+| **Snapshot** | Copia guardada del acumulador para arrancar sin reproducir todo el historial; una caché |
+| **Upcasting** | Convertir datos antiguos al formato actual al leerlos, sin reescribir los eventos (`UPCASTERS`, `legacy.ts`) |
+| **HLC** | Reloj lógico híbrido: ordena los eventos entre equipos aunque sus relojes no coincidan (`nextTs`) |
+| **IPC** | Comunicación entre procesos: cómo el WebView pide cosas al núcleo Rust |
+| **Capability** | Permiso explícito de Tauri para que el WebView use una función nativa |
+| **WebView** | Motor web del sistema operativo que pinta la interfaz |
+| **CSP** | Content Security Policy: lo que el WebView puede cargar |
+| **Línea de tiempo (timeline)** | Secuencia de animaciones de GSAP con tiempos relativos entre sí |
+| **Easing** | Curva de aceleración de una animación (`power4.in`, `back.out`…) |
+| **PRNG con semilla** | Generador de números «aleatorios» que da siempre la misma serie para la misma semilla |
+| **Drop / botín** | Objeto aleatorio que se recibe al completar una quest |
+| **Pity** | Contador de tiradas que garantiza una rareza alta tras muchas sin ella (legendario a las 90, épico cada 10) |
+| **Optimista** | Actualizar la interfaz antes de confirmar la escritura en disco |
+| **i18n** | Internacionalización: preparar la app para varios idiomas |
+| **Blob / binario** | El contenido de un archivo (PDF, imagen). Vive en el almacén de binarios, no en los eventos |
+| **Direccionado por contenido** | La clave de un dato es la huella de su contenido (SHA-256): el mismo archivo tiene la misma clave en todas partes |
+| **Encargo temporal** | Algo con fecha (una cita, una entrega) clavado en su propio tablón, con calaveras según su dificultad |
+| **Quest en reserva** | Quest de un encargo sin aceptar: existe, pero no sale en el Quest Board ni se puede aceptar |

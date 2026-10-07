@@ -1,24 +1,26 @@
-# Alta rápida
-
-Una línea para apuntar una quest al vuelo, encima del tablón: «Llamar al banco mañana #Hogar !». `Enter` la publica; `Mayús+Enter` (o ⤢) abre el formulario completo con lo escrito. Mientras se escribe, debajo se ve lo que se ha entendido. En el teléfono, el rombo de crear abre una hoja con la misma línea.
-
-Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
-
+---
+funcionalidad: quickadd
+titulo: Alta rápida
+resumen: Una línea con marcas (mañana, #área, @quién, !, x3) que publica una quest al vuelo desde el tablón o la hoja del teléfono.
+tipo: presentación
+eventos: []
+preferencias: []
+adr: [ADR-48]
 ---
 
-## Requisitos
+# Alta rápida
+
+Una línea encima del tablón para apuntar una quest al vuelo: «Llamar al banco mañana #Hogar !». `Enter` la publica; `Mayús+Enter` (o ⤢) abre el formulario completo con lo escrito. Mientras se escribe, debajo se ve lo que se ha entendido. En el teléfono, el rombo de crear abre una hoja con la misma línea.
+
+## Qué hace
 
 | # | Requisito | Cómo se cumple |
 |---|---|---|
 | R1 | Apuntar una tarea sin rellenar un formulario | `quickCreate`: un título basta |
 | R2 | Poner fecha, área, élite o cantidad sin salir de la línea | Marcas (`parseQuick`) |
-| R3 | Completarla después | `Mayús+Enter` / ⤢, o editarla (features/editing) |
+| R3 | Completarla después | `Mayús+Enter` / ⤢, o editarla ([editing](../editing/README.md)) |
 
----
-
-## Decisiones de diseño
-
-### Marcas
+## Reglas y decisiones
 
 | Marca | Qué hace | Ejemplo |
 |---|---|---|
@@ -31,17 +33,17 @@ Sigue la convención del proyecto: **una carpeta por implementación** (`src/fea
 | `!` (sola o al final de una palabra) | Élite | «Entregar informe !» |
 | `x3`, `×3` | Objetivo de 3 (hasta 99) | «Flexiones x20» |
 
-Las marcas van separadas por espacios (también el espacio japonés «　»). Lo que no es una marca es el título; una exclamación pegada se queda en él.
+- Las marcas van separadas por espacios (también el japonés «　»). Lo que no es una marca es el título; una exclamación pegada se queda en él.
+- **La quest que sale**: categoría Encargo (Élite con `!`), un objetivo de contador «Hacerlo ×N» y la recompensa calculada ([rewards](../rewards/README.md)). Sin descripción, tipo ni repetición: se añaden editándola.
+- Marcas sencillas y previsibles en vez de reconocer fechas en lenguaje natural completo ([ADR-48](../../../docs/decisions/ADR-48-alta-rapida-y-busqueda.md)).
 
-### La quest que sale
+## Eventos
 
-Categoría Encargo (Élite con `!`), un objetivo de contador «Hacerlo ×N» y la recompensa calculada (features/rewards). Sin descripción, tipo ni repetición: se añaden editándola.
+No tiene eventos propios: publica `quest_created`. Se puede deshacer unos minutos ([undo](../undo/README.md)).
 
-### Teclas
+## Interfaz
 
-`N` lleva a la línea rápida; `Mayús+N`, al formulario completo (el botón del pie). En la línea, `Esc` la vacía y sale. Lo entendido va en una capa encima del tablón: escribir no mueve nada.
-
----
+`N` lleva a la línea; `Mayús+N`, al formulario completo (el botón del pie). En la línea, `Esc` la vacía y sale. Lo entendido va en una capa encima del tablón: escribir no mueve nada.
 
 ## Archivos
 
@@ -49,31 +51,31 @@ Categoría Encargo (Élite con `!`), un objetivo de contador «Hacerlo ×N» y l
 |---|---|
 | `model.ts` | `parseQuick`, `QuickQuest`, `QuickToken`. Puro (`now` entra como parámetro) |
 | `actions.ts` | `quickQuest`, `quickCreate` (con «Deshacer»), `quickDetails` |
-| `ui.ts` | Pedir el foco (tecla N) y la hoja del teléfono |
-| `quickadd.css` | La línea, las marcas y la hoja |
-| `i18n.ts` | Textos es + ja |
+| `ui.ts` | Pedir el foco (tecla `N`) y la hoja del teléfono; `quickBusy` |
 | `components/QuickAdd.tsx` | `QuickAddForm` (tablón) y `QuickAddSheet` (teléfono) |
+| `quickadd.css`, `i18n.ts` | La línea, las marcas y la hoja; textos es + ja |
 | `model.test.ts` | Fechas (también en japonés y días que no existen), marcas y título vacío |
 
-## Puntos de integración
+## Integración
 
 | Fuera de la carpeta | Cambio |
 |---|---|
-| `App.tsx` | La línea encima de las pestañas; teclas `N` y `Mayús+N`; `QuickAddSheet`; `quickBusy()` |
-| `components/Footer.tsx` | «Nueva quest» con `⇧N` |
-| `features/mobile` | El rombo de crear del tablón abre la hoja |
-| `features/editing` | `draft`: «Más detalles» abre el formulario relleno |
-| `i18n/locales/{es,ja}.ts` | Montan `quickadd` |
+| `src/App.tsx` | La línea encima de las pestañas; teclas `N` y `Mayús+N`; `QuickAddSheet`; `quickBusy()` |
+| `src/components/Footer.tsx` | «Nueva quest» con `⇧N` |
+| `src/features/mobile/components/MobileNav.tsx` | El rombo de crear del tablón abre la hoja |
+| `src/i18n/locales/{es,ja}.ts` | Montan `quickadd` |
 
-No tiene eventos propios: publica `quest_created`.
+## Dependencias
 
----
+- **features/editing** (`ui.ts`: `draft`): «Más detalles» abre el formulario completo relleno.
+- **features/rewards** (`model.ts`): la recompensa que se ve antes de publicar.
+- **features/horizon** (`ui.ts`): al publicar, el filtro de plazo vuelve a «Todo».
+- **features/undo** (`actions.ts`): el aviso con «Deshacer».
+- **La usan:** `mobile` (el rombo) y `menu` (`windowOpen` mira su hoja).
 
-## Verificación
+## Estado actual
 
-Hecho el 2026-10-06.
-
-- **Tests:** `model.test.ts` y `store/game.test.ts` (publica la quest de una línea; una línea vacía no).
-- **Navegador:** `N`, escribir «Llamar al banco mañana #Hogar @Banco x2 !» (marcas: fecha, área, quién, ×2, ELITE), `Enter`: quest de élite para mañana con objetivo 0/2 y aviso con «Deshacer». En el teléfono (402 × 874), la hoja desde el rombo y el aviso encima de la barra.
-
-**No verificado:** la app nativa y el teclado del iPhone encima de la hoja.
+- **Última verificación:** 2026-10-06, tests y navegador (una línea con todas las marcas publica una élite para mañana con objetivo 0/2 y «Deshacer»), también la hoja a 402 × 874.
+- **Tests:** `model.test.ts` y `src/store/game.test.ts`.
+- **Sin verificar:** la app nativa y el teclado del iPhone encima de la hoja.
+- **Historial:** [docs/history/verificacion/quickadd.md](../../../docs/history/verificacion/quickadd.md).

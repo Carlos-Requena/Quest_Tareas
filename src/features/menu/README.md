@@ -1,173 +1,176 @@
+---
+funcionalidad: menu
+titulo: Menú de opciones
+resumen: Pantalla de opciones (tecla O) al estilo del menú principal de un gacha, con el personaje del día, las tarjetas de cada sección en 3D y los ajustes.
+tipo: presentación
+eventos: [character_added, character_removed]
+preferencias: [quests.menuCharacter]
+adr: [ADR-49, ADR-50]
+---
+
 # Menú de opciones
 
-La interfaz se había llenado de botones: la cabecera llevaba el mercader, el personaje, los objetos, la crónica, el idioma, la música, el silencio, los avisos y Google Drive, y el pie, una tecla por ventana. Todo eso pasa a **una pestaña de opciones** («MENU», en la cabecera), que abre con un **barrido** una pantalla al estilo del menú principal de un gacha (la referencia del propietario es el de Arknights): **el personaje del día** a un lado y, al otro, las **tarjetas de cada sección en perspectiva**, con su logo y el rótulo en relieve.
+La cabecera se queda con el tablón, el rango, la XP, el oro, la lupa y la pestaña «MENU». Todo lo demás está en esta pantalla, que entra con un **barrido** al estilo del menú principal de un gacha (la referencia del propietario es el de Arknights): **el personaje del día** a un lado y, al otro, las **tarjetas de cada sección en perspectiva**, con su logo y el rótulo en relieve. Se abre con la pestaña «MENU», la tecla `O`, el botón del pie o «Menú» en la barra del teléfono.
 
-La pantalla es solo presentación. Lo único que guarda datos son los **personajes que añade el jugador**: dos eventos (`character_added`, `character_removed`) y su imagen en el almacén de binarios, para que se sincronicen. Los de serie son los `.webp` de `public/menu/`; la rotación diaria y la elección del día se calculan, sin eventos.
+La pantalla es solo presentación: lee el estado y llama a las acciones de cada funcionalidad. Lo único que guarda datos son los **personajes que añade el jugador** (dos eventos y su imagen en el almacén de binarios, para que se sincronicen).
 
-Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
+## Qué hace
 
----
-
-## Requisitos
-
-| # | Requisito | Cómo se cumple |
+| # | Requisito del propietario | Cómo se cumple |
 |---|---|---|
-| R1 | Que la interfaz no abrume | La cabecera se queda con el tablón, el rango, la XP, el oro, la lupa y la pestaña «MENU»; el pie, con una sola tecla (`O`) en lugar de una por ventana |
-| R2 | La tienda, el diario, la colección «y demás» en una pestaña de opciones | Mercader, personaje, objetos y almanaque, crónica, búsqueda, las tres secciones y los ajustes del equipo, en la pantalla del menú |
-| R3 | Que entre con un efecto rápido («swift») | Barrido en diagonal de derecha a izquierda con un filo dorado y rayas de velocidad, en medio segundo; al cerrar, vuelve a la derecha |
-| R4 | Profundidad en los textos de cada sección, con su logo | Rejilla girada en 3D (`perspective` + `preserve-3d`): el logo en su rombo y el rótulo flotan delante de la tarjeta (`translateZ`), con relieve de sombras en capas; el logo en grande, como marca de agua, en el plano de la tarjeta. El ratón inclina la rejilla (paralaje) y al pasar por encima la tarjeta se acerca |
-| R5 | Fiel al estilo de la app | Fondo oscuro con grano, oro, rombos, Cinzel y Cormorant; cada tarjeta con el color de su funcionalidad (pergamino, rojo de la funeraria, calaveras, cuero de la crónica); el fondo comprado al mercader se ve detrás |
-| R6 | Un personaje en lugar del de la referencia | Los `.webp` de `public/menu/` (Kazuma, Aqua, Azusa, Mio, Mihari y Mahiro; las imágenes que dio el propietario, con fondo transparente) y los que añada el jugador |
-| R6b | Rota cada día, al azar pero sin repetir hasta que salgan todos | `characterOfDay`: vueltas de tantos días como personajes, cada una barajada con su número como semilla (el mismo orden en todos los equipos) |
-| R6c | Elegir otro para hoy sin cambiar la rotación | `pickCharacter`: se guarda en este equipo con el día; mañana sale el que tocaba |
-| R6d | Añadir personajes desde el menú | «Añadir personaje» en el selector: la imagen va al almacén de binarios y el evento `character_added`, a todos los equipos |
-| R7 | No tocar la lógica del juego | La pantalla solo lee el estado y llama a las mismas acciones que antes. Los personajes añadidos sí son eventos (lo pidió el propietario, para que se sincronicen), pero no tocan al jugador: ni XP ni oro |
-| R8 | También en el iPhone | La barra de abajo pasa a Tablón · Encargos · Calendario · Menú; el menú ocupa la pantalla encima de la barra y se desplaza |
+| R1 | Que la interfaz no abrume | La cabecera, con lo del día a día; el pie, con una sola tecla (`O`) en lugar de una por ventana |
+| R2 | La tienda, el diario, la colección «y demás» en una pestaña de opciones | Mercader, personaje, objetos y almanaque, crónica, búsqueda, las tres secciones y los ajustes del equipo |
+| R3 | Que entre con un efecto rápido («swift») | Barrido en diagonal de derecha a izquierda con filo dorado y rayas de velocidad, en medio segundo |
+| R4 | Profundidad en los textos de cada sección, con su logo | Rejilla girada en 3D: el logo y el rótulo flotan delante de la tarjeta (`translateZ`), con relieve; el ratón inclina la rejilla (paralaje) |
+| R5 | Fiel al estilo de la app | Fondo oscuro con grano, oro, rombos, Cinzel y Cormorant; cada tarjeta con el color de su funcionalidad; el fondo comprado al mercader se ve detrás |
+| R6 | Un personaje en lugar del de la referencia | Los `.webp` de `public/menu/` (Kazuma, Aqua, Azusa, Mio, Mihari y Mahiro, con fondo transparente) y los que añada el jugador |
+| R7 | Rota cada día, al azar pero sin repetir hasta que salgan todos | `characterOfDay`: vueltas barajadas con su número como semilla (el mismo orden en todos los equipos) |
+| R8 | Elegir otro para hoy sin cambiar la rotación | `pickCharacter`: se guarda en este equipo con el día; mañana sale el que tocaba |
+| R9 | Añadir personajes desde el menú, que lleguen a todos los equipos | «Añadir personaje»: la imagen va al almacén de binarios y `character_added`, a todos los equipos |
+| R10 | También en el iPhone | La barra de abajo pasa a Tablón · Encargos · Calendario · Menú; el menú ocupa la pantalla encima de la barra |
 
----
-
-## Decisiones de diseño
+## Reglas y decisiones
 
 ### La pantalla
 
-| Zona | Qué hay | Equivale en la referencia a |
-|---|---|---|
-| Arriba a la izquierda | «‹ Volver» (Escape) y los ajustes: idioma, música, silencio, avisos y Google Drive | Ajustes, avisos, correo |
-| Arriba a la derecha | Fecha y hora, el oro y los objetos, cada uno con su «+» (abren el mercader y el inventario) | Las monedas |
-| Izquierda | El nivel en un anillo que se llena con la XP del nivel, el rango en su rombo y lo que dice el personaje según la hora, con el botón para cambiarlo | Nivel, nombre y el saludo |
-| Abajo a la izquierda | **Weekly Rarity**: el coleccionable que vende Hu Tao esta semana, del color de su rareza; abre su pestaña en la tienda | Las noticias |
-| Centro | El personaje del día, con el sello del gremio girando detrás, polvo dorado y «Quest Board» en contorno | El personaje y el logo |
-| Derecha | Las tarjetas | Los botones del menú |
-
-Las tarjetas, como en la referencia:
+| Zona | Qué hay |
+|---|---|
+| Arriba a la izquierda | «‹ Volver» (Escape) y los ajustes: idioma, música, silencio, avisos y Google Drive |
+| Arriba a la derecha | Fecha y hora, el oro y los objetos, cada uno con su «+» (abren el mercader y el inventario) |
+| Izquierda | El nivel en un anillo, el rango en su rombo y lo que dice el personaje según la hora, con el botón para cambiarlo |
+| Abajo a la izquierda | **Weekly Rarity**: el coleccionable que vende Hu Tao esta semana; abre su pestaña en la tienda |
+| Centro | El personaje del día, con el sello del gremio girando detrás, polvo dorado y «Quest Board» en contorno |
+| Derecha | Las tarjetas |
 
 | Fila | Tarjetas | Qué hace |
 |---|---|---|
-| 1 | **Quests** (grande, en pergamino claro): cuántas hay en curso y la última aceptada («Actual») | Vuelve al tablón |
+| 1 | **Quests** (grande, en pergamino): las que hay en curso y la última aceptada | Vuelve al tablón |
 | 2 | **Character** · **Bounties** (con el aviso rojo de los encargos de hoy) | Personaje (`P`) · tablón de encargos |
-| 3 | **Merchant** (rojo, con Hu Tao asomando y los días que faltan para cambiar el escaparate) · **Collection** (Inventory · Almanac, en oro) | Mercader (`C`) · objetos (`I`) o almanaque |
+| 3 | **Merchant** (con Hu Tao asomando y los días hasta el cambio del escaparate) · **Collection** | Mercader (`C`) · objetos (`I`) o almanaque |
 | 4 | **Chronicle** · **Calendar** · **Search** | Crónica (`J`) · calendario · búsqueda (`/`) |
 
-Los **rótulos grandes van en inglés**, como ELITE, QUEST CLEAR o los títulos de las ventanas (Merchant, Chronicle…): son decorativos. Debajo de cada uno va su nombre traducido. El tamaño de los rótulos sigue al ancho de la rejilla (`cqi`, unidades de contenedor), para que quepan de 1.024 a 1.440 px.
+Los **rótulos grandes van en inglés**, como ELITE o QUEST CLEAR: son decorativos; debajo va su nombre traducido. Su tamaño sigue al ancho de la rejilla (`cqi`), para que quepan de 1.024 a 1.440 px.
 
 ### Las ventanas se abren encima del menú
 
-El mercader, el personaje, los objetos y la crónica se abren **encima** del menú (capa 50 sobre 47): al cerrarlas se vuelve a él, como en el menú principal de un gacha. Las tres secciones (Quests, Bounties, Calendar) **cierran** el menú y llevan a la sección. La **búsqueda** también lo cierra antes de abrirse, porque lleva a otro sitio (una quest, un encargo, un día) que el menú taparía.
+El mercader, el personaje, los objetos y la crónica se abren **encima** (capa 50 sobre 47) y, al cerrarlas, se vuelve al menú. Las tres secciones (Quests, Bounties, Calendar) **cierran** el menú y llevan a la sección; la **búsqueda** también lo cierra antes, porque lleva a otro sitio. Si algo cambia de sección por debajo, el menú se aparta solo (`MenuScreen` escucha `section`). Por qué una pantalla y no un desplegable u otra ventana: [ADR-49](../../../docs/decisions/ADR-49-menu-de-opciones.md).
 
-Si algo cambia de sección por debajo (un enlace, la barra del teléfono), el menú se aparta solo (`MenuScreen` escucha `section`).
+### Personajes
 
-### Teclado
-
-| Dónde | Tecla | Qué hace |
-|---|---|---|
-| Tablón, encargos y calendario | `O` | Abre el menú (también el botón «MENU» y el del pie) |
-| Menú | `Esc` u `O` | Lo cierra |
-| Menú | `I` `C` `P` `J` `/` `L` `M` | Las mismas que en el tablón: objetos, mercader, personaje, crónica, búsqueda, idioma y música |
-
-Con el menú abierto, el teclado del tablón espera (`menuBusy` en `App.tsx`). El del menú escucha **en captura**: corre antes que el de las ventanas y, si hay una abierta encima (`windowOpen`), no hace nada. Así, `Escape` cierra primero la ventana y luego el menú, nunca los dos de golpe. Las teclas `I`, `C`, `P` y `J` siguen funcionando desde el tablón.
-
-### El barrido
-
-El menú entra recortado por un borde inclinado (`clip-path: polygon(…)`) que cruza la pantalla de derecha a izquierda en 0,5 s; encima va una línea dorada (un `path` de SVG que se mueve igual) y seis rayas de velocidad. A la vez suena un silbido que sube con un destello metálico (`sfx.menuOpen`). Detrás del barrido, el personaje entra desde la izquierda, los paneles se deslizan y las tarjetas llegan una a una desde la derecha girando hasta su sitio. Al cerrar, el borde vuelve a la derecha en 0,34 s (`sfx.menuClose`).
-
-Con «reducir movimiento», el menú solo aparece y desaparece: sin barrido, sin paralaje, sin giro del sello ni respiración del personaje.
-
-### Profundidad
-
-La perspectiva va en `.mn-tiles` y el giro (`rotateY(-13°) rotateX(3°)`, más el paralaje del ratón) en `.mn-tilt`, con `transform-style: preserve-3d` hasta los textos. Cada tarjeta tiene tres planos: el fondo con la marca de agua (z 0), el logo en su rombo (z 28 px) y el rótulo con el nombre (z 40 px); al pasar el ratón, la tarjeta sube 20 px y el rótulo, 58. **Ningún elemento entre `.mn-tilt` y los textos puede llevar `overflow`, `opacity` menor que 1, `filter` ni `clip-path`**: aplanarían el 3D. Por eso el recorte (`overflow: hidden`) va en la capa de fondo de cada tarjeta y no en la tarjeta.
-
-El relieve de los rótulos son cuatro sombras de 1 px que bajan del oro a la sombra, y una difusa debajo.
-
-### El personaje del día
-
-Tres capas para no pisar animaciones: `.mn-hero` lleva el paralaje (CSS), `.mn-hero-in` la entrada y el cambio de personaje (Motion) y `.mn-breathe` la respiración (CSS). Cada imagen trae su proporción: cabe entera y de pie sobre el suelo (`object-fit: contain`, abajo). Lo que dice cambia según la hora (`daypart`: mañana, tarde, noche y madrugada), con su nombre, y se escribe de izquierda a derecha al abrir el menú. Las frases sirven para cualquier personaje.
-
-**De dónde salen.** Los de serie son los `.webp` de `public/menu/`: para añadir uno a la app basta con dejar el archivo ahí (el nombre del archivo es su id, `builtin:<nombre>`, y su nombre traducido va en `menu.cast.names`; sin traducción, el del archivo: «mihari_mahiro» → «Mihari Mahiro»). JavaScript no puede listar una carpeta, y `import.meta.glob` no ve `public/`, así que un plugin de `vite.config.ts` (`menuCharacters`) la lee al compilar y la ofrece como el módulo virtual `virtual:menu-characters`; con `pnpm dev`, añadir o quitar un archivo recarga la app. Los que añade el jugador son eventos (abajo).
-
-**Rotación** (`characterOfDay`, pura). Los días (`dayNumber`: días de calendario en la hora local, cambia a medianoche) se agrupan en vueltas de tantos días como personajes. Cada vuelta baraja los personajes con su número como semilla: sale cada uno una vez, en un orden al azar, el mismo en todos los equipos. Para que no se repita el mismo dos días seguidos al pasar de una vuelta a otra, si el primero de una vuelta es el último de la anterior, se cambia por el segundo (con tres o más; eso nunca toca el último, así que la vuelta anterior no cambia). Con dos, se alternan. **Añadir o quitar un personaje cambia el tamaño de la vuelta**: desde ese día la rotación se baraja de nuevo, y alguno puede repetirse antes de tiempo. Recordar lo que ya ha salido evitaría eso, pero sería estado guardado y sincronizado para algo que se calcula.
-
-**Elegir uno para hoy** (`pickCharacter`). Se guarda en este equipo, como el idioma (`quests.menuCharacter`: el día y el id), y solo vale ese día: `shownCharacter` lo enseña si es de hoy y, si no, el de la rotación. La rotación no se entera: mañana sale el que tocaba. Elegir el de la rotación (o «Seguir la rotación») borra la elección. No se sincroniza: elegir uno en el Mac no lo cambia en el iPhone.
-
-**Añadir y quitar** (`addCharacter`, `removeCharacter`). En el selector, «Añadir personaje» pide una imagen. Un WebP, PNG o AVIF de hasta 5 MB se guarda tal cual (sin recomprimir, para no perder la transparencia); uno más grande se reduce a 1.800 px y se guarda en WebP o, si el WebView no sabe codificarlo, en PNG (nunca en JPEG). Va al almacén de binarios por su SHA-256 y el evento `character_added` lleva su referencia y una miniatura de 160 px; queda elegido para hoy. Quitar pide un segundo toque («¿Quitar?») y borra la imagen si ya no la usa nadie: el almacén lo comparten los encargos, el mercader y los personajes (`characterBlobIds` se suma a `liveBlobIds` y `gearBlobIds` en la limpieza y en la sincronización). Los de serie no se quitan desde la app: están en la carpeta.
-
-En otro equipo, la referencia puede llegar antes que la imagen: mientras tanto se pinta la miniatura, borrosa. Quitar no se puede deshacer (features/undo): la imagen ya se habría borrado.
+- **De serie:** los `.webp` de `public/menu/`. Para añadir uno basta con dejar el archivo ahí: su id es `builtin:<archivo>` y su nombre traducido va en `menu.cast.names` (sin traducción, el del archivo: «mihari_mahiro» → «Mihari Mahiro»). Como `import.meta.glob` no ve `public/`, el plugin `menuCharacters` de `vite.config.ts` lista la carpeta como el módulo virtual `virtual:menu-characters`; con `pnpm dev`, añadir o quitar un archivo recarga la app.
+- **Rotación** (`characterOfDay`, pura): los días (`dayNumber`, días de calendario en hora local) se agrupan en vueltas de tantos días como personajes, cada una barajada con su número como semilla. Si el primero de una vuelta es el último de la anterior, se cambia por el segundo (con tres o más); con dos, se alternan. **Añadir o quitar un personaje cambia el tamaño de la vuelta** y la rotación se baraja de nuevo desde ese día ([ADR-50](../../../docs/decisions/ADR-50-personajes-del-menu.md)).
+- **Elegir uno para hoy** (`pickCharacter`): se guarda en este equipo (`quests.menuCharacter`: el día y el id) y solo vale ese día; no se sincroniza y la rotación no se entera. Elegir el de la rotación (o «Seguir la rotación») borra la elección.
+- **Añadir** (`addCharacter`): un WebP, PNG o AVIF de hasta 5 MB se guarda tal cual (sin perder la transparencia); uno mayor se reduce a 1.800 px en WebP o PNG (nunca JPEG). Va al almacén de binarios por su SHA-256, y `character_added` lleva su referencia y una miniatura de 160 px. Queda elegido para hoy.
+- **Quitar** (`removeCharacter`): segundo toque («¿Quitar?»); borra la imagen si ya no la usa nadie. El almacén lo comparten encargos, mercader y personajes: `characterBlobIds` se suma a `liveBlobIds` y `gearBlobIds` en la limpieza y en la sincronización. Quitar no se deshace (la imagen ya se habría borrado). Los de serie no se quitan desde la app.
+- En otro equipo, la referencia puede llegar antes que la imagen: mientras, se pinta la miniatura, borrosa.
 
 ### Los ajustes
 
-Son los mismos componentes de antes (`LangSwitch`, `MusicControl`, `SyncControl`, `NotifyButton`). En el escritorio van en la barra de arriba, como iconos con su desplegable al pasar el ratón. En el teléfono, que no tiene ratón, en filas con su nombre y los desplegables abiertos, como en el antiguo menú «Más» (que desaparece: este menú lo sustituye).
+Son los componentes de cada funcionalidad (`LangSwitch`, `MusicControl`, `SyncControl`, `NotifyButton` / `NotifyMenuToggle`) y el silencio general. En el escritorio, iconos en la barra de arriba con su desplegable al pasar el ratón; en el teléfono, filas con su nombre y los desplegables abiertos. Como `MusicControl` solo se monta con el menú abierto, `MenuScreen` (siempre montado) llama a `music.armAutoplay()` al arrancar. El aviso (toast) del escritorio vive en el detalle de la quest, que el menú tapa: el menú pinta otro abajo, en el centro.
 
-`MusicControl` armaba la música al montarse en la cabecera; ahora solo se monta con el menú abierto, así que `MenuScreen` (siempre montado) llama a `music.armAutoplay()` al arrancar.
+## Modelo
 
-El aviso (toast) del escritorio vive en el detalle de la quest, que el menú tapa: el menú pinta otro abajo, en el centro.
+`CharacterDef { id, name, art: CharacterArt (blobId, mime, size), thumb?, createdAt }` en `GameState.characters`; no toca al jugador. `CharactersAcc { list, deleted }` en `ProjectionAcc.characters`. Funciones puras de `model.ts`: `daypart`, `activeQuests`, `daysUntil`, `applyCharacterEvent`, `characterBlobIds`, `dayNumber`, `rotationOrder`, `characterOfDay`, `shownCharacter`.
 
-### En el teléfono
+## Eventos
 
-- La barra de abajo pasa de seis botones a cuatro: **Tablón · Encargos · Calendario · Menú**. El mercader y el personaje están en el menú.
-- El menú ocupa la pantalla encima de la barra (capa 39, debajo de la barra, 40) y se desplaza: arriba el aventurero y el personaje, luego las tarjetas a lo ancho, el coleccionable de la semana y los ajustes.
-- El personaje se queda quieto arriba a la derecha; las tarjetas pasan por encima al bajar. El selector de personajes ocupa la pantalla, a dos columnas.
-- Sin ratón no hay paralaje; la rejilla tiene un giro menor (−5°).
+| Evento | Datos | Efecto | Guarda |
+|---|---|---|---|
+| `character_added` | `character: CharacterDef` | Lo añade a `GameState.characters` (nombre recortado; vacío, «?») | Se ignora si el id existe o se quitó, empieza por `builtin:` o no trae `art.blobId` |
+| `character_removed` | `characterId` | Lo quita; el id queda retirado | Si existe |
 
-### Descartado
+## Interfaz
 
-- **Una ventana más (como el mercader)** en lugar de una pantalla: no daría la sensación de «menú principal» ni dejaría sitio para el personaje.
-- **Un menú desplegable** en la cabecera: ordena, pero no es lo que pidió el propietario.
-- **Rótulos traducidos en grande**: en japonés y en español quedarían mucho más largos; la app ya deja en inglés los rótulos decorativos.
+| Dónde | Tecla | Qué hace |
+|---|---|---|
+| Tablón, encargos y calendario | `O` | Abre el menú |
+| Menú | `Esc` u `O` | Lo cierra |
+| Menú | `I` `C` `P` `J` `/` `L` `M` | Las mismas que en el tablón |
 
----
+- **Teclado en captura.** Con el menú abierto, el teclado del tablón espera (`menuBusy`). El del menú escucha **en captura**: corre antes que el de las ventanas y, si hay una abierta encima (`windowOpen`), no hace nada. Así `Escape` cierra primero la ventana y luego el menú.
+- **El barrido.** Un borde inclinado (`clip-path: polygon(…)`) cruza la pantalla de derecha a izquierda en 0,5 s, con una línea dorada (un `path` SVG) y seis rayas de velocidad; suena `sfx.menuOpen`. Detrás, el personaje entra desde la izquierda y las tarjetas llegan una a una girando. Al cerrar, el borde vuelve a la derecha en 0,34 s (`sfx.menuClose`). Con «reducir movimiento», solo aparece y desaparece.
+- **Profundidad.** La perspectiva va en `.mn-tiles` y el giro (`rotateY(-13°) rotateX(3°)` más el paralaje) en `.mn-tilt`, con `preserve-3d` hasta los textos. Cada tarjeta tiene tres planos: fondo con marca de agua (z 0), logo (z 28 px) y rótulo (z 40 px); al pasar el ratón, la tarjeta sube 20 px y el rótulo 58. **Nada entre `.mn-tilt` y los textos puede llevar `overflow`, `opacity` menor que 1, `filter` ni `clip-path`**: aplanarían el 3D (por eso el recorte va en la capa de fondo de cada tarjeta).
+- **El personaje**, en tres capas para no pisar animaciones: `.mn-hero` (paralaje, CSS), `.mn-hero-in` (entrada y cambio, Motion) y `.mn-breathe` (respiración, CSS). Cabe entero y de pie (`object-fit: contain`). Lo que dice cambia según la hora (`daypart`: mañana, tarde, noche y madrugada).
+- **Teléfono:** el menú ocupa la pantalla encima de la barra (capa 39, debajo de la barra, 40) y se desplaza: arriba el aventurero y el personaje (quieto a la derecha; las tarjetas pasan por encima al bajar), luego las tarjetas a lo ancho, el coleccionable y los ajustes. Sin paralaje; la rejilla gira menos (−5°). El selector de personajes ocupa la pantalla, a dos columnas.
 
 ## Archivos
 
-```
-src/features/menu/
-├── README.md
-├── index.ts              API pública
-├── model.ts              Puro: daypart, activeQuests, daysUntil; personajes (CharacterDef, applyCharacterEvent) y rotación (characterOfDay, shownCharacter)
-├── model.test.ts
-├── events.ts             character_added, character_removed
-├── characters.ts         Lista de personajes: los de serie (virtual:menu-characters) y los del jugador
-├── image.ts              Imagen y miniatura de un personaje añadido (canvas)
-├── ui.ts                 Store de UI: menú abierto, selector abierto y lo elegido para hoy (en este equipo)
-├── actions.ts            openMenu, closeMenu, toggleMenu, goTo, openOver, searchFromMenu, windowOpen, pickCharacter, addCharacter, removeCharacter
-├── i18n.ts               Textos es + ja
-├── menu.css              Pestaña, pantalla, barrido, tarjetas en 3D, ajustes y teléfono
-└── components/
-    ├── MenuButton.tsx    Pestaña «MENU» de la cabecera y botón del pie
-    ├── MenuScreen.tsx    La pantalla: barrido, personaje, decoración, teclado y paralaje
-    ├── MenuTiles.tsx     Las tarjetas en perspectiva
-    ├── MenuPanels.tsx    Volver, monedas, aventurero, lo que dice el personaje y el coleccionable
-    ├── MenuCast.tsx      Selector de personajes, useCast, CharacterImage
-    ├── MenuSettings.tsx  Idioma, música, sonido, avisos y Google Drive
-    └── MenuIcons.tsx     Rombos del menú, almanaque, reloj, volver y el sello del gremio
-public/menu/*.webp        Los personajes de serie, con fondo transparente
-```
-
-## Puntos de integración
-
-| Archivo | Cambio |
+| Archivo | Contenido |
 |---|---|
-| `src/App.tsx` | `<MenuScreen />` (sustituye a `MobileMenu`), `menuBusy()` en el teclado y la tecla `O` |
-| `src/components/Header.tsx` | Fuera los botones de objetos, mercader, personaje y crónica, el idioma, la música, el silencio, los avisos y Google Drive; dentro, `<MenuButton />` |
-| `src/components/Footer.tsx` | `<MenuFooterButton />` (tecla `O`) en lugar de los botones de cada ventana |
+| `model.ts` | Puro: `daypart`, `activeQuests`, `daysUntil`; personajes (`CharacterDef`, `applyCharacterEvent`) y rotación (`characterOfDay`, `shownCharacter`) |
+| `events.ts` | `character_added`, `character_removed` |
+| `characters.ts` | Lista de personajes: los de serie (`virtual:menu-characters`) y los del jugador |
+| `image.ts` | Imagen y miniatura de un personaje añadido (canvas) |
+| `ui.ts` | Menú abierto, selector abierto y lo elegido para hoy (en este equipo); `menuBusy` |
+| `actions.ts` | `openMenu`, `closeMenu`, `toggleMenu`, `goTo`, `openOver`, `searchFromMenu`, `windowOpen`, `pickCharacter`, `addCharacter`, `removeCharacter` |
+| `components/MenuButton.tsx` | Pestaña «MENU» de la cabecera y botón del pie |
+| `components/MenuScreen.tsx` | La pantalla: barrido, personaje, decoración, teclado y paralaje |
+| `components/MenuTiles.tsx` | Las tarjetas en perspectiva |
+| `components/MenuPanels.tsx` | Volver, monedas, aventurero, lo que dice el personaje y el coleccionable |
+| `components/MenuCast.tsx` | Selector de personajes, `useCast`, `CharacterImage` |
+| `components/MenuSettings.tsx` | Idioma, música, sonido, avisos y Google Drive |
+| `components/MenuIcons.tsx` | Rombos del menú, almanaque, reloj, volver y el sello del gremio |
+| `menu.css`, `i18n.ts` | Pestaña, pantalla, barrido, tarjetas en 3D, ajustes y teléfono; textos es + ja |
+| `model.test.ts` | Personajes, rotación (2.000 días con 5, 3 y 2 personajes, cambio de hora), partes del día, quest actual y días hasta el escaparate |
+
+### Dónde está cada cosa
+
+| Concepto | Símbolo |
+|---|---|
+| Montaje permanente, música armada al arrancar y teclado en captura (Escape, `O`, las teclas de las ventanas) | [`MenuScreen`](components/MenuScreen.tsx) (su efecto con `window.addEventListener("keydown", onKey, true)`) |
+| Si hay una ventana abierta encima, el teclado del menú no actúa | [`windowOpen`](actions.ts) |
+| Cierre al cambiar de sección por debajo | suscripción `useGame.subscribe` dentro de [`MenuScreen`](components/MenuScreen.tsx) |
+| Composición de la pantalla (fondo, personaje, paneles, tarjetas, barrido) | [`Screen`](components/MenuScreen.tsx) |
+| Barrido diagonal: recorte, filo dorado y rayas de velocidad | [`clip`](components/MenuScreen.tsx), [`edge`](components/MenuScreen.tsx), [`STREAKS`](components/MenuScreen.tsx), con [`WIPE_IN`](components/MenuScreen.tsx) y [`WIPE_OUT`](components/MenuScreen.tsx) |
+| Sonido del barrido | [`openMenu`](actions.ts) y [`closeMenu`](actions.ts) (llaman a `sfx.menuOpen` / `sfx.menuClose`) |
+| Foco inicial | efecto de [`Screen`](components/MenuScreen.tsx) que llama a `root.current?.focus()` |
+| Paralaje | efecto de `pointermove` en [`Screen`](components/MenuScreen.tsx), que escribe las variables CSS `--mx` y `--my` |
+| Personaje actual | [`useCast`](components/MenuCast.tsx) y `hero` en [`Screen`](components/MenuScreen.tsx) |
+| Movimiento reducido | [`calm`](../../lib/fx.ts) (en `Screen`, `still`: sin barrido ni paralaje) |
+| Tarjetas en 3D | [`MenuTiles`](components/MenuTiles.tsx), [`Tile`](components/MenuTiles.tsx) y [`Cell`](components/MenuTiles.tsx) |
+| Paneles (volver, monedas, aventurero, lo que dice el personaje, coleccionable) | [`MenuBack`](components/MenuPanels.tsx), [`MenuCurrency`](components/MenuPanels.tsx), [`MenuPlayer`](components/MenuPanels.tsx), [`MenuVoice`](components/MenuPanels.tsx), [`WeeklyNews`](components/MenuPanels.tsx) |
+| Ajustes | [`MenuSettings`](components/MenuSettings.tsx) |
+| Selector de personajes | [`MenuCast`](components/MenuCast.tsx) y [`CharacterImage`](components/MenuCast.tsx) |
+| Rotación diaria y elección del día | [`characterOfDay`](model.ts), [`shownCharacter`](model.ts) y [`pickCharacter`](actions.ts) |
+| Personajes de serie | [`BUILTIN_CHARACTERS`](characters.ts), que lista el plugin [`menuCharacters`](../../../vite.config.ts) |
+
+## Integración
+
+| Fuera de la carpeta | Cambio |
+|---|---|
+| `src/App.tsx` | `<MenuScreen />`, `menuBusy()` en el teclado y la tecla `O` |
+| `src/components/Header.tsx` | `<MenuButton />`; solo quedan el emblema, el selector de sección, el rango, la XP, el oro y la lupa |
+| `src/components/Footer.tsx` | `<MenuFooterButton />` (tecla `O`) |
 | `src/lib/sfx.ts` | `menuOpen` y `menuClose` |
-| `src/domain/events.ts` | `MenuEventBody` en la unión (42 tipos) |
-| `src/domain/projection.ts` | `ProjectionAcc.characters` (`CharactersAcc`), los dos `case` y `GameState.characters`; `PROJECTION_VERSION` pasa a 11 |
+| `src/domain/events.ts` | `MenuEventBody` en la unión |
+| `src/domain/projection.ts` | `ProjectionAcc.characters` (`CharactersAcc`), los dos `case` y `GameState.characters` |
 | `src/domain/types.ts` | `GameState.characters: Map<string, CharacterDef>` |
 | `vite.config.ts`, `src/vite-env.d.ts` | Plugin `menuCharacters` y el tipo de `virtual:menu-characters` |
-| `features/temporal`, `merchant`, `sync` (`actions.ts`) | `characterBlobIds` en los binarios en uso (limpieza y subida a Drive) |
-| `src/test/streams.ts` | `characterDef` y los eventos de personajes en `randomStream` (repetidos, quitados, de serie y sin imagen) |
+| `src/features/temporal/actions.ts`, `src/features/merchant/actions.ts`, `src/features/sync/actions.ts` | `characterBlobIds` en los binarios en uso (limpieza y subida a Drive) |
+| `src/features/mobile/components/MobileNav.tsx` | La barra, a cuatro botones (`toggleMenu`) |
+| `public/menu/` | Los personajes de serie |
 | `src/i18n/locales/{es,ja}.ts` | `menu: menuEs` / `menuJa` |
-| `features/mobile` | La barra, a cuatro botones (`MenuIcon`, `toggleMenu`); fuera `MobileMenu`, `useMobileUi.menu` y sus textos y estilos |
-| `features/notifications` | `NotifyMenuToggle` se usa en los ajustes del menú (su clase `.mmenu-toggle` está ahora en `menu.css`) |
-| `features/items`, `merchant`, `equipment`, `chronicle` | Fuera los botones de la cabecera (`ItemsButton`, `MerchantButton`, `CharacterButton`, `ChronicleButton`) y su CSS; los iconos se quedan, en archivos con su nombre (`BagIcon.tsx`, `LanternIcon.tsx`, `HelmetIcon.tsx`, `DiaryIcon.tsx`) |
+| `src/test/streams.ts` | `characterDef` y los eventos de personajes en `randomStream` |
 
----
+## Dependencias
 
-## Verificación
+El menú abre las ventanas de otras funcionalidades y lee su estado, pero **para cambiar la pantalla del menú no hace falta leer sus README**. Solo si cambias lo que hace una tarjeta o un ajuste:
 
-- **Tests** (`model.test.ts`, 16): los personajes añadidos (una vez, quitados sin resucitar, sin los de serie ni los que no traen imagen, sin tocar al jugador, sus imágenes cuentan como usadas); la rotación (todos una vez por vuelta, el orden cambia de vuelta en vuelta, nunca dos días seguidos el mismo con 5, 3 y 2 personajes en 2.000 días, igual sea cual sea el orden de la lista, medianoche y cambio de hora); elegir para hoy no cambia el de mañana y uno quitado vuelve a la rotación. Prueba de mutación: sin el arreglo entre vueltas, falla el test de los días seguidos. Además: las cuatro partes del día en sus bordes; la quest actual es la última aceptada y no cuentan las abandonadas; los días hasta el cambio del escaparate, también la semana del cambio de hora (encontró un fallo: contando milisegundos, el lunes a primera hora de esa semana salían 8 días; ahora se cuentan medianoches).
-- **Navegador** (`pnpm dev`), en español y en japonés:
-  - Escritorio a 1.280 × 800 y a 1.024 × 680: la pantalla entera, el paralaje y el acercamiento al pasar el ratón; un fotograma del barrido a mitad; la tarjeta grande con tres quests en curso (cambiando el estado solo en memoria, sin escribir eventos); el pie cabe a 1.024 px (con los cuatro botones de ventana de antes ya se salía por la derecha).
-  - Flujos: mercader y almanaque encima del menú y `Escape` vuelve a él; `J` abre la crónica y dos `Escape` cierran la crónica y luego el menú; Bounties, Calendar y Quests cambian de sección y cierran el menú; Search cierra el menú y abre la búsqueda; con el menú abierto, `T` no cambia de sección.
-  - Personajes (escritorio y teléfono, en japonés): los cinco `.webp` de `public/menu/` salen en el selector; hoy, el de la rotación con «今日»; elegir otro lo marca «選択中», lo pone en pantalla y no cambia el de mañana; «Seguir la rotación» lo quita; añadir un PNG transparente lo guarda en IndexedDB y lo elige para hoy; quitarlo (dos toques) borra su imagen del almacén; Escape cierra el selector sin cerrar el menú.
-  - Teléfono a 402 × 874: la barra de cuatro botones, el menú entero desplazándose (tarjetas, coleccionable y ajustes en filas) y sin desplazamiento horizontal.
-- **Sin probar**: un personaje añadido llegando a otro equipo por Drive (la imagen sigue el mismo camino que el fondo del mercader), el sonido del barrido (no se ha escuchado), la app nativa de macOS y Windows, el simulador de iOS y un iPhone de verdad, y el rendimiento del 3D en un equipo lento.
+- **features/merchant** (`actions`, `ui`, `model`): abrir la tienda (tarjeta, «+» del oro) y los días hasta el cambio de escaparate (`weekKey`).
+- **features/collectibles** (`model.ts`): el coleccionable de «Weekly Rarity».
+- **features/items** (`index`): abrir el inventario o el almanaque; el «+» de los objetos.
+- **features/equipment** (`ui`, `useBlobUrl`, `Backdrop`): abrir el personaje, el fondo comprado detrás del menú y las imágenes de los personajes añadidos.
+- **features/chronicle** (`ui`): abrir la crónica.
+- **features/search** (`actions`, `ui`): la tarjeta Search (cierra el menú y abre la búsqueda).
+- **features/calendar** y **features/temporal** (`actions`, `model`): las tarjetas Calendar y Bounties y el aviso de encargos de hoy.
+- **features/music**, **features/sync**, **features/notifications** (sus controles): los ajustes. Para cambiar un ajuste por dentro, lee el README de esa funcionalidad.
+- **features/mobile** (`phone.ts`): distinguir el teléfono en los ajustes (filas en lugar de iconos). Para la barra de abajo, lee su README.
+- **features/editing**, **features/failure**, **features/quickadd** (sus `ui.ts`): `windowOpen` mira si hay una ventana suya abierta encima.
+- **La usan:** `mobile` (barra), y `merchant`, `sync` y `temporal` (`characterBlobIds`).
+
+## Estado actual
+
+- **Última verificación:** 2026-10-07, tests y navegador a 1.280 × 800, 1.024 × 680 y 402 × 874, en español y japonés (barrido, paralaje, ventanas encima y Escape, secciones, búsqueda, los personajes de `public/menu/`, elegir, añadir un PNG y quitarlo).
+- **Tests:** `model.test.ts`.
+- **Sin verificar:** un personaje añadido llegando a otro equipo por Drive; el sonido del barrido; la app nativa de macOS y Windows, el simulador de iOS y un iPhone; el rendimiento del 3D en un equipo lento.
+- **Historial:** [docs/history/verificacion/menu.md](../../../docs/history/verificacion/menu.md).
