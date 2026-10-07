@@ -1,18 +1,12 @@
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../store/game";
-import { setMuted, sfx } from "../lib/sfx";
-import { useMuted } from "../lib/useMuted";
+import { sfx } from "../lib/sfx";
 import { LANGS, num, setLang, type Lang } from "../i18n";
-import { MusicControl } from "../features/music";
-import { ItemsButton } from "../features/items";
-import { MerchantButton } from "../features/merchant";
-import { CharacterButton, DecorEmblem } from "../features/equipment";
-import { ChronicleButton } from "../features/chronicle";
+import { DecorEmblem } from "../features/equipment";
 import { SectionSwitch } from "../features/temporal";
-import { SyncControl } from "../features/sync";
 import { SearchButton } from "../features/search";
-import { NotifyButton } from "../features/notifications";
+import { MenuButton } from "../features/menu";
 
 export function Emblem({ size = 64 }: { size?: number }) {
   return (
@@ -28,7 +22,6 @@ export function Emblem({ size = 64 }: { size?: number }) {
 export function Header() {
   const player = useGame((s) => s.state.player);
   const active = useGame((s) => [...s.state.quests.values()].filter((q) => q.status === "active").length);
-  const muted = useMuted();
   const { t } = useTranslation();
 
   const pct = Math.min(100, (player.levelXp / player.levelXpNeeded) * 100);
@@ -52,8 +45,6 @@ export function Header() {
             <b className="num rank">{player.rank}</b>
             <span>{t("header.level")}</span>
             <b className="num">{player.level}</b>
-            <CharacterButton />
-            <ChronicleButton />
           </div>
           <div className="xpbar" title={t("header.xpTotal", { xp: num(player.xp) })}>
             <span className="xpbar-lbl">XP</span>
@@ -73,8 +64,6 @@ export function Header() {
             <GoldIcon />
             <b className="num">{num(player.gold)}</b>
             <span className="muted">G</span>
-            <ItemsButton />
-            <MerchantButton />
           </div>
           <div className="slots" title={t("header.activeTitle")}>
             <span className="xpbar-lbl">{t("header.active")}</span>
@@ -84,18 +73,8 @@ export function Header() {
         </div>
 
         <SearchButton />
-        <LangSwitch />
-        <SyncControl />
-        <MusicControl />
-        <button
-          className="mute"
-          title={muted ? t("header.soundOn") : t("header.mute")}
-          aria-pressed={muted}
-          onClick={() => setMuted(!muted)}
-        >
-          {muted ? "♪̸" : "♪"}
-        </button>
-        <NotifyButton />
+        {/* La tienda, el personaje, los objetos, la crónica y los ajustes están en el menú (features/menu). */}
+        <MenuButton />
       </div>
     </header>
   );

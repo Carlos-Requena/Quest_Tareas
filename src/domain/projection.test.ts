@@ -249,7 +249,7 @@ describe("invariantes sobre historiales aleatorios", () => {
     expect(tried).toBeGreaterThan(0);
   });
 
-  it("el oro solo baja al comprar, justo el precio pagado y si llegaba", () => {
+  it("el oro solo baja al comprar (equipo o coleccionable), justo el precio pagado y si llegaba", () => {
     for (const seed of ["oro1", "oro2", "oro3"]) {
       const ev = randomStream(seed, 400);
       let purchases = 0;
@@ -265,6 +265,10 @@ describe("invariantes sobre historiales aleatorios", () => {
             expect(prev.player.gold).toBeGreaterThanOrEqual(e.price);
             purchases++;
           }
+        } else if (e.type === "collectible_purchased") {
+          // Un coleccionable de Hu Tao también se paga (features/collectibles): el precio o nada.
+          expect([0, -e.price]).toContain(delta);
+          if (delta < 0) expect(prev.player.gold).toBeGreaterThanOrEqual(e.price);
         } else expect(delta).toBeGreaterThanOrEqual(0);
         prev = next;
       }

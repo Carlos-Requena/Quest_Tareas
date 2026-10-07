@@ -1,6 +1,6 @@
 # Notificaciones del sistema
 
-Avisos fuera de la app: cuando termina una ronda o un descanso de un pomodoro, antes de un encargo o de un bloque de la agenda, el día de una fecha límite (y por la tarde, si sigue pendiente: se fracturará o se quemará a medianoche) y cuando una racha está a punto de romperse. Se activan con la campana de la cabecera (en el teléfono, «Avisos» en el menú «Más»).
+Avisos fuera de la app: cuando termina una ronda o un descanso de un pomodoro, antes de un encargo o de un bloque de la agenda, el día de una fecha límite (y por la tarde, si sigue pendiente: se fracturará o se quemará a medianoche) y cuando una racha está a punto de romperse. Se activan con la campana de los ajustes del menú de opciones (en el teléfono, la fila «Avisos»; [../menu/README.md](../menu/README.md)).
 
 Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
 
@@ -56,7 +56,7 @@ En `capabilities/default.json`, solo lo que se usa: `notification:allow-is-permi
 | `service.ts` | Permiso y preferencia, textos, enseñar ya (escritorio) y programar / cancelar (iOS) |
 | `i18n.ts` | Textos es + ja |
 | `components/NotificationScheduler.tsx` | Calcula el plan y lo entrega (no pinta nada) |
-| `components/NotifyToggle.tsx` | Campana de la cabecera e interruptor del menú «Más» |
+| `components/NotifyToggle.tsx` | Campana de los ajustes del menú (escritorio) e interruptor de su fila «Avisos» (teléfono) |
 | `model.test.ts` | Fases del pomodoro, fechas límite, encargos, agenda, lo terminado y los ids |
 
 ## Puntos de integración
@@ -68,7 +68,7 @@ En `capabilities/default.json`, solo lo que se usa: `notification:allow-is-permi
 | `package.json` | `@tauri-apps/plugin-notification` |
 | `App.tsx` | `NotificationScheduler` |
 | `components/Header.tsx` | Campana |
-| `features/mobile/components/MobileMenu.tsx` | «Avisos» |
+| `features/menu` | La campana y el interruptor, en los ajustes del menú |
 | `i18n/locales/{es,ja}.ts` | Montan `notifications` |
 
 ---

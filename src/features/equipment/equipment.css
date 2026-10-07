@@ -1,15 +1,5 @@
 /* ───────────── Personaje: muñeco, ranuras, armario y decoración ───────────── */
 
-.character-btn {
-  align-self: center;
-  margin-left: 2px;
-}
-.character-btn:hover {
-  color: var(--gold-hi);
-  border-color: var(--gold);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--gold) 30%, transparent);
-}
-
 .chr {
   width: min(1120px, 95vw);
   height: min(720px, 90vh);

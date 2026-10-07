@@ -396,4 +396,21 @@ export const sfx = {
     for (let i = 0; i < 18; i++) hiss(0.25 + Math.random() * dur, 0.03, 0.12 + Math.random() * 0.1, "highpass", 2500 + Math.random() * 3000, 1500, 0.001, 4);
     stab([110, 130.81, 164.81], 0.3, dur, 0.04);
   },
+
+  // ───── Menú de opciones (src/features/menu) ─────
+
+  /** El menú barre la pantalla: silbido rápido que sube y un destello metálico al llegar. */
+  menuOpen() {
+    if (muted) return;
+    hiss(0, 0.3, 0.2, "bandpass", 420, 4200, 0.2, 0.8);
+    hiss(0.02, 0.28, 0.06, "highpass", 3000, 8000, 0.2);
+    sweep(80, 170, 0, 0.26, "sine", 0.08);
+    [1567.98, 2093, 2637].forEach((f, i) => tone(f, 0.24 + i * 0.035, 0.45, "sine", 0.022));
+  },
+  /** El menú se retira: el silbido al revés, que baja. */
+  menuClose() {
+    if (muted) return;
+    hiss(0, 0.24, 0.15, "bandpass", 3600, 420, 0.05, 0.8);
+    sweep(160, 80, 0, 0.2, "sine", 0.06);
+  },
 };

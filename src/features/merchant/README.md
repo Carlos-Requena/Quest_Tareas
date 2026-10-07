@@ -219,7 +219,7 @@ Las partículas y sacudidas usan `src/lib/fx.ts` y respetan «reducir movimiento
 | `components/GearForm.tsx` | Añadir y editar mercancía |
 | `components/GearArt.tsx`, `SlotGlyph.tsx` | Arte de una pieza y glifos de las ranuras (también los usa el personaje) |
 | `components/SoldSeal.tsx` | El sello de «vendido» con su celebración |
-| `components/MerchantButton.tsx` | Botón del farol en la cabecera (y su icono, en el pie) |
+| `components/LanternIcon.tsx` | Icono del farol (el botón está en el menú, features/menu) |
 | `public/merchant/hutao.{mp4,webm,webp}` | El vídeo de Hu Tao y su póster |
 
 ## Puntos de integración
@@ -233,7 +233,7 @@ Las partículas y sacudidas usan `src/lib/fx.ts` y respetan «reducir movimiento
 | `i18n/locales/{es,ja}.ts` | Montan `merchant` |
 | `styles/theme.css` | Tokens `--merchant`, `--merchant-hi`, `--merchant-lo` y `--merchant-deep` |
 | `components/Header.tsx` | Botón del farol junto al oro |
-| `components/Footer.tsx`, `styles/app.css` | Tecla `C` en el pie. En ventana estrecha, las teclas de las ventanas (objetos, mercader y personaje) se quedan con su icono |
+| `components/Footer.tsx`, `styles/app.css` | La tecla `C` sigue abriendo la tienda; el botón del pie es ahora el del menú de opciones ([../menu/README.md](../menu/README.md)), con su tarjeta «Merchant» |
 | `App.tsx` | Tecla `C`, `<MerchantModal />` y el teclado del tablón espera mientras está abierta |
 | `test/streams.ts` | `gearDef` y los eventos del mercader en `randomStream` |
 

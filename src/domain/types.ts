@@ -9,6 +9,7 @@ import type { Streak } from "../features/streaks/model";
 import type { ChronicleAcc } from "../features/chronicle/model";
 import type { ContactRef } from "../features/contacts/model";
 import type { AgendaState } from "../features/agenda/model";
+import type { CharacterDef } from "../features/menu/model";
 
 export type Category = "elite" | "repeat" | "request";
 
@@ -145,6 +146,8 @@ export interface GameState {
   chronicle: ChronicleAcc;
   /** Agenda personal por horas: bloques de un día o que se repiten (features/agenda). */
   agenda: Map<string, AgendaState>;
+  /** Personajes del menú añadidos por el jugador; los de serie están en el código (features/menu). */
+  characters: Map<string, CharacterDef>;
   player: PlayerState;
 }
 

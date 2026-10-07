@@ -19,6 +19,7 @@ import { questReward, temporalValue } from "../features/rewards/model";
 import { applyCollectibleEvent } from "../features/collectibles/model";
 import { cleanContacts } from "../features/contacts/model";
 import { applyAgendaEvent, newAgendaAcc, type AgendaAcc } from "../features/agenda/model";
+import { applyCharacterEvent, newCharactersAcc, type CharactersAcc } from "../features/menu/model";
 import { isEditable, patchQuest } from "../features/editing/model";
 import { questFailsBy, temporalFailsBy } from "../features/failure/model";
 import { undoneIn } from "../features/undo/model";
@@ -30,7 +31,7 @@ import { undoneIn } from "../features/undo/model";
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 10;
+export const PROJECTION_VERSION = 11;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -48,6 +49,8 @@ export interface ProjectionAcc {
   chronicle: ChronicleAcc;
   /** Agenda personal (features/agenda): no toca al jugador. */
   agenda: AgendaAcc;
+  /** Personajes del menú añadidos por el jugador (features/menu): no tocan al jugador. */
+  characters: CharactersAcc;
   xp: number;
   gold: number;
   completedCount: number;
@@ -63,6 +66,7 @@ export const newProjectionAcc = (): ProjectionAcc => ({
   attributes: newAttributesAcc(),
   chronicle: newChronicleAcc(),
   agenda: newAgendaAcc(),
+  characters: newCharactersAcc(),
   xp: 0,
   gold: 0,
   completedCount: 0,
@@ -347,6 +351,12 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
       applyAgendaEvent(acc.agenda, e);
       break;
 
+    case "character_added":
+    case "character_removed":
+      // Los personajes del menú son decoración: no dan XP ni oro.
+      applyCharacterEvent(acc.characters, e);
+      break;
+
     case "collectible_purchased": {
       // Comprar un coleccionable gasta oro, solo si llega y aún no lo tienes (features/collectibles).
       const spent = applyCollectibleEvent(items, e, e.ts, acc.gold);
@@ -364,7 +374,7 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
  * el encargo de cada quest y si está en reserva). Se puede llamar después de cada evento.
  */
 export function finishProjection(acc: ProjectionAcc): GameState {
-  const { quests, items, temporals, merchant, equipment, attributes, chronicle, agenda, xp, gold, completedCount } = acc;
+  const { quests, items, temporals, merchant, equipment, attributes, chronicle, agenda, characters, xp, gold, completedCount } = acc;
   // Cada quest sabe a qué encargo pendiente pertenece (para su fecha y su enlace).
   // Se recalcula entero: tras desenlazar o cumplir un encargo, la quest ya no lo tiene.
   // Las de un encargo sin aceptar quedan en reserva, salvo las que ya estén en curso.
@@ -392,6 +402,7 @@ export function finishProjection(acc: ProjectionAcc): GameState {
     gear: fullCatalog(merchant),
     chronicle,
     agenda: agenda.entries,
+    characters: characters.list,
     player: {
       xp,
       gold,

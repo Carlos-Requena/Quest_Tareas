@@ -48,11 +48,24 @@ describe("restore: arranque", () => {
   });
 
   it("con un snapshot válido solo lee la cola", async () => {
+    // Sin «deshacer»: uno en la cola obliga a reproducirlo todo (el test siguiente).
+    const plain = ev.filter((e) => e.type !== "event_undone");
+    const cut = plain.length - 50;
+    await saveSnapshot(applyAll(emptyProjected(), plain.slice(0, cut)));
+    const { store, calls } = memoryStore([...plain]);
+    const r = await restore(store);
+    expect(r).toMatchObject({ count: plain.length, snapCount: cut, last: { id: plain[plain.length - 1].id } });
+    expect(calls).toMatchObject({ all: 0, since: 1, countUpTo: 1 });
+    expect(stateOf(r.acc)).toBe(canonical(project(plain)));
+  });
+
+  it("un «deshacer» en la cola descarta el snapshot y lo reproduce todo", async () => {
+    expect(ev.slice(200).some((e) => e.type === "event_undone")).toBe(true);
     await saveSnapshot(applyAll(emptyProjected(), ev.slice(0, 200)));
     const { store, calls } = memoryStore([...ev]);
     const r = await restore(store);
-    expect(r).toMatchObject({ count: 250, snapCount: 200, last: { id: ev[249].id } });
-    expect(calls).toMatchObject({ all: 0, since: 1, countUpTo: 1 });
+    expect(r).toMatchObject({ count: 250, snapCount: 0 });
+    expect(calls).toMatchObject({ all: 1 });
     expect(stateOf(r.acc)).toBe(full);
   });
 

@@ -27,6 +27,7 @@ import { todayEs } from "../../features/today/i18n";
 import { quickaddEs } from "../../features/quickadd/i18n";
 import { searchEs } from "../../features/search/i18n";
 import { notificationsEs } from "../../features/notifications/i18n";
+import { menuEs } from "../../features/menu/i18n";
 
 export const es = {
   app: {
@@ -176,6 +177,7 @@ export const es = {
   quickadd: quickaddEs,
   search: searchEs,
   notifications: notificationsEs,
+  menu: menuEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {

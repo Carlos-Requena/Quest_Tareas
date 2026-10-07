@@ -149,28 +149,6 @@
   color: var(--rc);
 }
 
-/* ───────────── Botón de la cabecera ───────────── */
-
-.items-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-  margin-left: 10px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  color: var(--text-2);
-  transition: color 0.2s, border-color 0.2s;
-}
-.items-btn b {
-  font-size: 15px;
-}
-.items-btn:hover {
-  color: var(--gold-hi);
-  border-color: var(--gold);
-}
-
 /* ───────────── Ventana de objetos ───────────── */
 
 .coll {

@@ -8,6 +8,7 @@ import { RARITIES, type ItemDef } from "../features/items/model";
 import { TEMPORAL_KINDS, type TemporalDef } from "../features/temporal/model";
 import { GEAR_SLOTS, type GearDef } from "../features/merchant/model";
 import type { AgendaDef } from "../features/agenda/model";
+import type { CharacterDef } from "../features/menu/model";
 import { seededRandom } from "../lib/id";
 
 export const T0 = Date.UTC(2026, 0, 1);
@@ -53,6 +54,10 @@ export function temporalDef(id: string, extra: Partial<TemporalDef> = {}): Tempo
     createdAt: T0,
     ...extra,
   };
+}
+
+export function characterDef(id: string, extra: Partial<CharacterDef> = {}): CharacterDef {
+  return { id, name: `Personaje ${id}`, art: { blobId: `blob-${id}`, mime: "image/webp", size: 1000 }, createdAt: T0, ...extra };
 }
 
 export function agendaDef(id: string, extra: Partial<AgendaDef> = {}): AgendaDef {
@@ -142,7 +147,17 @@ export function randomStream(seed: string, n: number): GameEvent[] {
     return { type: "event_undone", eventId: `${seed}-${String(Math.max(0, i - 1 - Math.floor(rnd() * 5))).padStart(5, "0")}` };
   };
 
+  // Personajes del menú (features/menu): repetidos, quitados, de serie (prohibido) y sin imagen.
+  const C = ["c0", "c1", "builtin:kazuma"];
+  const characterBody = (): EventBody => {
+    const c = pick(C);
+    if (rnd() < 0.65)
+      return { type: "character_added", character: characterDef(c, rnd() < 0.15 ? { art: { blobId: "", mime: "image/webp", size: 0 } } : {}) };
+    return { type: "character_removed", characterId: c };
+  };
+
   const body = (i: number): EventBody => {
+    if (rnd() < 0.03) return characterBody();
     if (rnd() < 0.12) return gearBody();
     if (rnd() < 0.06) return agendaBody();
     if (rnd() < 0.06) return laterBody(i);

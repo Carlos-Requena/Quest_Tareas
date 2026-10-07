@@ -31,7 +31,7 @@ export function NotifyButton() {
   );
 }
 
-/** Interruptor del menú «Más» del teléfono. */
+/** Interruptor de los ajustes del menú en el teléfono (features/menu). */
 export function NotifyMenuToggle() {
   const { t } = useTranslation();
   const { on, toggle } = useNotify();

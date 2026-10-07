@@ -7,6 +7,6 @@ export type { EquipmentEventBody } from "./events";
 export * from "./actions";
 export { useCharacterUi, openCharacter, characterBusy } from "./ui";
 export { CharacterModal } from "./components/CharacterModal";
-export { CharacterButton, HelmetIcon } from "./components/CharacterButton";
+export { HelmetIcon } from "./components/HelmetIcon";
 export { Backdrop, DecorEmblem } from "./components/Decor";
 export { Doll } from "./components/Doll";

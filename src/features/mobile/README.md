@@ -11,7 +11,7 @@ Es una funcionalidad **sin eventos**: solo presentación. No cambia `project()`,
 | # | Requisito | Cómo se cumple |
 |---|---|---|
 | R1 | Usar Quests en el iPhone | Tauri 2 para iOS (`pnpm tauri ios …`); el proyecto de Xcode está en `src-tauri/gen/apple` |
-| R2 | Todo lo del Mac, no solo el día a día | Cada pantalla tiene su diseño de teléfono: tablón, detalle, encargos (cartel, formulario y animaciones), mercader, personaje y armario, objetos y almanaque, probabilidades, crónica, «Quest Clear» y el cofre |
+| R2 | Todo lo del Mac, no solo el día a día | Cada pantalla tiene su diseño de teléfono: tablón, detalle, encargos (cartel, formulario y animaciones), menú de opciones, mercader, personaje y armario, objetos y almanaque, probabilidades, crónica, «Quest Clear» y el cofre |
 | R3 | Sincronizar con el Mac | La misma sincronización con Google Drive; en iOS se inicia sesión con la hoja del sistema ([../sync/README.md](../sync/README.md)) |
 | R4 | Que no se rompa el escritorio | Todo va en `@media (max-width: 760px)`; en el escritorio los componentes nuevos no se ven (`display: none` / `display: contents`) |
 | R5 | Sin teclado | Barra de abajo, rombo de crear, toques y deslizar el dedo; las pistas «Pulsa Enter» se cambian por «Toca» |
@@ -36,9 +36,9 @@ Se descartó una app aparte para el móvil: duplicaría las pantallas y se desin
 
 ### El armazón
 
-- **Cabecera en dos filas**: emblema, «Quest Board» y oro con las quests en curso; debajo, rango, nivel y la barra de XP a lo ancho. El idioma, la música, el silencio, Google Drive y los botones de ventanas salen de la cabecera.
-- **Barra de abajo** (`MobileNav`): Tablón, Encargos (con el aviso rojo de los de hoy), Calendario ([../calendar/README.md](../calendar/README.md)), Mercader, Personaje y **Más**: seis columnas. Sustituye al pie con las teclas. En el calendario, el rombo de crear añade un bloque a la agenda y deslizar el dedo pasa de semana o de día.
-- **Menú «Más»** (`MobileMenu`): objetos, crónica, **buscar** (features/search), idioma, música (con el volumen), sonido, **avisos** (features/notifications) y Google Drive. Reutiliza los mismos controles que la cabecera; su CSS despliega quietos los paneles que en el escritorio salen al pasar el ratón.
+- **Cabecera en dos filas**: emblema, «Quest Board» y oro con las quests en curso; debajo, rango, nivel y la barra de XP a lo ancho. La lupa y la pestaña «MENU» no se ven: la búsqueda y el menú están en la barra de abajo.
+- **Barra de abajo** (`MobileNav`): Tablón, Encargos (con el aviso rojo de los de hoy), Calendario ([../calendar/README.md](../calendar/README.md)) y **Menú**: cuatro columnas. Sustituye al pie con las teclas. En el calendario, el rombo de crear añade un bloque a la agenda y deslizar el dedo pasa de semana o de día.
+- **Menú** ([../menu/README.md](../menu/README.md)): la misma pantalla de opciones que en el escritorio, encima de la barra y con desplazamiento: el mercader, el personaje, los objetos y el almanaque, la crónica, la búsqueda y, al final, los ajustes en filas (idioma, música con el volumen, sonido, avisos y Google Drive, con los desplegables abiertos). Sustituye al antiguo menú «Más».
 - **Rombo de crear** (`MobileCreate`): dorado, girado 45° como las gemas. En el tablón abre la **hoja del alta rápida** (features/quickadd; desde ella, «Más detalles» abre el formulario completo); en el de encargos, un encargo; en el calendario, un bloque.
 - **Avisos** encima de la barra (`.m-toast`), para que se vean también con el detalle cerrado. El del detalle y el del tablón de madera se esconden. El botón «Deshacer» del aviso (features/undo) sí recibe el toque, aunque el aviso deje pasar los demás.
 - **Editar** (features/editing) va en el detalle con su nombre; en el escritorio, solo el icono ✎.
@@ -88,7 +88,7 @@ src/features/mobile/
 ├── README.md
 ├── index.ts              API pública
 ├── phone.ts              PHONE_MAX_WIDTH, isPhone(), useIsPhone()
-├── ui.ts                 Store de UI: detalle abierto (id) y menú «Más»
+├── ui.ts                 Store de UI: detalle abierto (id)
 ├── actions.ts            detailPrimaryAction (aceptar cierra antes la hoja)
 ├── actions.test.ts
 ├── swipe.ts              useSwipe: pasar página deslizando el dedo
@@ -96,7 +96,6 @@ src/features/mobile/
 ├── mobile.css            Armazón y ajustes de app.css en el teléfono
 └── components/
     ├── MobileNav.tsx     Barra de abajo y rombo de crear (MobileCreate)
-    ├── MobileMenu.tsx    Menú «Más»
     ├── DetailBack.tsx    «‹ Volver al tablón»
     └── KeyHint.tsx       «Pulsa Enter…» o «Toca…» según la pantalla
 ```
@@ -105,7 +104,7 @@ src/features/mobile/
 
 | Archivo | Cambio |
 |---|---|
-| `src/App.tsx` | `.m-sheet` + `DetailBack` alrededor de `QuestDetail`; `MobileNav`, `MobileCreate`, `MobileMenu` y el aviso `.m-toast`; abrir el detalle al tocar una tarjeta; clase `m-detail` |
+| `src/App.tsx` | `.m-sheet` + `DetailBack` alrededor de `QuestDetail`; `MobileNav`, `MobileCreate` y el aviso `.m-toast`; abrir el detalle al tocar una tarjeta; clase `m-detail` |
 | `src/components/QuestDetail.tsx` | El botón principal llama a `detailPrimaryAction`; `Toast` exportado |
 | `src/components/Header.tsx` | `LangSwitch` exportado (lo usa el menú) |
 | `src/components/ClearOverlay.tsx`, `temporal/components/{ClearedOverlay,PostedOverlay}.tsx` | `KeyHint` |

@@ -4,36 +4,30 @@ import { useGame } from "../../../store/game";
 import { useNow } from "../../../lib/time";
 import { sfx } from "../../../lib/sfx";
 import { Skull, needsAttention, switchSection, useTemporalUi } from "../../temporal";
-import { LanternIcon, openMerchant } from "../../merchant";
-import { HelmetIcon, openCharacter } from "../../equipment";
 import { CalendarIcon, addBlock, useCalendarUi } from "../../calendar";
+import { MenuIcon, toggleMenu, useMenuUi } from "../../menu";
 import { useMobileUi } from "../ui";
 import { useQuickUi } from "../../quickadd/ui";
 import "../mobile.css";
 
 /**
- * Barra de abajo del teléfono, en lugar del pie con las teclas: los dos tablones, el calendario,
- * el mercader, el personaje y el menú «Más». En el escritorio no se ve (CSS).
+ * Barra de abajo del teléfono, en lugar del pie con las teclas: los dos tablones, el calendario
+ * y el menú de opciones (features/menu), donde están el mercader, el personaje, los objetos, la
+ * crónica y los ajustes. En el escritorio no se ve (CSS).
  */
 export function MobileNav() {
   const section = useGame((s) => s.section);
   const temporals = useGame((s) => s.state.temporals);
-  const menu = useMobileUi((s) => s.menu);
+  const menu = useMenuUi((s) => s.open);
   const now = useNow(60_000);
   const { t } = useTranslation();
   const urgent = useMemo(() => needsAttention(temporals.values(), now), [temporals, now]);
 
   const go = (target: "board" | "temporal" | "calendar") => {
-    const ui = useMobileUi.getState();
-    ui.closeDetail();
-    ui.setMenu(false);
+    useMobileUi.getState().closeDetail();
+    useMenuUi.getState().setOpen(false);
     if (target === section) sfx.move();
     else switchSection(target);
-  };
-  const open = (fn: () => void) => () => {
-    sfx.move();
-    useMobileUi.getState().setMenu(false);
-    fn();
   };
 
   return (
@@ -47,17 +41,7 @@ export function MobileNav() {
         badge={urgent > 0 ? urgent : undefined}
       />
       <NavButton on={section === "calendar" && !menu} label={t("calendar.title")} onClick={() => go("calendar")} icon={<CalendarIcon />} />
-      <NavButton label={t("merchant.open")} onClick={open(() => openMerchant())} icon={<LanternIcon />} />
-      <NavButton label={t("equipment.open")} onClick={open(() => openCharacter())} icon={<HelmetIcon />} />
-      <NavButton
-        on={menu}
-        label={t("mobile.nav.more")}
-        onClick={() => {
-          sfx.move();
-          useMobileUi.getState().setMenu(!menu);
-        }}
-        icon={<MoreIcon />}
-      />
+      <NavButton on={menu} label={t("menu.open")} onClick={toggleMenu} icon={<MenuIcon />} />
     </nav>
   );
 }
@@ -98,13 +82,5 @@ export function MobileCreate() {
         <path d="M11 4v14M4 11h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
     </button>
-  );
-}
-
-function MoreIcon() {
-  return (
-    <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden>
-      <path d="M2 3h12M2 7h12M2 11h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
   );
 }

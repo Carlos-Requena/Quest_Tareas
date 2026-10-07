@@ -9,7 +9,7 @@ Cada equipo sube sus eventos a una carpeta `QuestsApp/` del Google Drive del jug
 - Sincroniza al abrir la app, cada 5 minutos, al volver a la ventana (si hace más de 1 minuto), al ocultarla si hay algo sin subir (en el iPhone, al salir de la app) y al cerrarla (como mucho 8 s).
 - También los binarios: los PDF e imágenes de los encargos y el fondo del menú.
 - La app solo ve sus propios archivos de Drive (permiso `drive.file`), y los tokens nunca llegan a disco ni al JavaScript.
-- Indicador en la cabecera: una nube con un punto de estado y un panel para conectar, sincronizar o desconectar.
+- Indicador en los ajustes del menú de opciones ([../menu/README.md](../menu/README.md)): una nube con un punto de estado y un panel para conectar, sincronizar o desconectar.
 
 ## Cómo funciona
 
@@ -91,7 +91,7 @@ No añade eventos. Viajan los que ya existen, con su `v` (los de una versión fu
 | `storage.ts` | Cursores y cuenta en la tabla `meta` |
 | `actions.ts` | Conectar, desconectar, sincronizar (una a la vez), cuándo hacerlo y al cerrar |
 | `ui.ts` | Estado de la interfaz (Zustand) |
-| `components/SyncControl.tsx` | La nube de la cabecera con su panel, y `SyncWatcher` (arranca al cargar el juego) |
+| `components/SyncControl.tsx` | La nube de los ajustes del menú con su panel, y `SyncWatcher` (arranca al cargar el juego) |
 | `i18n.ts`, `sync.css` | Textos es + ja y estilos |
 | `src-tauri/src/sync/` | `oauth.rs` (PKCE con 127.0.0.1 o la hoja de iOS, llavero, refresco, desconexión), `drive.rs` (listar, bajar, subir con subida reanudable), `mod.rs` (comandos) |
 | `src-tauri/plugins/web-auth/` | Plugin de Tauri con `ASWebAuthenticationSession` (Swift); solo hace algo en iOS |

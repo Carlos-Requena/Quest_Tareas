@@ -1,27 +1,6 @@
-import { useTranslation } from "react-i18next";
-import { sfx } from "../../../lib/sfx";
-import { openMerchant } from "../ui";
 import "../merchant.css";
 
-/** Botón de la cabecera, junto al oro: abre el escaparate de Hu Tao. */
-export function MerchantButton() {
-  const { t } = useTranslation();
-  return (
-    <button
-      className="hdr-pill merchant-btn"
-      title={t("merchant.openTitle")}
-      aria-label={t("merchant.open")}
-      onClick={() => {
-        sfx.move();
-        openMerchant();
-      }}
-    >
-      <LanternIcon />
-    </button>
-  );
-}
-
-/** Farol de la funeraria (cabecera y pie). */
+/** Farol de la funeraria (menú). */
 export function LanternIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden className="merchant-icon">

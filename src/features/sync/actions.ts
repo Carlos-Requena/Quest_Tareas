@@ -8,6 +8,7 @@ import { isTauri } from "../../storage/eventStore";
 import { openBlobStore } from "../../storage/blobStore";
 import { liveBlobIds } from "../temporal/model";
 import { gearBlobIds } from "../merchant/model";
+import { characterBlobIds } from "../menu/model";
 import { runSync } from "./engine";
 import { CLOSE_TIMEOUT_MS, SYNC_EVERY_MS, type SyncReport } from "./model";
 import { isNativeError, native, tauriDrive } from "./drive";
@@ -63,7 +64,7 @@ async function run(manual: boolean): Promise<SyncReport | undefined> {
       onMerged: () => useGame.getState().rebuild(),
       usedBlobs: () => {
         const { state } = useGame.getState();
-        return new Set([...liveBlobIds(state.temporals.values()), ...gearBlobIds(state.gear.values())]);
+        return new Set([...liveBlobIds(state.temporals.values()), ...gearBlobIds(state.gear.values()), ...characterBlobIds(state.characters.values())]);
       },
       now: Date.now,
     });

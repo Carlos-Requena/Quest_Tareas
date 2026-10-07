@@ -7,6 +7,6 @@ export type { MerchantEventBody } from "./events";
 export * from "./actions";
 export { useMerchantUi, openMerchant, merchantBusy, type MerchantTab } from "./ui";
 export { MerchantModal } from "./components/MerchantModal";
-export { MerchantButton, LanternIcon } from "./components/MerchantButton";
+export { LanternIcon } from "./components/LanternIcon";
 export { GearArt, gearStyle } from "./components/GearArt";
 export { SlotGlyph } from "./components/SlotGlyph";

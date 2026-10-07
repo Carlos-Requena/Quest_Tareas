@@ -1,0 +1,1854 @@
+/* Menú de opciones (features/menu): pantalla al estilo del menú principal de un gacha, con
+   Kazuma, las tarjetas de cada sección en perspectiva y los ajustes del equipo.
+   Capas: el menú (z 47) va encima del tablón y del pie, y debajo de las ventanas (50), que se
+   abren sobre él. En el teléfono (al final) deja ver la barra de abajo. */
+
+/* ───────────── Pestaña de la cabecera ───────────── */
+
+.menu-btn {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 20px 0 16px;
+  margin-left: 4px;
+  color: var(--gold-hi);
+  transition: color 0.25s;
+}
+/* El paralelogramo y el destello que lo cruza al pasar el ratón. */
+.menu-btn::before,
+.menu-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: skewX(-14deg);
+}
+.menu-btn::before {
+  border: 1px solid var(--gold);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 18%, transparent), color-mix(in srgb, var(--gold) 4%, transparent));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--gold-hi) 12%, transparent),
+    0 0 18px color-mix(in srgb, var(--gold) 16%, transparent);
+  transition:
+    background 0.25s,
+    box-shadow 0.25s;
+}
+.menu-btn::after {
+  background: linear-gradient(100deg, transparent 35%, color-mix(in srgb, var(--parchment-hi) 70%, transparent) 50%, transparent 65%) no-repeat;
+  background-size: 260% 100%;
+  background-position: 160% 0;
+  transition: background-position 0.7s var(--ease-out);
+}
+.menu-btn:hover,
+.menu-btn:focus-visible {
+  color: var(--ink);
+}
+.menu-btn:hover::before,
+.menu-btn:focus-visible::before {
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  box-shadow: 0 0 24px color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.menu-btn:hover::after {
+  background-position: -60% 0;
+}
+.menu-btn:focus-visible {
+  outline: none;
+}
+.menu-btn-ico {
+  display: grid;
+  place-items: center;
+}
+.menu-btn-lbl {
+  font-family: var(--f-tag);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+/* ───────────── Pantalla ───────────── */
+
+.mn {
+  --mx: 0;
+  --my: 0;
+  --tiles-w: clamp(470px, 47vw, 660px);
+  position: fixed;
+  inset: 0;
+  z-index: 47;
+  overflow: hidden;
+  background: var(--bg);
+  outline: none;
+}
+
+/* Oscurece el fondo comprado al mercader (Backdrop) y da luz cálida detrás del personaje. */
+.mn-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 30% 55% at 33% 46%, color-mix(in srgb, var(--gold) 16%, transparent), transparent 70%),
+    linear-gradient(90deg, color-mix(in srgb, var(--bg) 80%, transparent), color-mix(in srgb, var(--bg) 30%, transparent) 42%, color-mix(in srgb, var(--bg) 62%, transparent) 70%, color-mix(in srgb, var(--bg) 85%, transparent)),
+    radial-gradient(ellipse 120% 95% at 50% 50%, transparent 55%, color-mix(in srgb, var(--bg) 90%, transparent));
+}
+
+/* ───────────── Decoración del fondo ───────────── */
+
+.mn-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: translate3d(calc(var(--mx) * -26px), calc(var(--my) * -14px), 0);
+  transition: transform 0.5s var(--ease-out);
+}
+/* Rayas finas en diagonal, como los planos de un puerto: solo a la derecha. */
+.mn-lines {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(115deg, transparent 0 26px, color-mix(in srgb, var(--gold) 6%, transparent) 26px 27px),
+    linear-gradient(0deg, transparent calc(12% - 1px), color-mix(in srgb, var(--gold) 10%, transparent) 12%, transparent calc(12% + 1px));
+  -webkit-mask-image: linear-gradient(90deg, transparent 35%, #000 80%);
+  mask-image: linear-gradient(90deg, transparent 35%, #000 80%);
+}
+.mn-words {
+  position: absolute;
+  left: -1vw;
+  bottom: 3vh;
+  font-family: var(--f-tag);
+  font-weight: 700;
+  font-size: 11.5vw;
+  line-height: 0.8;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--gold) 16%, transparent);
+  letter-spacing: 0.02em;
+}
+.mn-sigil {
+  position: absolute;
+  left: calc((100vw - var(--tiles-w)) / 2 - 36vh);
+  top: 8vh;
+  width: 72vh;
+  height: 72vh;
+  color: color-mix(in srgb, var(--gold) 24%, transparent);
+}
+.mn-sigil-svg {
+  width: 100%;
+  height: 100%;
+  animation: mn-spin 140s linear infinite;
+}
+@keyframes mn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.mn-dust i {
+  position: absolute;
+  bottom: -12px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--gold-hi);
+  box-shadow: 0 0 6px var(--gold);
+  opacity: 0;
+  animation: mn-dust 12s linear infinite;
+}
+@keyframes mn-dust {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.7;
+  }
+  80% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translate(40px, -92vh);
+    opacity: 0;
+  }
+}
+
+/* ───────────── El personaje del día ───────────── */
+
+.mn-hero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  /* El hueco libre: de la columna izquierda (en parte) hasta donde empiezan las tarjetas. El
+     personaje se centra ahí; cada imagen cabe entera en su caja (object-fit), así que uno
+     estrecho y uno ancho quedan igual de centrados. */
+  right: calc(var(--tiles-w) + 34px);
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-left: 12vw;
+  pointer-events: none;
+  transform: translate3d(calc(var(--mx) * -12px), calc(var(--my) * -6px), 0);
+  transition: transform 0.5s var(--ease-out);
+}
+.mn-hero-in {
+  position: relative;
+  flex: none;
+  height: min(97vh, 1000px);
+  aspect-ratio: 1037 / 1464;
+  margin-bottom: -3vh;
+}
+/* Sombra en el suelo, a sus pies. */
+.mn-hero-in::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 22%;
+  bottom: 3.5%;
+  height: 5%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--bg) 85%, transparent), transparent);
+}
+.mn-breathe {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+  animation: mn-breathe 5.5s ease-in-out infinite alternate;
+}
+@keyframes mn-breathe {
+  to {
+    transform: translateY(-5px) scale(1.006);
+  }
+}
+.mn-char {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Cada imagen trae su proporción: cabe entera, de pie sobre el suelo. */
+  object-fit: contain;
+  object-position: 50% 100%;
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--gold-hi) 55%, transparent)) drop-shadow(0 22px 40px rgba(0, 0, 0, 0.5));
+  user-select: none;
+}
+/* Solo la miniatura (la imagen grande aún no ha llegado a este equipo): borrosa a propósito. */
+.mn-char.is-thumb {
+  filter: blur(2px) drop-shadow(0 22px 40px rgba(0, 0, 0, 0.5));
+  opacity: 0.85;
+}
+
+/* ───────────── Barrido de entrada ───────────── */
+
+.mn-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  pointer-events: none;
+  overflow: hidden;
+}
+.mn-edge {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.mn-edge-glow {
+  fill: none;
+  stroke: color-mix(in srgb, var(--gold) 60%, transparent);
+  stroke-width: 26;
+  filter: blur(9px);
+}
+.mn-edge-line {
+  fill: none;
+  stroke: var(--parchment-hi);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px var(--gold-hi));
+}
+.mn-streak {
+  position: absolute;
+  left: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-hi) 30%, color-mix(in srgb, var(--parchment-hi) 80%, transparent) 50%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--gold) 60%, transparent);
+}
+
+/* ───────────── Rejilla de la interfaz ───────────── */
+
+.mn-ui {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(250px, 330px) minmax(0, 1fr) var(--tiles-w);
+  grid-template-rows: 72px auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top top top"
+    "player . tiles"
+    "voice . tiles"
+    ". . tiles"
+    "news . tiles";
+  column-gap: 16px;
+  padding: 0 34px 26px 28px;
+}
+.mn-left {
+  display: contents;
+}
+.mn-player {
+  grid-area: player;
+}
+.mn-voice {
+  grid-area: voice;
+}
+.mn-news {
+  grid-area: news;
+}
+.mn-tiles {
+  grid-area: tiles;
+}
+
+/* ───────────── Barra de arriba ───────────── */
+
+.mn-top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+}
+.mn-back {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 16px 0 14px;
+  color: var(--gold-hi);
+  font-size: 14px;
+}
+.mn-back::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: skewX(-14deg);
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--panel-solid) 80%, transparent);
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+.mn-back:hover::before {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 14%, var(--panel-solid));
+}
+.mn-back kbd {
+  margin: 0 0 0 4px;
+  border-color: var(--line-strong);
+  color: var(--text-2);
+}
+.mn-set:not(.is-rows) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 22px;
+  border-left: 1px solid var(--line-strong);
+}
+.mn-cur {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mn-clock {
+  margin-right: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  letter-spacing: 0.05em;
+}
+.mn-coin {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 6px 0 16px;
+  color: var(--gold);
+  border-bottom: 1px solid var(--line-strong);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--panel-hi) 92%, transparent));
+}
+.mn-coin b {
+  font-size: 22px;
+  color: var(--text);
+}
+.mn-coin svg {
+  width: 15px;
+  height: 15px;
+}
+.mn-coin-u {
+  color: var(--muted);
+  font-size: 12px;
+}
+.mn-plus {
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  color: var(--gold-hi);
+  font-size: 15px;
+  line-height: 1;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.mn-coin:hover .mn-plus {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+/* ───────────── El aventurero ───────────── */
+
+.mn-player {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+}
+.mn-ring {
+  position: relative;
+  flex: none;
+  width: 116px;
+  height: 116px;
+  display: grid;
+  place-items: center;
+}
+.mn-ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.mn-ring-track {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.mn-ring-fill {
+  fill: none;
+  stroke: var(--gold-hi);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px var(--gold));
+}
+.mn-ring-lv {
+  margin-top: -10px;
+  font-size: 54px;
+  line-height: 1;
+  text-shadow: 0 2px 0 var(--gold-lo), 0 6px 14px rgba(0, 0, 0, 0.6);
+}
+.mn-ring-lbl {
+  position: absolute;
+  bottom: 22px;
+  font-family: var(--f-tag);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--text-2);
+}
+.mn-id {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.mn-id-tag {
+  color: var(--muted);
+}
+.mn-id-rank {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 24px;
+  white-space: nowrap;
+}
+.mn-rank-gem {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+}
+.mn-rank-gem::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  transform: rotate(45deg);
+  border: 1px solid var(--gold);
+  background: color-mix(in srgb, var(--gold) 16%, var(--panel-solid));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--gold) 40%, transparent);
+}
+.mn-rank-gem b {
+  position: relative;
+  font-size: 22px;
+  color: var(--gold-hi);
+}
+.mn-id-xp {
+  font-size: 15px;
+}
+.mn-id-xp small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ───────────── Lo que dice el personaje ───────────── */
+
+.mn-voice {
+  justify-self: start;
+  max-width: 340px;
+  margin-top: 22px;
+  padding: 12px 22px 14px 16px;
+  border-left: 2px solid var(--gold);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 94%, transparent), color-mix(in srgb, var(--bg) 78%, transparent) 70%, transparent);
+}
+.mn-voice-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gold);
+  font-size: 13px;
+}
+.mn-voice-swap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-2);
+  border: 1px solid var(--line-strong);
+  transition:
+    color 0.2s,
+    border-color 0.2s;
+}
+.mn-voice-swap:hover,
+.mn-voice-swap:focus-visible {
+  color: var(--gold-hi);
+  border-color: var(--gold);
+  outline: none;
+}
+.mn-voice-who .tag {
+  padding: 1px 6px;
+  font-size: 8px;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+}
+.mn-voice p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ───────────── Coleccionable de la semana ───────────── */
+
+.mn-news {
+  --rc: var(--gold);
+  position: relative;
+  align-self: end;
+  justify-self: start;
+  width: min(330px, 100%);
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 20px 16px 14px 14px;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--rc) 55%, transparent);
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--rc) 24%, var(--panel-solid)), color-mix(in srgb, var(--panel-solid) 94%, transparent) 62%);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.25s var(--ease-out);
+}
+.mn-news:hover {
+  border-color: var(--rc);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.45),
+    0 0 24px color-mix(in srgb, var(--rc) 35%, transparent);
+}
+.mn-news-tag {
+  position: absolute;
+  top: -11px;
+  left: 12px;
+  padding: 3px 12px;
+  transform: skewX(-12deg);
+  background: var(--rc);
+  color: var(--bg);
+  font-family: var(--f-tag);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.mn-news-art .iart {
+  width: 82px;
+}
+.mn-news-lantern {
+  width: 82px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+  color: var(--merchant-hi);
+  border: 1px solid color-mix(in srgb, var(--merchant) 50%, transparent);
+  background: color-mix(in srgb, var(--merchant-deep) 70%, transparent);
+}
+.mn-news-lantern svg {
+  width: 34px;
+  height: 34px;
+}
+.mn-news-txt {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.mn-news-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  color: var(--text);
+}
+.mn-news-sub {
+  font-size: 12px;
+  color: var(--rc);
+}
+.mn-news.is-empty .mn-news-sub,
+.mn-news.is-sold .mn-news-sub {
+  color: var(--text-2);
+}
+.mn-news-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ───────────── Tarjetas en perspectiva ───────────── */
+
+/* La perspectiva va en el contenedor; .mn-tilt gira y crea el espacio 3D. Ningún elemento entre
+   .mn-tilt y los textos puede llevar overflow, opacity, filter o clip-path: aplanarían el 3D. */
+.mn-tiles {
+  align-self: center;
+  container-type: inline-size;
+  perspective: 1500px;
+  perspective-origin: 0% 50%;
+}
+.mn-tilt {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 11px 10px;
+  transform-style: preserve-3d;
+  transform: rotateY(calc(-13deg + var(--mx) * 3deg)) rotateX(calc(3deg - var(--my) * 2.5deg));
+  transform-origin: 100% 50%;
+  transition: transform 0.45s var(--ease-out);
+}
+.mn-cell {
+  position: relative;
+  transform-style: preserve-3d;
+  height: clamp(86px, 13.6vh, 124px);
+}
+.mn-cell.is-board {
+  grid-column: span 12;
+  height: clamp(118px, 19vh, 178px);
+  margin: 0 3% 8px 0;
+}
+.mn-cell.is-character,
+.mn-cell.is-merchant {
+  grid-column: span 5;
+}
+.mn-cell.is-temporal,
+.mn-cell.is-collection {
+  grid-column: span 7;
+}
+.mn-cell.is-merchant,
+.mn-cell.is-collection {
+  height: clamp(116px, 18vh, 164px);
+}
+.mn-cell.is-chronicle,
+.mn-cell.is-calendar,
+.mn-cell.is-search {
+  grid-column: span 4;
+  height: clamp(98px, 13.5vh, 118px);
+  margin-left: 6%;
+}
+.mn-cell.is-chronicle {
+  margin-left: 0;
+}
+/* La línea dorada bajo la tarjeta grande, como la del combate de un gacha. */
+.mn-cell.is-board::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  right: -3%;
+  bottom: -7px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold-lo), var(--gold-hi) 70%, var(--gold));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--gold) 70%, transparent);
+  transform: translateZ(10px);
+}
+
+.mn-tile {
+  --accent: var(--gold);
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  color: var(--text);
+  transform-style: preserve-3d;
+  transition: transform 0.32s var(--ease-out);
+}
+button.mn-tile:hover,
+button.mn-tile:focus-visible {
+  transform: translateZ(20px);
+}
+button.mn-tile:active {
+  transform: translateZ(6px);
+}
+.mn-tile:focus-visible {
+  outline: none;
+}
+.mn-tile-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-top: 2px solid var(--accent);
+  background:
+    radial-gradient(ellipse 60% 90% at 100% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    linear-gradient(160deg, color-mix(in srgb, var(--panel-hi) 95%, transparent), color-mix(in srgb, var(--panel-solid) 94%, transparent));
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 color-mix(in srgb, var(--parchment-hi) 6%, transparent);
+  transition:
+    border-color 0.25s,
+    box-shadow 0.25s;
+}
+.mn-tile:hover > .mn-tile-bg,
+.mn-tile:focus-visible > .mn-tile-bg {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow:
+    0 26px 46px rgba(0, 0, 0, 0.5),
+    0 0 26px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+/* El logo en grande, como marca de agua, en el plano de la tarjeta. */
+.mn-tile-mark {
+  position: absolute;
+  right: -5%;
+  top: 50%;
+  width: 52%;
+  max-width: 190px;
+  aspect-ratio: 1;
+  transform: translateY(-50%) rotate(-8deg);
+  color: var(--accent);
+  opacity: 0.13;
+  transition:
+    opacity 0.3s,
+    transform 0.45s var(--ease-out);
+}
+.mn-tile-mark svg {
+  width: 100%;
+  height: 100%;
+}
+.mn-tile:hover .mn-tile-mark {
+  opacity: 0.22;
+  transform: translateY(-50%) rotate(-2deg) scale(1.06);
+}
+/* El logo en su rombo, delante de la tarjeta. */
+.mn-logo {
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  transform: translateZ(28px);
+  transition: transform 0.32s var(--ease-out);
+}
+.mn-logo::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  transform: rotate(45deg);
+  border: 1px solid currentColor;
+  background: color-mix(in srgb, currentColor 14%, var(--panel-solid));
+  box-shadow: 0 0 14px color-mix(in srgb, currentColor 35%, transparent);
+}
+.mn-logo > svg {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+.mn-logo .skull {
+  width: 18px;
+  height: 18px;
+}
+/* Rótulo y nombre: lo más cercano. El relieve sale de las sombras en capas, del oro a la sombra. */
+.mn-tile-txt {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 12px;
+  display: grid;
+  gap: 4px;
+  pointer-events: none;
+  transform: translateZ(40px);
+  transition: transform 0.32s var(--ease-out);
+}
+button.mn-tile:hover .mn-tile-txt,
+button.mn-tile:focus-visible .mn-tile-txt {
+  transform: translateZ(58px);
+}
+button.mn-tile:hover .mn-logo {
+  transform: translateZ(44px);
+}
+.mn-title {
+  display: block;
+  font-family: var(--f-tag);
+  font-weight: 700;
+  font-size: 5.6cqi;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--text);
+  text-shadow:
+    0 1px 0 var(--gold-lo),
+    0 2px 0 color-mix(in srgb, var(--gold-lo) 78%, var(--bg)),
+    0 3px 0 color-mix(in srgb, var(--gold-lo) 56%, var(--bg)),
+    0 4px 0 color-mix(in srgb, var(--gold-lo) 34%, var(--bg)),
+    0 9px 14px rgba(0, 0, 0, 0.65);
+}
+.mn-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.mn-key {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  margin: 0;
+  min-width: 18px;
+  height: 18px;
+  border-color: var(--line-strong);
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  transform: translateZ(24px);
+}
+.mn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Rejilla pequeña: rótulos más chicos en las de abajo. */
+.mn-cell.is-chronicle .mn-title,
+.mn-cell.is-calendar .mn-title,
+.mn-cell.is-search .mn-title {
+  font-size: 4.5cqi;
+}
+.mn-cell.is-chronicle .mn-sub,
+.mn-cell.is-calendar .mn-sub,
+.mn-cell.is-search .mn-sub {
+  font-size: 11px;
+}
+.mn-cell.is-chronicle .mn-logo,
+.mn-cell.is-calendar .mn-logo,
+.mn-cell.is-search .mn-logo {
+  top: 9px;
+  left: 11px;
+}
+
+/* ── La tarjeta grande: el tablón, en pergamino claro ── */
+
+.mn-tile.is-board {
+  --accent: var(--ink);
+  color: var(--ink);
+}
+.mn-tile.is-board .mn-tile-bg {
+  border: 1px solid var(--parchment-lo);
+  background:
+    radial-gradient(ellipse 50% 120% at 85% 50%, color-mix(in srgb, var(--parchment-hi) 70%, transparent), transparent 70%),
+    linear-gradient(100deg, var(--paper-edge), var(--parchment-hi) 45%, color-mix(in srgb, var(--parchment) 90%, transparent));
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px color-mix(in srgb, var(--parchment-hi) 60%, transparent),
+    inset 0 -30px 50px color-mix(in srgb, var(--parchment-lo) 30%, transparent);
+}
+.mn-tile.is-board:hover .mn-tile-bg {
+  border-color: var(--gold);
+  box-shadow:
+    0 30px 52px rgba(0, 0, 0, 0.55),
+    0 0 30px color-mix(in srgb, var(--gold) 40%, transparent);
+}
+.mn-tile.is-board .mn-tile-mark {
+  right: 2%;
+  width: 34%;
+  max-width: 220px;
+  color: var(--ink);
+  opacity: 0.1;
+}
+.mn-tile.is-board .mn-tile-mark svg * {
+  stroke: currentColor;
+}
+.mn-hero-box {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  bottom: 14px;
+  width: 25%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  background: color-mix(in srgb, var(--parchment-lo) 22%, transparent);
+  transform: translateZ(22px);
+}
+.mn-hero-plus {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+}
+.mn-hero-plus .emblem rect,
+.mn-hero-plus .emblem path {
+  stroke: var(--ink);
+}
+.mn-hero-n {
+  place-self: center;
+  font-size: 9cqi;
+  line-height: 1;
+  color: var(--ink);
+  text-shadow:
+    0 1px 0 var(--parchment-hi),
+    0 2px 0 var(--parchment-lo),
+    0 6px 10px color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.mn-hero-lbl {
+  padding: 5px 4px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--ink);
+  color: var(--parchment-hi);
+}
+.mn-tile.is-board .mn-tile-txt {
+  left: calc(25% + 34px);
+  top: 16px;
+  bottom: auto;
+  gap: 10px;
+}
+.mn-tile.is-board .mn-title {
+  font-size: 12cqi;
+  line-height: 0.92;
+  color: var(--ink);
+  text-shadow:
+    0 1px 0 var(--parchment-hi),
+    0 2px 0 var(--parchment-lo),
+    0 3px 0 color-mix(in srgb, var(--parchment-lo) 75%, var(--ink)),
+    0 4px 0 color-mix(in srgb, var(--parchment-lo) 50%, var(--ink)),
+    0 12px 16px color-mix(in srgb, var(--ink) 35%, transparent);
+}
+.mn-hero-cur {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.mn-hero-cur .mn-chip {
+  background: var(--ink);
+  color: var(--parchment-hi);
+}
+.mn-hero-q {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 700;
+}
+.mn-hero-more {
+  flex: none;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+}
+
+/* ── Cada sección con su color ── */
+
+.mn-tile.is-character {
+  --accent: var(--gold);
+}
+.mn-tile.is-temporal {
+  --accent: var(--skull-hi);
+}
+.mn-tile.is-temporal .mn-tile-mark {
+  opacity: 0.16;
+}
+.mn-tile.is-calendar {
+  --accent: var(--stamp);
+}
+.mn-tile.is-search {
+  --accent: var(--text-2);
+}
+.mn-tile.is-search .mn-tile-bg {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--panel-solid) 96%, transparent), color-mix(in srgb, var(--bg) 94%, transparent));
+}
+.mn-tile.is-chronicle {
+  --accent: var(--diary-paper);
+}
+.mn-tile.is-chronicle .mn-tile-bg {
+  background:
+    radial-gradient(ellipse 70% 90% at 100% 0%, color-mix(in srgb, var(--diary-paper) 12%, transparent), transparent 70%),
+    linear-gradient(160deg, color-mix(in srgb, var(--diary-leather) 90%, transparent), color-mix(in srgb, var(--diary-leather-lo) 96%, transparent));
+}
+/* El mercader, en el rojo de la funeraria y con Hu Tao asomando. */
+.mn-tile.is-merchant {
+  --accent: var(--merchant-hi);
+}
+.mn-tile.is-merchant .mn-tile-bg {
+  border-color: color-mix(in srgb, var(--merchant) 55%, transparent);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--merchant) 50%, var(--merchant-deep)), color-mix(in srgb, var(--merchant-deep) 96%, transparent) 75%);
+}
+.mn-hutao {
+  position: absolute;
+  right: -18%;
+  top: 0;
+  height: 100%;
+  width: auto;
+  opacity: 0.5;
+  -webkit-mask-image: linear-gradient(90deg, transparent 8%, #000 55%);
+  mask-image: linear-gradient(90deg, transparent 8%, #000 55%);
+  transition:
+    opacity 0.3s,
+    transform 0.5s var(--ease-out);
+}
+.mn-tile.is-merchant:hover .mn-hutao {
+  opacity: 0.72;
+  transform: translateX(-4%);
+}
+.mn-tile.is-merchant .mn-tile-mark {
+  right: auto;
+  left: 34%;
+  width: 40%;
+}
+/* Lo que falta para que cambie el escaparate, colgando del borde de arriba. */
+.mn-chip.is-time {
+  position: absolute;
+  left: 58px;
+  top: -11px;
+  padding: 2px 9px;
+  font-size: 11px;
+  color: var(--merchant-hi);
+  background: color-mix(in srgb, var(--merchant-deep) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--merchant) 60%, transparent);
+  transform: translateZ(32px);
+}
+/* Aviso de los encargos de hoy: un rombo rojo con el número. */
+.mn-badge {
+  position: absolute;
+  top: -12px;
+  right: 22px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  transform: translateZ(48px);
+}
+.mn-badge::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--skull-hi), var(--skull) 60%, var(--skull-lo));
+  border: 1px solid var(--skull-hi);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--skull) 70%, transparent);
+}
+.mn-badge b {
+  position: relative;
+  font-size: 15px;
+  color: var(--parchment-hi);
+}
+
+/* ── Colección: cabecera oscura y dos mitades doradas ── */
+
+.mn-tile.is-collection {
+  --accent: var(--gold-hi);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.mn-col-h {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 6px 10px;
+  transform: translateZ(26px);
+}
+.mn-col-h .mn-logo {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+}
+.mn-col-h .mn-title {
+  font-size: 3.6cqi;
+}
+.mn-col-h .mn-sub {
+  flex: 1;
+}
+.mn-col-n {
+  font-size: 18px;
+  color: var(--gold-hi);
+}
+.mn-col-h .mn-key {
+  position: relative;
+  top: auto;
+  right: auto;
+  transform: none;
+}
+.mn-col-btns {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 8px 8px;
+  transform-style: preserve-3d;
+}
+.mn-col-btn {
+  position: relative;
+  text-align: left;
+  transform-style: preserve-3d;
+  transition: transform 0.32s var(--ease-out);
+}
+.mn-col-btn:hover,
+.mn-col-btn:focus-visible {
+  outline: none;
+  transform: translateZ(18px);
+}
+.mn-col-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--gold-hi), var(--gold) 52%, var(--gold-lo));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--parchment-hi) 50%, transparent),
+    0 12px 24px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.25s;
+}
+.mn-col-btn:hover .mn-col-bg,
+.mn-col-btn:focus-visible .mn-col-bg {
+  box-shadow:
+    inset 0 0 0 1px var(--parchment-hi),
+    0 16px 30px rgba(0, 0, 0, 0.45),
+    0 0 24px color-mix(in srgb, var(--gold) 50%, transparent);
+}
+.mn-col-mark {
+  position: absolute;
+  right: -6%;
+  top: 50%;
+  width: 58%;
+  max-width: 120px;
+  aspect-ratio: 1;
+  transform: translateY(-50%) rotate(-10deg);
+  color: var(--ink);
+  opacity: 0.16;
+}
+.mn-col-mark svg {
+  width: 100%;
+  height: 100%;
+}
+.mn-col-in {
+  position: absolute;
+  left: 12px;
+  right: 10px;
+  bottom: 9px;
+  display: grid;
+  gap: 3px;
+  color: var(--ink);
+  transform: translateZ(26px);
+  transition: transform 0.32s var(--ease-out);
+}
+.mn-col-btn:hover .mn-col-in {
+  transform: translateZ(40px);
+}
+.mn-col-in .mn-title {
+  font-size: 3.7cqi;
+  color: var(--ink);
+  text-shadow:
+    0 1px 0 var(--gold-hi),
+    0 2px 0 color-mix(in srgb, var(--gold-lo) 70%, var(--gold)),
+    0 3px 0 var(--gold-lo),
+    0 8px 12px color-mix(in srgb, var(--ink) 40%, transparent);
+}
+.mn-col-in .mn-sub {
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+  font-weight: 700;
+}
+
+/* ───────────── Selector de personajes ───────────── */
+
+.mn-cast-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  backdrop-filter: blur(4px);
+}
+.mn-cast {
+  position: absolute;
+  top: 70px;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  width: min(860px, calc(100% - 48px));
+  /* Centrado con márgenes: Motion anima el transform y se llevaría un translate(-50%). */
+  margin-inline: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 18px 22px 16px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel-hi) 97%, transparent), color-mix(in srgb, var(--panel-solid) 98%, transparent));
+  border: 1px solid var(--line-strong);
+  border-top: 2px solid var(--gold);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+.mn-cast-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--gold);
+}
+.mn-cast-x {
+  width: 32px;
+  height: 32px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-2);
+}
+.mn-cast-x:hover {
+  color: var(--gold-hi);
+}
+.mn-cast-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+  align-content: start;
+  overflow-y: auto;
+  padding: 4px 2px 8px;
+}
+.mn-card {
+  position: relative;
+  display: grid;
+  border: 1px solid var(--line-strong);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 6%, var(--panel-solid)), var(--panel-solid));
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.25s var(--ease-out);
+}
+.mn-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-3px);
+}
+.mn-card.is-on {
+  border-color: var(--gold-hi);
+  box-shadow:
+    0 0 0 1px var(--gold),
+    0 0 22px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.mn-card-pick {
+  display: grid;
+  gap: 6px;
+  padding: 8px 8px 10px;
+  text-align: center;
+}
+.mn-card-art {
+  height: 170px;
+  display: grid;
+  place-items: end center;
+  overflow: hidden;
+  background: radial-gradient(ellipse 70% 60% at 50% 70%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 70%);
+}
+.mn-card-art img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45));
+}
+.mn-card-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+}
+.mn-card-tags {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  min-height: 18px;
+}
+.mn-card-tag {
+  padding: 1px 7px;
+  font-size: 10px;
+  color: var(--text-2);
+  border: 1px solid var(--line-strong);
+}
+.mn-card-tag.is-picked {
+  color: var(--ink);
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  font-weight: 700;
+}
+.mn-card-rm {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  border: 1px solid var(--line-strong);
+}
+.mn-card-rm:hover,
+.mn-card-rm.is-armed {
+  color: var(--skull-hi);
+  border-color: var(--skull);
+}
+.mn-card.is-add {
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  min-height: 236px;
+  padding: 12px;
+  border-style: dashed;
+  color: var(--gold);
+  text-align: center;
+}
+.mn-card.is-add:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+/* El «+» dentro de un rombo, como las gemas. */
+.mn-card-plus {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+}
+.mn-card-plus::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  rotate: 45deg;
+  border: 1px solid var(--gold);
+}
+.mn-card-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+.mn-cast-f {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.mn-cast-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.mn-cast-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+.mn-cast-next {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.mn-cast-follow {
+  height: 34px;
+  padding: 0 16px;
+  color: var(--ink);
+  font-weight: 700;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+}
+.mn-cast-follow:disabled {
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line-strong);
+  font-weight: 500;
+  cursor: default;
+}
+
+/* ───────────── Aviso, en el escritorio ───────────── */
+
+.mn-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  z-index: 3;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.mn-toast .toast {
+  padding: 8px 16px;
+  background: color-mix(in srgb, var(--panel-solid) 95%, transparent);
+  border: 1px solid var(--line-strong);
+  border-left: 2px solid var(--gold);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+/* ───────────── Ajustes en filas (teléfono) ───────────── */
+
+.mn-set-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  color: var(--gold);
+  font-weight: 500;
+}
+.mn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  border-top: 1px solid var(--line);
+}
+.mn-row.is-wide {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px 0 0;
+}
+.mn-row-lbl {
+  color: var(--text-2);
+  font-size: 13px;
+}
+/* Interruptor de sonido y avisos (la clase la usa también features/notifications). */
+.mmenu-toggle {
+  height: 32px;
+  min-width: 96px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.mmenu-toggle.on {
+  color: var(--ink);
+  font-weight: 700;
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+}
+.mn-set.is-rows .lang-btn {
+  height: 30px;
+  min-width: 56px;
+  font-size: 12px;
+}
+/* La música y Google Drive despliegan aquí, quietos, los paneles que en el escritorio salen al pasar el ratón. */
+.mn-set.is-rows .music {
+  height: 36px;
+  border-radius: 18px;
+  padding: 0 4px 0 2px;
+  gap: 4px;
+}
+.mn-set.is-rows .music-btn {
+  width: 32px;
+  height: 32px;
+}
+.mn-set.is-rows .music-pop,
+.mn-set.is-rows .sync-pop {
+  position: static;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+.mn-set.is-rows .music-pop {
+  padding: 0 8px 0 4px;
+}
+.mn-set.is-rows .music-pop-lbl {
+  display: none;
+}
+.mn-set.is-rows .music-vol {
+  width: 120px;
+  height: 4px;
+}
+.mn-set.is-rows .music-vol::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+}
+.mn-set.is-rows .sync {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.mn-set.is-rows .sync-btn {
+  flex: none;
+  margin-top: 8px;
+}
+.mn-set.is-rows .sync-pop {
+  flex: 1;
+  width: auto;
+  padding: 0;
+}
+.mn-set.is-rows .sync-pop-title {
+  display: none;
+}
+.mn-set.is-rows .sync-act {
+  min-height: 36px;
+}
+
+/* ───────────── Ventana estrecha (1024 px) ───────────── */
+
+@media (max-width: 1180px) {
+  .mn-ui {
+    grid-template-columns: minmax(230px, 280px) minmax(0, 1fr) var(--tiles-w);
+    padding: 0 22px 20px 20px;
+  }
+  .mn-clock {
+    display: none;
+  }
+  .mn-set:not(.is-rows) {
+    gap: 8px;
+    padding-left: 14px;
+  }
+  .mn-top {
+    gap: 14px;
+  }
+  .mn-voice {
+    max-width: 280px;
+  }
+  .mn-voice p {
+    font-size: 14px;
+  }
+}
+@media (max-height: 720px) and (min-width: 761px) {
+  .mn-ring {
+    width: 96px;
+    height: 96px;
+  }
+  .mn-ring-lv {
+    font-size: 44px;
+  }
+  .mn-ring-lbl {
+    bottom: 16px;
+  }
+  .mn-voice {
+    margin-top: 14px;
+  }
+}
+
+/* ───────────── Reducir movimiento ───────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .mn-sigil-svg,
+  .mn-breathe,
+  .mn-dust i {
+    animation: none;
+  }
+  .mn-dust {
+    display: none;
+  }
+  .mn-tilt,
+  .mn-tile,
+  .mn-tile-txt,
+  .mn-logo,
+  .mn-col-btn,
+  .mn-col-in {
+    transition: none;
+  }
+}
+
+/* ───────────── Teléfono ───────────── */
+
+@media (max-width: 760px) {
+  /* El menú está en la barra de abajo. */
+  .menu-btn {
+    display: none;
+  }
+
+  /* Deja ver la barra de abajo (z 40) y tapa el rombo de crear (35). */
+  .mn {
+    --tiles-w: 100%;
+    bottom: var(--mnav-h);
+    z-index: 39;
+  }
+  .mn-ui {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: none;
+    grid-template-areas:
+      "back cur"
+      "player player"
+      "voice voice"
+      "tiles tiles"
+      "news news"
+      "set set";
+    align-content: start;
+    row-gap: 0;
+    padding: 0 14px 30px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mn-top {
+    display: contents;
+  }
+  .mn-back {
+    grid-area: back;
+    justify-self: start;
+    height: 40px;
+    margin: 10px 0 0 4px;
+  }
+  .mn-back kbd,
+  .mn-clock,
+  .mn-key {
+    display: none;
+  }
+  .mn-cur {
+    grid-area: cur;
+    margin: 10px 0 0;
+    gap: 6px;
+  }
+  .mn-coin {
+    height: 40px;
+    padding: 0 2px 0 10px;
+    gap: 6px;
+  }
+  .mn-coin b {
+    font-size: 19px;
+  }
+  .mn-coin:last-child {
+    display: none;
+  }
+
+  .mn-player {
+    margin-top: 14px;
+    gap: 12px;
+  }
+  .mn-ring {
+    width: 84px;
+    height: 84px;
+  }
+  .mn-ring-lv {
+    margin-top: -8px;
+    font-size: 38px;
+  }
+  .mn-ring-lbl {
+    bottom: 14px;
+    font-size: 9px;
+  }
+  .mn-id-rank {
+    font-size: 19px;
+  }
+  .mn-voice {
+    max-width: 62%;
+    margin-top: 14px;
+    padding: 10px 14px 11px 12px;
+  }
+  .mn-voice p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* El personaje, arriba a la derecha y quieto: las tarjetas pasan por encima al bajar. */
+  .mn-hero {
+    left: auto;
+    right: -6%;
+    top: 46px;
+    bottom: auto;
+    width: 64%;
+    height: 54%;
+    padding: 0;
+    justify-content: flex-end;
+    align-items: flex-start;
+    transform: none;
+  }
+  .mn-hero-in {
+    height: 100%;
+    margin: 0;
+  }
+  .mn-sigil {
+    left: auto;
+    right: -24vw;
+    top: 4vh;
+    width: 90vw;
+    height: 90vw;
+  }
+  .mn-words {
+    left: -2vw;
+    top: 38vh;
+    bottom: auto;
+    font-size: 24vw;
+  }
+  .mn-deco {
+    transform: none;
+  }
+  .mn-shade {
+    background:
+      radial-gradient(ellipse 60% 35% at 70% 22%, color-mix(in srgb, var(--gold) 16%, transparent), transparent 70%),
+      linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent), color-mix(in srgb, var(--bg) 25%, transparent) 30%, color-mix(in srgb, var(--bg) 85%, transparent) 60%);
+  }
+
+  /* Las tarjetas, a lo ancho y un poco giradas: sin ratón no hay paralaje. */
+  .mn-tiles {
+    margin-top: 22px;
+    perspective: 1100px;
+  }
+  .mn-tilt {
+    gap: 9px 8px;
+    transform: rotateY(-5deg) rotateX(2deg);
+  }
+  .mn-cell,
+  .mn-cell.is-chronicle,
+  .mn-cell.is-calendar,
+  .mn-cell.is-search {
+    margin: 0;
+    height: 106px;
+  }
+  .mn-cell.is-board {
+    height: 136px;
+    margin: 0 0 8px;
+  }
+  .mn-cell.is-character,
+  .mn-cell.is-temporal,
+  .mn-cell.is-chronicle,
+  .mn-cell.is-calendar {
+    grid-column: span 6;
+  }
+  .mn-cell.is-merchant,
+  .mn-cell.is-collection,
+  .mn-cell.is-search {
+    grid-column: span 12;
+  }
+  .mn-cell.is-merchant {
+    height: 104px;
+  }
+  .mn-cell.is-collection {
+    height: 134px;
+  }
+  .mn-cell.is-search {
+    height: 82px;
+  }
+  /* A lo ancho y baja: el logo, a la derecha. */
+  .mn-cell.is-search .mn-logo {
+    left: auto;
+    right: 16px;
+    top: 50%;
+    margin-top: -17px;
+  }
+  .mn-title,
+  .mn-cell.is-chronicle .mn-title,
+  .mn-cell.is-calendar .mn-title {
+    font-size: 6.6cqi;
+  }
+  .mn-cell.is-merchant .mn-title,
+  .mn-cell.is-search .mn-title {
+    font-size: 8cqi;
+  }
+  .mn-tile.is-board .mn-title {
+    font-size: 14cqi;
+  }
+  .mn-hero-n {
+    font-size: 12cqi;
+  }
+  .mn-hero-box {
+    width: 27%;
+  }
+  .mn-tile.is-board .mn-tile-txt {
+    left: calc(27% + 26px);
+    right: 12px;
+  }
+  .mn-hero-cur {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .mn-hero-q {
+    font-size: 14px;
+  }
+  .mn-col-h .mn-title {
+    font-size: 6cqi;
+  }
+  .mn-col-in .mn-title {
+    font-size: 6cqi;
+  }
+  .mn-tile-mark {
+    width: 40%;
+  }
+
+  .mn-news {
+    width: 100%;
+    margin-top: 26px;
+  }
+  .mn-set.is-rows {
+    grid-area: set;
+    margin-top: 26px;
+  }
+  .mn-toast {
+    display: none;
+  }
+
+  /* El selector, a pantalla completa (encima de la barra de abajo). */
+  .mn-cast {
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    padding: 14px 14px 12px;
+    border: 0;
+    border-top: 2px solid var(--gold);
+  }
+  .mn-cast-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mn-card-art {
+    height: 190px;
+  }
+  .mn-card-rm,
+  .mn-voice-swap {
+    min-height: 32px;
+  }
+  .mn-cast-row {
+    flex-wrap: wrap;
+  }
+  .mn-cast-follow {
+    height: 42px;
+    flex: 1;
+  }
+}

@@ -25,7 +25,7 @@ import { blockers } from "./features/complex";
 import { MerchantModal, merchantBusy, openMerchant } from "./features/merchant";
 import { Backdrop, CharacterModal, characterBusy, openCharacter } from "./features/equipment";
 import { ChronicleModal, chronicleBusy, openChronicle } from "./features/chronicle";
-import { DetailBack, MobileCreate, MobileMenu, MobileNav, isPhone, useMobileUi } from "./features/mobile";
+import { DetailBack, MobileCreate, MobileNav, isPhone, useMobileUi } from "./features/mobile";
 import { CalendarView, calendarBusy, toggleCalendar } from "./features/calendar";
 import { AgendaFormModal } from "./features/agenda";
 import { EditQuestModal, editingBusy, openEdit } from "./features/editing";
@@ -34,6 +34,7 @@ import { FailureOverlay, FailureWatcher, failureBusy } from "./features/failure"
 import { QuickAddForm, QuickAddSheet, quickBusy, useQuickUi } from "./features/quickadd";
 import { SearchModal, openSearch, searchBusy } from "./features/search";
 import { NotificationScheduler } from "./features/notifications";
+import { MenuScreen, menuBusy, openMenu } from "./features/menu";
 
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
@@ -97,7 +98,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const s = useGame.getState();
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
-      const busy = s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || editingBusy() || failureBusy() || searchBusy() || quickBusy();
+      const busy = s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || editingBusy() || failureBusy() || searchBusy() || quickBusy() || menuBusy();
       // ⌘Z / Ctrl+Z: deshacer lo último (features/undo). ⌘K / Ctrl+K: buscar (features/search).
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !typing && !busy) {
         const key = e.key.toLowerCase();
@@ -123,6 +124,8 @@ export default function App() {
         l: () => (sfx.move(), toggleLang()),
         m: () => music.toggle(),
         s: () => toggleCalendar(),
+        // El menú de opciones (features/menu): con él abierto, su teclado manda (O o Escape lo cierran).
+        o: () => openMenu(),
         "/": () => openSearch(),
         h: () => board && (sfx.move(), cycleHorizon(board, 1)),
         H: () => board && (sfx.move(), cycleHorizon(board, -1)),
@@ -238,7 +241,7 @@ export default function App() {
       <div className="m-toast">
         <Toast />
       </div>
-      <MobileMenu />
+      <MenuScreen />
       <CreateQuestModal />
       <ClearOverlay />
       <CollectionModal />

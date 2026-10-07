@@ -7,6 +7,7 @@ import i18n, { num } from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
 import { RARITIES, type Rarity } from "../items/model";
 import { liveBlobIds } from "../temporal/model";
+import { characterBlobIds } from "../menu/model";
 import {
   buyBlocker,
   clampText,
@@ -77,6 +78,7 @@ async function collect(candidates: (string | undefined)[]) {
   const { state } = useGame.getState();
   const live = liveBlobIds(state.temporals.values());
   for (const id of gearBlobIds(state.gear.values())) live.add(id);
+  for (const id of characterBlobIds(state.characters.values())) live.add(id);
   const blobs = await openBlobStore();
   for (const id of new Set(ids)) if (!live.has(id)) await blobs.remove(id);
 }

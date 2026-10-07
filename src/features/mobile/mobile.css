@@ -1,5 +1,5 @@
 /* Interfaz de teléfono (features/mobile). El punto de corte, 760 px, es PHONE_MAX_WIDTH de phone.ts.
-   Aquí va el armazón (cabecera, tablón, detalle, barra de abajo y menú) y los ajustes de app.css;
+   Aquí va el armazón (cabecera, tablón, detalle y barra de abajo) y los ajustes de app.css;
    los de cada funcionalidad van en su propio CSS, en un @media (max-width: 760px). */
 
 /* ───────────── Escritorio: nada de esto se ve ───────────── */
@@ -29,8 +29,8 @@
 .mnav {
   position: relative;
   z-index: 40;
-  /* Tablón, encargos, calendario, mercader, personaje y «Más». */
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* Tablón, encargos, calendario y el menú de opciones (features/menu). */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--line);
   background: linear-gradient(180deg, #16130f, #0c0a08);
 }
@@ -158,165 +158,6 @@
   pointer-events: auto;
 }
 
-/* ───────────── Menú «Más» ───────────── */
-
-.mmenu-bg {
-  position: fixed;
-  inset: 0 0 var(--mnav-h);
-  z-index: 38;
-  background: rgba(5, 4, 3, 0.62);
-  backdrop-filter: blur(3px);
-}
-.mmenu {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: var(--mnav-h);
-  z-index: 39;
-  display: grid;
-  gap: 4px;
-  padding: 0 18px 14px;
-  background: linear-gradient(180deg, #1d1a15, #13110e);
-  border-top: 1px solid var(--line-strong);
-  box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.5);
-}
-.mmenu-grip {
-  justify-self: center;
-  width: 64px;
-  height: 22px;
-  position: relative;
-}
-.mmenu-grip::before {
-  content: "";
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  top: 9px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line-strong);
-}
-.mmenu-wins {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.mmenu-win {
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid var(--line);
-  color: var(--text);
-  font-size: 14px;
-}
-.mmenu-win.is-wide {
-  grid-column: 1 / -1;
-}
-.mmenu-win svg {
-  width: 18px;
-  height: 18px;
-  color: var(--gold);
-}
-.mmenu-win:active {
-  background: rgba(214, 178, 94, 0.1);
-}
-.mmenu-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 52px;
-  border-top: 1px solid var(--line);
-}
-.mmenu-row.is-wide {
-  flex-direction: column;
-  align-items: stretch;
-  padding: 12px 0 0;
-}
-.mmenu-lbl {
-  color: var(--text-2);
-  font-size: 13px;
-}
-.mmenu-toggle {
-  height: 32px;
-  min-width: 96px;
-  padding: 0 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 16px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.mmenu-toggle.on {
-  color: #2a2110;
-  font-weight: 700;
-  border-color: transparent;
-  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
-}
-.mmenu .lang-btn {
-  height: 30px;
-  min-width: 56px;
-  font-size: 12px;
-}
-/* La música y Google Drive despliegan aquí, quietos, los paneles que en la cabecera salen al pasar el ratón. */
-.mmenu .music {
-  height: 36px;
-  border-radius: 18px;
-  padding: 0 4px 0 2px;
-  gap: 4px;
-}
-.mmenu .music-btn {
-  width: 32px;
-  height: 32px;
-}
-.mmenu .music-pop,
-.mmenu .sync-pop {
-  position: static;
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
-  background: none;
-  border: 0;
-  box-shadow: none;
-}
-.mmenu .music-pop {
-  padding: 0 8px 0 4px;
-}
-.mmenu .music-pop-lbl {
-  display: none;
-}
-.mmenu .music-vol {
-  width: 120px;
-  height: 4px;
-}
-.mmenu .music-vol::-webkit-slider-thumb {
-  width: 22px;
-  height: 22px;
-}
-.mmenu .sync {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-.mmenu .sync-btn {
-  flex: none;
-  margin-top: 8px;
-}
-.mmenu .sync-pop {
-  flex: 1;
-  width: auto;
-  padding: 0;
-}
-.mmenu .sync-pop-title {
-  display: none;
-}
-.mmenu .sync-act {
-  min-height: 36px;
-}
-
 /* ───────────── Barra de «volver» del detalle ───────────── */
 
 .mback {
@@ -406,12 +247,7 @@
   .hdr-brand .tag,
   .hdr-brand .secsw,
   .hdr-lbl,
-  .hdr .lang,
-  .hdr .sync,
-  .hdr .music,
-  .hdr .mute,
-  .hdr .hdr-pill,
-  .hdr .items-btn {
+  .hdr .mute {
     display: none;
   }
   .hdr-right {

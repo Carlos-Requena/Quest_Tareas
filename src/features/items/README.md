@@ -248,7 +248,7 @@ Esos objetos se pueden editar (imagen, rareza…) como cualquier otro.
 | `components/DropRates.tsx` | Tablas de probabilidad y pity actual |
 | `components/QuestLoot.tsx` | Recompensas en el detalle de la quest, selector del garantizado y aviso del botín en el formulario |
 | `components/LootChest.tsx` | El cofre del botín en «Quest Clear» y toda su celebración |
-| `components/ItemsButton.tsx` | Botón de la cabecera |
+| `components/BagIcon.tsx` | Icono de la bolsa (el botón está en el menú, features/menu) |
 
 ## Puntos de integración
 

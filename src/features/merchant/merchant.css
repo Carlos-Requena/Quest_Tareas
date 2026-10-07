@@ -1,29 +1,5 @@
 /* ───────────── Mercader (Hu Tao) ───────────── */
 
-/* Botón redondo de la cabecera (mercader y personaje). */
-.hdr-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 28px;
-  height: 24px;
-  margin-left: 6px;
-  padding: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  color: var(--text-2);
-  transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
-}
-.hdr-pill b {
-  font-size: 13px;
-}
-.merchant-btn:hover {
-  color: var(--merchant-hi);
-  border-color: var(--merchant);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--merchant) 35%, transparent);
-}
-
 /* Arte de una pieza: imagen o glifo sobre el fondo de su rareza. */
 .gart {
   position: relative;

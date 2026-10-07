@@ -10,6 +10,7 @@ import type { AgendaEventBody } from "../features/agenda/events";
 import type { EditingEventBody } from "../features/editing/events";
 import type { FailureEventBody } from "../features/failure/events";
 import type { UndoEventBody } from "../features/undo/events";
+import type { MenuEventBody } from "../features/menu/events";
 import type { Drop } from "../features/items/model";
 
 /**
@@ -46,7 +47,8 @@ export type EventBody =
   | AgendaEventBody
   | EditingEventBody
   | FailureEventBody
-  | UndoEventBody;
+  | UndoEventBody
+  | MenuEventBody;
 
 /**
  * Versión del formato de los eventos que escribe esta app. NORMA: si cambias la forma

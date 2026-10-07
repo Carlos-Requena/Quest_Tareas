@@ -5,6 +5,7 @@ import i18n from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
 import type { QuestDef, QuestState } from "../../domain/types";
 import { gearBlobIds } from "../merchant/model";
+import { characterBlobIds } from "../menu/model";
 import { questReward, questValue, temporalValue, type Reward } from "../rewards/model";
 import {
   TEMPORAL_KINDS,
@@ -193,12 +194,13 @@ async function storeFiles(files: PreparedFile[]): Promise<AttachmentRef[]> {
   return out;
 }
 
-/** Borra del almacén los binarios que ya no usa ningún encargo (ni el fondo del mercader, que comparte almacén). */
+/** Borra del almacén los binarios que ya no usa ningún encargo (ni el fondo del mercader ni los personajes del menú, que comparten almacén). */
 async function collect(candidates: string[]) {
   if (!candidates.length) return;
   const { state } = useGame.getState();
   const live = liveBlobIds(state.temporals.values());
   for (const id of gearBlobIds(state.gear.values())) live.add(id);
+  for (const id of characterBlobIds(state.characters.values())) live.add(id);
   const blobs = await openBlobStore();
   for (const id of new Set(candidates)) if (!live.has(id)) await blobs.remove(id);
 }

@@ -1,6 +1,6 @@
 # Música de fondo
 
-Música en bucle con fundidos, control en la cabecera (ecualizador animado y volumen en un desplegable flotante al pasar el ratón) y atajo `M`. El botón ♪ de la cabecera es el **silencio general**: calla los efectos y la música. La preferencia (activada o no, volumen y pista) se guarda **en cada equipo**.
+Música en bucle con fundidos, control en los ajustes del menú de opciones (ecualizador animado y volumen en un desplegable flotante al pasar el ratón; [../menu/README.md](../menu/README.md)) y atajo `M`. El botón ♪ de esos ajustes es el **silencio general**: calla los efectos y la música. La preferencia (activada o no, volumen y pista) se guarda **en cada equipo**.
 
 ---
 

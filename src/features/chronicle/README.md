@@ -1,6 +1,6 @@
 # Crónica del aventurero
 
-Un **diario** con todo lo que has hecho, día a día: las quests completadas (con su recompensa, su racha y lo que encontraste por primera vez), los encargos cumplidos, las compras a Hu Tao, y lo que se deduce de leerlo en orden: **subidas de nivel** y de **atributo**. Se abre con la tecla `J` o el libro de la cabecera.
+Un **diario** con todo lo que has hecho, día a día: las quests completadas (con su recompensa, su racha y lo que encontraste por primera vez), los encargos cumplidos, las compras a Hu Tao, y lo que se deduce de leerlo en orden: **subidas de nivel** y de **atributo**. Se abre con la tecla `J` o la tarjeta «Chronicle» del menú de opciones ([../menu/README.md](../menu/README.md)).
 
 Mismo marco que el almanaque (un libro abierto con lomo y páginas que se pasan), pero con estilo de **diario usado**: tapas de cuero rozado y cosido a mano, papel amarillento con renglones y margen rojo, manchas, cercos de taza, bordes comidos, alguna oreja doblada, una cinta de punto de lectura y letra de imprenta antigua (IM Fell English).
 
@@ -91,7 +91,7 @@ classDiagram
 | `model.ts` | Entradas, `ChronicleAcc`, `noteStart`, `record`, `chronicleDays`, `chronicleTotals`, `paginate`, `blockWeight`, `textUnits`. Puro |
 | `ui.ts` | Si la ventana está abierta (`openChronicle`, `chronicleBusy`) |
 | `components/ChronicleModal.tsx` | El diario: portadilla, páginas, desgaste, frases y teclado |
-| `components/ChronicleButton.tsx` | El libro de la cabecera y su icono en el pie |
+| `components/DiaryIcon.tsx` | Icono del diario (el botón está en el menú, features/menu) |
 | `chronicle.css`, `i18n.ts` | Estilos y textos es + ja |
 
 ## Puntos de integración

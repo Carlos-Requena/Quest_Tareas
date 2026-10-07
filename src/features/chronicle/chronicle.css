@@ -3,12 +3,6 @@
    y cosido a mano, papel amarillento con renglones, manchas, bordes comidos, alguna
    oreja doblada y tinta que se ha ido apagando. */
 
-.chronicle-btn:hover {
-  color: var(--diary-paper-hi);
-  border-color: var(--diary-paper-lo);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--diary-paper-lo) 35%, transparent);
-}
-
 .chron {
   width: min(1060px, 95vw);
   height: min(720px, 90vh);

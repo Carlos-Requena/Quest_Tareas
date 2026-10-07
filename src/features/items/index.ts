@@ -7,6 +7,6 @@ export type { ItemEventBody } from "./events";
 export * from "./actions";
 export { ItemTile, ItemArt, rarityStyle } from "./components/ItemTile";
 export { CollectionModal } from "./components/CollectionModal";
-export { ItemsButton, BagIcon } from "./components/ItemsButton";
+export { BagIcon } from "./components/BagIcon";
 export { QuestLoot, GuaranteedItemSelect, LootHint } from "./components/QuestLoot";
 export { LootChest, chestContents, type ChestHandle } from "./components/LootChest";

@@ -12,7 +12,7 @@ Sigue la convención del proyecto: **una carpeta por implementación** (`src/fea
 |---|---|---|
 | R1 | Las armaduras se usan en un muñequito que te represente | `Doll`: un muñeco en SVG que se pone cada pieza en su sitio, con el color de su rareza |
 | R2 | El muñeco va junto al menú de atributos | Ventana `CharacterModal`: muñeco y ranuras a la izquierda, atributos a la derecha |
-| R3 | Lo que se compra puede ser decoración del menú | Ranuras de fondo y emblema; el fondo se pinta detrás de toda la app y el emblema, en el rombo de la cabecera |
+| R3 | Lo que se compra puede ser decoración del menú | Ranuras de fondo y emblema; el fondo se pinta detrás de toda la app (también del menú de opciones, features/menu) y el emblema, en el rombo de la cabecera |
 
 ---
 
@@ -118,7 +118,7 @@ Son eventos nuevos, sin datos antiguos que convertir. `PROJECTION_VERSION` pasa 
 | `components/CharacterModal.tsx` | La ventana: ranuras, muñeco, decoración, armario y atributos |
 | `components/Doll.tsx` | El muñeco y la forma de cada pieza |
 | `components/Decor.tsx` | `Backdrop` (fondo de la app) y `DecorEmblem` (emblema de la cabecera) |
-| `components/CharacterButton.tsx` | Botón del yelmo en la cabecera (y su icono, en el pie) |
+| `components/HelmetIcon.tsx` | Icono del yelmo (el botón está en el menú, features/menu) |
 
 ## Puntos de integración
 

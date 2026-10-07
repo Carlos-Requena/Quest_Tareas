@@ -65,7 +65,7 @@ src/
     equipment/      Personaje: el muñeco con su equipo, el armario y la decoración del menú (fondo y emblema)
     attributes/     Atributos: un nivel por cada área de las quests, con su radar
     recovery/       Error boundary: pantalla de recuperación si falla la interfaz, en vez de la ventana en negro
-    sync/           Sincronización con Google Drive: un archivo de eventos por equipo y los adjuntos, con su nube en la cabecera
+    sync/           Sincronización con Google Drive: un archivo de eventos por equipo y los adjuntos, con su nube en los ajustes del menú
     editing/        Editar quests (quest_updated)
     undo/           Deshacer unos minutos (event_undone, ⌘Z)
     failure/        La quest se fractura y el encargo se quema al pasar su día (quest_failed, temporal_failed)
@@ -73,6 +73,7 @@ src/
     today/          «Mi día», la vista del calendario con lo que hay que hacer ahora
     search/         Búsqueda (/, ⌘K)
     notifications/  Avisos del sistema: pomodoros, encargos, agenda, fechas límite y rachas
+    menu/           Menú de opciones (tecla O): el personaje del día (los .webp de public/menu/, rotan cada día) y las tarjetas de cada sección en 3D, con el mercader, el personaje, los objetos, la crónica y los ajustes
   test/            Utilidades de los tests (historiales aleatorios con semilla)
 src-tauri/         Backend Rust: plugin SQL, inicio de sesión con Google y Drive (src/sync, token en el llavero); la CSP estricta está en tauri.conf.json
 ```
@@ -95,7 +96,12 @@ Para no reproducir todo el historial en cada arranque, cada 100 eventos se guard
 | Cumplir un encargo temporal | Texto dorado gigante, fogonazo con destellos horizontales y rayos, silueta del aventurero, calaveras que se vuelven de oro y un contador de oro que gira como una tragaperras hasta la campanilla |
 | Comprar al mercader | Hu Tao comenta la pieza en su cuadro de diálogo; al pagar, un sello rojo «SOLD» cae sobre su escaparate con lluvia de monedas (y fanfarria y estrellas desde épico) |
 | Ponerse una pieza | La pieza cae sobre el muñeco con un muelle, en el color de su rareza; lo mítico y lo legendario brillan |
+| Abrir el menú | Un barrido en diagonal con filo dorado y rayas de velocidad; el personaje entra por la izquierda y las tarjetas llegan girando, una a una; el ratón inclina la rejilla |
 | Botín | Un cofre que se abre con un clic: se carga de luz (su color sube de rareza), estalla con monedas y rayos y la interfaz vibra; cada objeto aterriza con un golpe proporcional a su rareza y los mejores traen fanfarria y rótulo |
+
+## Menú de opciones
+
+La cabecera se queda con lo del día a día (el tablón, el rango, la XP, el oro y la búsqueda). Todo lo demás está en el **menú** (la pestaña «MENU», la tecla `O` o «Menú» en la barra del teléfono): una pantalla al estilo del menú principal de un gacha, con un **personaje que cambia cada día** y las tarjetas de cada sección en perspectiva (Quests, Character, Bounties, Merchant, Collection, Chronicle, Calendar y Search), el coleccionable de la semana y los ajustes (idioma, música, sonido, avisos y Google Drive). Las ventanas se abren encima y, al cerrarlas, se vuelve al menú. Los personajes rotan sin repetirse hasta que salen todos; desde el menú se elige otro para hoy o se añade uno con su imagen (se sincroniza). Los de serie son los `.webp` de `public/menu/`: basta con dejar ahí otro archivo. Detalles: [src/features/menu/README.md](src/features/menu/README.md).
 
 ## Objetos
 
@@ -103,15 +109,15 @@ Seis rarezas con su color: común (gris), poco común (verde), raro (azul), épi
 
 ## Mercader, personaje y atributos
 
-- **Mercader** (tecla `C` o el farol de la cabecera): **Hu Tao** vende equipo para el personaje y decoración del menú. Comprar cuesta: el precio lo pone ella según la rareza y la ranura (de 1.200 G a 160.000 G), lo bueno pide rango (de F a A) y cada semana solo saca 5 piezas a su escaparate, más las recién añadidas. Trae **69 piezas de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos ([src/features/armory/README.md](src/features/armory/README.md)), y se pueden añadir más a mano desde la tienda, sin precio. Detalles: [src/features/merchant/README.md](src/features/merchant/README.md).
-- **Personaje** (tecla `P` o el yelmo de la cabecera): un muñeco que se pone lo que compras (cabeza, cuerpo, manos, pies, arma, escudo, capa y amuleto) y dos ranuras de decoración: el **fondo** de la app y el **emblema** de la cabecera. Detalles: [src/features/equipment/README.md](src/features/equipment/README.md).
+- **Mercader** (tecla `C` o «Merchant» en el menú): **Hu Tao** vende equipo para el personaje y decoración del menú. Comprar cuesta: el precio lo pone ella según la rareza y la ranura (de 1.200 G a 160.000 G), lo bueno pide rango (de F a A) y cada semana solo saca 5 piezas a su escaparate, más las recién añadidas. Trae **69 piezas de serie** inspiradas en Mushoku Tensei, Re:Zero, Konosuba y los JRPG clásicos ([src/features/armory/README.md](src/features/armory/README.md)), y se pueden añadir más a mano desde la tienda, sin precio. Detalles: [src/features/merchant/README.md](src/features/merchant/README.md).
+- **Personaje** (tecla `P` o «Character» en el menú): un muñeco que se pone lo que compras (cabeza, cuerpo, manos, pies, arma, escudo, capa y amuleto) y dos ranuras de decoración: el **fondo** de la app y el **emblema** de la cabecera. Detalles: [src/features/equipment/README.md](src/features/equipment/README.md).
 - **Atributos**: cada área de las quests (Salud, Estudio…) sube de nivel con su XP, y se ven en un radar junto al muñeco. Las áreas habituales se traducen («Salud» y «健康» son la misma). Detalles: [src/features/attributes/README.md](src/features/attributes/README.md).
 
 ## Rachas, listas y crónica
 
 - **Rachas**: las quests que se repiten cuentan las veces seguidas que las completas a tiempo, con una llama en la tarjeta. Detalles: [src/features/streaks/README.md](src/features/streaks/README.md).
 - **Objetivo de tipo lista**: casillas que se marcan una a una («Hacer la maleta: pasaporte, cargador…»). Detalles: [src/features/checklist/README.md](src/features/checklist/README.md).
-- **Crónica del aventurero** (tecla `J` o el libro de la cabecera): un diario gastado con lo que has hecho, día a día, con tus subidas de nivel y de atributo. Detalles: [src/features/chronicle/README.md](src/features/chronicle/README.md).
+- **Crónica del aventurero** (tecla `J` o «Chronicle» en el menú): un diario gastado con lo que has hecho, día a día, con tus subidas de nivel y de atributo. Detalles: [src/features/chronicle/README.md](src/features/chronicle/README.md).
 
 ## Encargos temporales
 
@@ -138,15 +144,15 @@ Las quests y los encargos pueden llevar contactos (teléfono, correo, WhatsApp, 
 - **Deshacer** unos minutos lo que se hizo por error: botón «Deshacer» en el aviso o `⌘Z` / `Ctrl+Z`. Completar una quest no se deshace (el cofre se volvería a tirar). [src/features/undo/README.md](src/features/undo/README.md)
 - **Alta rápida:** `N` y una línea con marcas (`mañana`, `lunes`, `12/10`, `#área`, `@quién`, `!`, `x3`); `Mayús+Enter` para el formulario completo. [src/features/quickadd/README.md](src/features/quickadd/README.md)
 - **Fallos:** si pasa el día de su fecha sin terminarla, la quest se fractura y el cartel del encargo se quema. Sin coste: queda en la crónica y se puede volver a clavar. [src/features/failure/README.md](src/features/failure/README.md)
-- **Búsqueda** (`/` o `⌘K`) y **avisos del sistema** (la campana de la cabecera). [src/features/search/README.md](src/features/search/README.md) · [src/features/notifications/README.md](src/features/notifications/README.md)
+- **Búsqueda** (`/` o `⌘K`) y **avisos del sistema** (la campana de los ajustes del menú). [src/features/search/README.md](src/features/search/README.md) · [src/features/notifications/README.md](src/features/notifications/README.md)
 
 ## Idiomas
 
-Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en la cabecera o tecla `L`.
+Español y japonés con i18next (`src/i18n/`). Selector `ES | 日本語` en los ajustes del menú o tecla `L`.
 
 ## Atajos
 
-`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `R` editar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` alta rápida · `Shift+N` formulario completo · `/` o `⌘K` buscar · `⌘Z` deshacer · `T` tablón de encargos temporales · `S` calendario · `I` objetos · `C` mercader · `P` personaje · `J` crónica · `L` idioma · `M` música
+`↑↓←→` moverse · `Enter`/`A` aceptar o reportar · `+` progreso · `X` abandonar · `R` editar · `Q`/`E` categoría · `H` plazo (`Shift+H` hacia atrás) · `N` alta rápida · `Shift+N` formulario completo · `/` o `⌘K` buscar · `⌘Z` deshacer · `T` tablón de encargos temporales · `S` calendario · `I` objetos · `C` mercader · `P` personaje · `J` crónica · `O` menú (`Esc` u `O` para volver) · `L` idioma · `M` música
 
 En el tablón de encargos: `↑↓←→` moverse · `Enter` abrir el cartel · `H` plazo · `N` nuevo encargo · `T` volver al Quest Board. Con el cartel abierto: `Enter` aceptar (si no lo está) o cumplir · `E` editar · `Esc` cerrar.
 

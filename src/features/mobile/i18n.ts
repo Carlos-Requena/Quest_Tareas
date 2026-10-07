@@ -6,7 +6,6 @@ export const mobileEs = {
     label: "Navegación",
     board: "Tablón",
     temporal: "Encargos",
-    more: "Más",
   },
   back: "Volver al tablón",
   touch: {
@@ -15,16 +14,6 @@ export const mobileEs = {
     openChest: "Toca el cofre para abrirlo",
     pin: "Toca el rombo dorado para clavar uno: una cita, una entrega, un examen…",
   },
-  menu: {
-    title: "Menú",
-    close: "Cerrar el menú",
-    language: "Idioma",
-    music: "Música",
-    sound: "Sonido",
-    soundOn: "Activado",
-    soundOff: "Silenciado",
-    sync: "Google Drive",
-  },
 };
 
 export const mobileJa: typeof mobileEs = {
@@ -32,7 +21,6 @@ export const mobileJa: typeof mobileEs = {
     label: "ナビゲーション",
     board: "掲示板",
     temporal: "依頼",
-    more: "その他",
   },
   back: "掲示板に戻る",
   touch: {
@@ -40,15 +28,5 @@ export const mobileJa: typeof mobileEs = {
     skip: "タップでスキップ",
     openChest: "宝箱をタップして開ける",
     pin: "金色のひし形をタップして依頼を貼り出せます。診察、届け物、試験…",
-  },
-  menu: {
-    title: "メニュー",
-    close: "メニューを閉じる",
-    language: "言語",
-    music: "音楽",
-    sound: "サウンド",
-    soundOn: "オン",
-    soundOff: "ミュート",
-    sync: "Google ドライブ",
   },
 };

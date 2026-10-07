@@ -1,5 +1,5 @@
-// Estado de interfaz del teléfono: si el detalle de la quest está abierto a pantalla completa
-// y si está desplegado el menú «Más». Es estado de UI: no genera eventos ni se guarda.
+// Estado de interfaz del teléfono: si el detalle de la quest está abierto a pantalla completa.
+// Es estado de UI: no genera eventos ni se guarda. El menú de opciones está en features/menu.
 
 import { create } from "zustand";
 
@@ -10,16 +10,11 @@ interface MobileUi {
    * pestaña), App cierra el detalle en lugar de enseñar otra quest.
    */
   detail?: string;
-  /** Menú «Más»: objetos, crónica, idioma, música, sonido y Google Drive. */
-  menu: boolean;
   openDetail(questId: string): void;
   closeDetail(): void;
-  setMenu(open: boolean): void;
 }
 
 export const useMobileUi = create<MobileUi>((set) => ({
-  menu: false,
-  openDetail: (detail) => set({ detail, menu: false }),
+  openDetail: (detail) => set({ detail }),
   closeDetail: () => set({ detail: undefined }),
-  setMenu: (menu) => set({ menu }),
 }));

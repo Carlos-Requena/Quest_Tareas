@@ -1,6 +1,6 @@
 # Búsqueda
 
-Una ventana para encontrar cualquier cosa: `/` o `⌘K` / `Ctrl+K` (y la lupa de la cabecera; en el teléfono, «Buscar» en el menú «Más»). Busca en quests (también las terminadas y las fallidas), encargos, bloques de la agenda y objetos del almanaque.
+Una ventana para encontrar cualquier cosa: `/` o `⌘K` / `Ctrl+K` (y la lupa de la cabecera o la tarjeta «Search» del menú de opciones, [../menu/README.md](../menu/README.md); en el teléfono, solo esta última). Busca en quests (también las terminadas y las fallidas), encargos, bloques de la agenda y objetos del almanaque.
 
 Sigue la convención del proyecto: **una carpeta por implementación** (`src/features/<nombre>/`).
 
@@ -62,7 +62,7 @@ Sin eventos: es interfaz pura sobre el estado.
 | `App.tsx` | `/` y `⌘K` / `Ctrl+K`; `SearchModal`; `searchBusy()` |
 | `components/Header.tsx` | Lupa |
 | `components/Footer.tsx` | Tecla `/` |
-| `features/mobile/components/MobileMenu.tsx` | «Buscar» |
+| `features/menu` | La tarjeta «Search» (cierra el menú antes de abrir la búsqueda) |
 | `features/calendar`, `features/temporal` | Su teclado espera con la búsqueda abierta |
 | `i18n/locales/{es,ja}.ts` | Montan `search` |
 
