@@ -24,6 +24,26 @@ export const KIND_META: Record<TemporalKind, { tag: string; red: boolean }> = {
   gathering: { tag: "Gathering", red: false },
 };
 
+/**
+ * Ilustraciones de «Encargo cumplido» por tipo, a partir de las rutas de public/temporal/
+ * («hunt/kazuma.webp» → hunt). Lo que no está en la carpeta de un tipo se ignora.
+ */
+export function heroesByKind(files: readonly string[]): Record<TemporalKind, string[]> {
+  const out = Object.fromEntries(TEMPORAL_KINDS.map((k) => [k, [] as string[]])) as Record<TemporalKind, string[]>;
+  for (const file of files) {
+    const slash = file.indexOf("/");
+    const kind = file.slice(0, slash).toLowerCase() as TemporalKind;
+    if (slash > 0 && TEMPORAL_KINDS.includes(kind)) out[kind].push(file);
+  }
+  return out;
+}
+
+/** Una al azar de las de su tipo (`rnd` en [0, 1)); sin ninguna, `undefined`: se dibuja la silueta. */
+export function pickHero(heroes: Record<TemporalKind, readonly string[]>, kind: TemporalKind, rnd: number): string | undefined {
+  const list = heroes[kind] ?? [];
+  return list.length ? list[Math.min(list.length - 1, Math.max(0, Math.floor(rnd * list.length)))] : undefined;
+}
+
 // ───────────── Dificultad y recompensa ─────────────
 
 export const MIN_SKULLS = 1;

@@ -4,6 +4,16 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-08 · Ilustraciones al cumplir según el tipo
+
+Con `pnpm dev` en el navegador del panel (Chromium), a unos 1.024 px y a 402 × 874, en japonés.
+
+- **Tests:** `heroesByKind` agrupa por la carpeta de su tipo (también con mayúsculas) e ignora archivos sueltos y carpetas que no son un tipo; `pickHero` reparte el azar entre las de su tipo y no da ninguna con la carpeta vacía.
+- **Interfaz:** encargos de prueba cumplidos con `completeTemporal`: una cacería enseña a Kazuma, una citación a Subaru (los dos en sepia, multiplicados sobre el pergamino y con los bordes fundidos) y una entrega, sin imágenes, la silueta de siempre. La «G» de la recompensa se lee aunque Subaru sea ancho. Sin errores en la consola.
+- **Plugin:** `virtual:temporal-heroes` lista `hunt/kazuma.webp` y `summons/subaru.webp`; dejar un `.webp` en `public/temporal/scout/` recarga la app y lo añade. `virtual:menu-characters` sigue listando los cinco personajes del menú tras pasar a `publicList`.
+- **Visto en el teléfono, sin arreglar (ya pasaba antes):** con 5 cifras de oro la fila de la recompensa se sale por los lados, las cinco calaveras se montan unas sobre otras y, con un título largo, tapan «依頼達成！».
+- **No se verificó:** la app nativa (WKWebView) ni Windows.
+
 ## Registro hasta el 2026-10-07
 
 Hecho el 2026-10-02 con `pnpm dev` en Chromium (Playwright), ventanas de 1.280 × 780 y 1.024 × 700.

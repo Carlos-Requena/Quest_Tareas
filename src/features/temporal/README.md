@@ -29,6 +29,7 @@ Es lo que se planifica a largo plazo: un encargo se clava **sin aceptar** (sus q
 | R9 | Distinguir los encargos comenzados de los no aceptados, sin que sus quests aparezcan todavía | `TemporalState.acceptedAt`, `temporal_accepted` / `temporal_postponed`, `TemporalDef.planned`; `QuestState.reserved` |
 | R10 | Un sello de «aceptado» y elegir ver todos, aceptados o sin aceptar | Sello «ACCEPTED» de tinta azul; `AcceptFilter` con su número, que cada equipo recuerda |
 | R11 | La app abre en las quests y se pueden crear quests sueltas | La app arranca en el Quest Board; las quests sueltas no tienen encargo |
+| R12 | Al cumplirlo, una ilustración según el tipo de encargo, elegida al azar, impresa como la silueta del aventurero | Una carpeta por tipo en `public/temporal/<tipo>/`; `heroFor` elige una al azar y `ClearedOverlay` la imprime en sepia sobre el pergamino |
 
 ## Reglas y decisiones
 
@@ -53,6 +54,23 @@ La recompensa **no se escribe a mano**: es una base por calaveras más un bono s
 | `hunt` | Kill Quest | Cacería · 討伐クエスト | Rojo |
 | `scout` | Scout Quest | Expedición · 偵察クエスト | Rojo |
 | `gathering` | Gathering | Reunión · 集会 | Tinta |
+
+### Ilustraciones al cumplir
+
+Al cumplir un encargo, la escena de «Encargo cumplido» enseña una **ilustración de su tipo**, elegida **al azar** entre las de su carpeta, en lugar de la silueta del aventurero. Son archivos de serie, como los personajes del [menú](../menu/README.md): no son eventos ni se sincronizan.
+
+| Tipo | Carpeta | De serie |
+|---|---|---|
+| Citación | `public/temporal/summons/` | Subaru (Re:Zero) |
+| Entrega | `public/temporal/delivery/` | — |
+| Cacería | `public/temporal/hunt/` | Kazuma (Konosuba) |
+| Expedición | `public/temporal/scout/` | — |
+| Reunión | `public/temporal/gathering/` | — |
+
+- **Para añadir una**, basta con dejar el archivo (`.webp` o `.png`, mejor con fondo transparente y de cuerpo entero) en la carpeta de su tipo. Como `import.meta.glob` no ve `public/`, el plugin `temporalHeroes` de `vite.config.ts` lista las carpetas como el módulo virtual `virtual:temporal-heroes`; con `pnpm dev`, añadir o quitar un archivo recarga la app. Lo que no está en la carpeta de un tipo se ignora.
+- **Sin ninguna en su carpeta**, sale la silueta del aventurero de siempre.
+- **Se elige una vez por escena** (`useState`), con `Math.random`: es interfaz, no dominio, y no se guarda cuál salió.
+- **Impresa como la silueta:** en sepia (`grayscale` + `sepia`), con opacidad 0,55 y **multiplicada** sobre el pergamino, de modo que el degradado del papel se ve a través de ella y el blanco desaparece. Los pies y el lado del texto se funden con el papel (dos máscaras de degradado), para que la recompensa se lea aunque la ilustración sea ancha. Va a la derecha, a lo alto del pergamino (un 40 % del ancho).
 
 ### El tiempo se calcula, no se guarda
 
@@ -230,7 +248,7 @@ Dura unos 4,5 s según las calaveras. Mientras, el cartel se pinta oculto en el 
 |---|---|---|
 | 0–0,5 s | Texto dorado gigante que irrumpe | Texto dorado con estela de zoom. Silbido |
 | 0,5 s | Fogonazo blanco con destellos horizontales | Luz blanca, tres destellos horizontales, rayos, chispas y estrellas. Estallido con crepitar y acorde en fa mayor |
-| +0,7 s | Silueta del héroe saltando | Silueta del aventurero con la espada en alto, cabecera «Logro del día» (本日の成果) |
+| +0,7 s | Silueta del héroe saltando | La [ilustración de su tipo](#ilustraciones-al-cumplir), al azar e impresa en sepia (sin ninguna, la silueta del aventurero con la espada en alto); cabecera «Logro del día» (本日の成果) |
 | +1,15 s | (añadido) | **Las calaveras se vuelven de oro una a una**, con campanilla que sube |
 | Después | «icono × 2 = 10000 エリス», con los dígitos girando | «💀 × N = oro G»: los dígitos giran como una tragaperras y se detienen de izquierda a derecha; campanilla y melodía de cierre |
 | Final | — | La XP cuenta hacia arriba y, si toca, «Level Up!» |
@@ -268,10 +286,11 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 
 | Archivo | Contenido |
 |---|---|
-| `model.ts` | Tipos, urgencia, orden, recompensas, recordatorios, aceptación (`isAccepted`, `matchesAccept`, `countAccept`, `inReserve`), quests enlazadas (`linkedQuestDone`, `pendingLinks`, `questOwners`, `linkCandidates`), quemados (`finishedAt`, `isBurned`), `liveBlobIds` y el acumulador (`applyTemporalEvent`). Puro |
+| `model.ts` | Tipos, ilustraciones por tipo (`heroesByKind`, `pickHero`), urgencia, orden, recompensas, recordatorios, aceptación (`isAccepted`, `matchesAccept`, `countAccept`, `inReserve`), quests enlazadas (`linkedQuestDone`, `pendingLinks`, `questOwners`, `linkCandidates`), quemados (`finishedAt`, `isBurned`), `liveBlobIds` y el acumulador (`applyTemporalEvent`). Puro |
 | `links.ts` | Estado de cada quest enlazada para la interfaz. Usa la proyección (`effectiveStatus`), por eso no va en `model.ts` |
 | `events.ts` | `TemporalEventBody` |
 | `look.ts` | Aspecto estable de cada cartel: forma, inclinación, bordes y calaveras. Puro |
+| `heroes.ts` | Las ilustraciones de «Encargo cumplido» (`virtual:temporal-heroes`) y `heroFor`, que elige una al azar |
 | `actions.ts` | Crear (con sus quests), editar, adjuntar, quitar, aceptar, aplazar, cumplir y retirar; `copyDraft` (volver a clavar); borrado de binarios huérfanos; `goToQuest` / `goToTemporal` |
 | `files.ts` | Comprobación y preparación de archivos (reducción y miniatura con canvas) |
 | `format.ts` | Fechas y cuentas atrás en el idioma activo |
@@ -287,7 +306,7 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 | `components/PostedOverlay.tsx`, `ClearedOverlay.tsx` | Las dos animaciones grandes |
 | `components/TemporalWatcher.tsx`, `TemporalOverlays.tsx` | Recordatorios; monta ventanas, animaciones y recordatorios |
 | `temporal.css`, `i18n.ts` | Estilos (con su bloque de teléfono) y textos es + ja |
-| `model.test.ts` | Urgencias, guardas, aceptación, reserva, quests enlazadas, datos mal formados y antiguos |
+| `model.test.ts` | Urgencias, guardas, aceptación, reserva, quests enlazadas, datos mal formados y antiguos, e ilustraciones por tipo |
 
 ### Dónde está cada cosa
 
@@ -306,6 +325,7 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 | El tablón y moverse por posición en pantalla | [`TemporalBoard`](components/TemporalBoard.tsx) y [`neighbour`](components/TemporalBoard.tsx) |
 | «Cartel clavado»: la escena y la caída en el tablón | [`PostedOverlay`](components/PostedOverlay.tsx) (etiqueta `"finale"` de la línea de tiempo) y `land` de [`useTemporalUi`](ui.ts) |
 | «Encargo cumplido»: la escena y el estado final al saltar | [`ClearedOverlay`](components/ClearedOverlay.tsx) y su `settle` |
+| Ilustración de «Encargo cumplido» según el tipo | [`heroFor`](heroes.ts), [`heroesByKind`](model.ts) y [`pickHero`](model.ts); el plugin [`temporalHeroes`](../../../vite.config.ts); su aspecto, `.tco-art` en [`temporal.css`](temporal.css) |
 
 ## Integración
 
@@ -328,6 +348,8 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 | `src/styles/theme.css` | Tokens `--skull*`, `--parchment*`, `--oak*`, `--copper`, `--ink*` (con `--ink-blue`) |
 | `src/i18n/locales/{es,ja}.ts` | Montan `temporal` |
 | `src/test/streams.ts` | `temporalDef` y los eventos de encargos en `randomStream` |
+| `vite.config.ts`, `src/vite-env.d.ts` | Plugin `temporalHeroes` (con `publicList`, que comparte con los personajes del menú) y el tipo de `virtual:temporal-heroes` |
+| `public/temporal/` | Las ilustraciones de «Encargo cumplido», una carpeta por tipo |
 
 ## Dependencias
 
@@ -345,7 +367,7 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-03, aceptados y sin aceptar: tests (con prueba de mutación) y navegador a 800 × 600 y 402 × 874. El tablón, los adjuntos, las animaciones y las quests enlazadas, el 2026-10-02 (dominio en tres zonas horarias, datos antiguos idénticos, sonido grabado con `OfflineAudioContext`).
+- **Última verificación:** 2026-10-08, ilustraciones al cumplir: tests y navegador a 1.024 px y 402 × 874 (Kazuma en una cacería, Subaru en una citación, la silueta en una entrega; añadir un archivo a una carpeta con `pnpm dev`). Aceptados y sin aceptar, el 2026-10-03: tests (con prueba de mutación) y navegador a 800 × 600 y 402 × 874. El tablón, los adjuntos, las animaciones y las quests enlazadas, el 2026-10-02 (dominio en tres zonas horarias, datos antiguos idénticos, sonido grabado con `OfflineAudioContext`).
 - **Tests:** `model.test.ts`, `src/domain/projection.test.ts` y `src/store/game.test.ts`.
-- **Sin verificar:** la app nativa con la tabla `blobs` de SQLite y archivos grandes en base64; el visor de PDF dentro del WebView de Tauri (en Chromium sin interfaz sale en blanco); la descarga de adjuntos en Tauri; Windows; escuchar los sonidos de verdad; el rendimiento de los textos gigantes con filtros en el WKWebView.
+- **Sin verificar:** las ilustraciones en la app nativa (WKWebView: `mask-composite` y el multiplicado) y en Windows; la app nativa con la tabla `blobs` de SQLite y archivos grandes en base64; el visor de PDF dentro del WebView de Tauri (en Chromium sin interfaz sale en blanco); la descarga de adjuntos en Tauri; Windows; escuchar los sonidos de verdad; el rendimiento de los textos gigantes con filtros en el WKWebView.
 - **Historial:** [docs/history/verificacion/temporal.md](../../../docs/history/verificacion/temporal.md).

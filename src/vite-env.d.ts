@@ -8,3 +8,9 @@ declare module "virtual:menu-characters" {
   const files: string[];
   export default files;
 }
+
+/** Las imágenes de public/temporal/<tipo>/ («hunt/kazuma.webp»): las ilustraciones de «Encargo cumplido» (plugin temporalHeroes de vite.config.ts). */
+declare module "virtual:temporal-heroes" {
+  const files: string[];
+  export default files;
+}

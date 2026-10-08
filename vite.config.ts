@@ -7,29 +7,34 @@ import { readdirSync } from "node:fs";
 const host = process.env.TAURI_DEV_HOST;
 
 /**
- * Personajes de serie del menú (features/menu): los .webp de public/menu/, como el módulo
- * virtual «virtual:menu-characters» (una lista de nombres de archivo). JavaScript no puede
- * listar public/ (import.meta.glob no lo ve), así que lo lee Vite al compilar. Con `pnpm dev`,
- * añadir o quitar un archivo recarga la app.
+ * Lista una carpeta de public/ como el módulo virtual «virtual:<name>»: sus rutas relativas
+ * a la carpeta (con «/») que cumplen `match`. JavaScript no puede listar public/
+ * (import.meta.glob no lo ve), así que lo lee Vite al compilar. Con `pnpm dev`, añadir o
+ * quitar un archivo de la carpeta recarga la app.
  */
-function menuCharacters(): Plugin {
-  const id = "virtual:menu-characters";
+function publicList(name: string, dir: string, match: RegExp): Plugin {
+  const id = `virtual:${name}`;
   const resolved = "\0" + id;
-  const isCharacter = (file: string) => /public[\\/]menu[\\/][^\\/]+\.webp$/i.test(file);
+  const root = `public/${dir}`;
   const list = (): string[] => {
     try {
-      return (readdirSync("public/menu") as string[]).filter((f) => /\.webp$/i.test(f)).sort();
+      return (readdirSync(root, { recursive: true }) as string[])
+        .map((f) => f.replace(/\\/g, "/"))
+        .filter((f) => match.test(f))
+        .sort();
     } catch {
       return [];
     }
   };
   return {
-    name: "menu-characters",
+    name,
     resolveId: (source) => (source === id ? resolved : undefined),
     load: (source) => (source === resolved ? `export default ${JSON.stringify(list())};` : undefined),
     configureServer(server) {
       const changed = (file: string) => {
-        if (!isCharacter(file)) return;
+        const path = file.replace(/\\/g, "/");
+        const at = path.lastIndexOf(`/${root}/`);
+        if (at < 0 || !match.test(path.slice(at + root.length + 2))) return;
         const mod = server.moduleGraph.getModuleById(resolved);
         if (mod) server.moduleGraph.invalidateModule(mod);
         server.ws.send({ type: "full-reload" });
@@ -40,9 +45,15 @@ function menuCharacters(): Plugin {
   };
 }
 
+/** Personajes de serie del menú (features/menu): los .webp de public/menu/. */
+const menuCharacters = () => publicList("menu-characters", "menu", /^[^/]+\.webp$/i);
+
+/** Ilustraciones de «Encargo cumplido» (features/temporal): public/temporal/<tipo>/*.webp|png. */
+const temporalHeroes = () => publicList("temporal-heroes", "temporal", /^[^/]+\/[^/]+\.(webp|png)$/i);
+
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [react(), menuCharacters()],
+  plugins: [react(), menuCharacters(), temporalHeroes()],
   // Versión de la app para el informe de la pantalla de recuperación (features/recovery).
   define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "dev") },
 

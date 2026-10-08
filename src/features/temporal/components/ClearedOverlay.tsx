@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import gsap from "gsap";
 import { useGame } from "../../../store/game";
@@ -10,6 +10,7 @@ import type { TemporalState } from "../model";
 import { tornEdge } from "../look";
 import { seededRandom } from "../../../lib/id";
 import { useTemporalUi, type TemporalClear } from "../ui";
+import { heroFor } from "../heroes";
 import { Skull } from "./Skull";
 import { quote, titleSize } from "./PostedOverlay";
 import { KeyHint } from "../../mobile";
@@ -28,8 +29,9 @@ const rand = (n: number) => String(Math.floor(Math.random() * n));
  * 1. Pergamino con la cabecera «Logro del día» apagada.
  * 2. El texto dorado llega gigante y estalla: fogonazo blanco, destellos horizontales,
  *    rayos y chispas (estallido brillante + acorde en fa mayor).
- * 3. El fogonazo se retira: aparece la silueta del aventurero saltando con la espada y
- *    un destello recorre el oro.
+ * 3. El fogonazo se retira: aparece la ilustración de su tipo de encargo, impresa en sepia
+ *    (sin ninguna, la silueta del aventurero saltando con la espada), y un destello
+ *    recorre el oro.
  * 4. Las calaveras de la dificultad se vuelven de oro una a una (vencidas).
  * 5. «💀 × N = 00000 G»: los dígitos giran como una tragaperras (tic-tic), se detienen
  *    de izquierda a derecha y suena la campanilla con la melodía de cierre. Monedas.
@@ -41,6 +43,8 @@ function Scene({ clear, t }: { clear: TemporalClear; t: TemporalState }) {
   const tl = useRef<gsap.core.Timeline>(undefined);
   const closing = useRef(false);
   const clip = useMemo(() => tornEdge(`${t.id}:clear`, 16, 46), [t.id]);
+  // Una al azar de public/temporal/<tipo>/, elegida una vez por escena.
+  const [art] = useState(() => heroFor(t.kind));
   // Fila centrada entre el texto y la recompensa: «💀💀💀» → «💀 × 3 = …».
   const skulls = useMemo(() => {
     const rnd = seededRandom(`${t.id}:clear`);
@@ -228,7 +232,7 @@ function Scene({ clear, t }: { clear: TemporalClear; t: TemporalState }) {
           <div className="tco-paper" style={{ clipPath: clip }}>
             <div className="tco-rays" />
             <Skull className="tco-shade" />
-            <Hero />
+            {art ? <Art src={art} /> : <Hero />}
             <div className="tpo-frame" />
             <div className="tco-head">
               <span className="tco-orn" />
@@ -289,7 +293,16 @@ function Scene({ clear, t }: { clear: TemporalClear; t: TemporalState }) {
   );
 }
 
-/** Silueta del aventurero que salta con la espada en alto, como en el vídeo. */
+/** Ilustración del tipo de encargo, impresa en tinta sepia sobre el pergamino como la silueta. */
+function Art({ src }: { src: string }) {
+  return (
+    <div className="tco-hero tco-art" aria-hidden>
+      <img src={src} alt="" draggable={false} decoding="async" />
+    </div>
+  );
+}
+
+/** Silueta del aventurero que salta con la espada en alto, como en el vídeo; la que sale si su tipo no tiene ilustraciones. */
 function Hero() {
   return (
     <svg className="tco-hero" viewBox="0 -14 210 214" aria-hidden>

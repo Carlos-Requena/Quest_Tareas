@@ -5,10 +5,12 @@ import {
   countAccept,
   matchesAccept,
   daysUntil,
+  heroesByKind,
   liveBlobIds,
   linkedQuestDone,
   needsAttention,
   newTemporalAcc,
+  pickHero,
   remindersDue,
   sortTemporals,
   suggestedReward,
@@ -253,5 +255,31 @@ describe("aceptados y sin aceptar", () => {
 
     // Retirar el encargo libera sus quests.
     expect(project([...base, at(T0 + 3 * MIN, { type: "temporal_deleted", temporalId: "t" })]).quests.get("q")?.reserved).toBeUndefined();
+  });
+});
+
+describe("ilustraciones de «Encargo cumplido»", () => {
+  const heroes = heroesByKind(["hunt/kazuma.webp", "Hunt/aqua.png", "summons/subaru.webp", "otro/x.webp", "suelta.webp", "/raiz.webp"]);
+
+  it("agrupa por la carpeta de su tipo e ignora lo demás", () => {
+    expect(heroes).toEqual({
+      summons: ["summons/subaru.webp"],
+      delivery: [],
+      hunt: ["hunt/kazuma.webp", "Hunt/aqua.png"],
+      scout: [],
+      gathering: [],
+    });
+  });
+
+  it("elige una de su tipo con el azar que recibe, y ninguna si la carpeta está vacía", () => {
+    expect([0, 0.49, 0.5, 0.999999, 1].map((r) => pickHero(heroes, "hunt", r))).toEqual([
+      "hunt/kazuma.webp",
+      "hunt/kazuma.webp",
+      "Hunt/aqua.png",
+      "Hunt/aqua.png",
+      "Hunt/aqua.png",
+    ]);
+    expect(pickHero(heroes, "summons", 0.7)).toBe("summons/subaru.webp");
+    expect(pickHero(heroes, "delivery", 0.3)).toBeUndefined();
   });
 });

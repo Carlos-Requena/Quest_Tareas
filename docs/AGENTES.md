@@ -54,7 +54,7 @@ src/
   lib/          sfx (Web Audio), fx (partículas y sacudidas), motion (salida de ventanas), id/PRNG, time
   styles/       theme.css (tokens) y app.css
   test/         Utilidades de los tests (streams.ts: historiales aleatorios; memory.ts: almacenes y Drive falsos)
-public/         Archivos estáticos (música, vídeo de Hu Tao, personajes del menú)
+public/         Archivos estáticos (música, vídeo de Hu Tao, personajes del menú, ilustraciones de los encargos)
 src-tauri/      Rust: lib.rs (plugins y comandos), sync/ (OAuth y Drive), plugins/web-auth (iOS), capabilities, tauri.conf.json (CSP)
 scripts/docs.mjs  Índices y comprobaciones de la documentación
 docs/           Esta guía, INDEX, COMO-FUNCIONA, INFORME-TECNICO, decisions/, runbooks/, history/, templates/, img/
