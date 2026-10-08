@@ -28,6 +28,9 @@ import { quickaddJa } from "../../features/quickadd/i18n";
 import { searchJa } from "../../features/search/i18n";
 import { notificationsJa } from "../../features/notifications/i18n";
 import { menuJa } from "../../features/menu/i18n";
+import { customizeJa } from "../../features/customize/i18n";
+import { companionJa } from "../../features/companion/i18n";
+import { livingJa } from "../../features/living/i18n";
 
 // Mismo esquema que es.ts: TypeScript avisa si falta o sobra alguna clave.
 // En japonés no hay plural; las formas _one existen solo para cumplir el tipo.
@@ -179,6 +182,9 @@ export const ja: Translation = {
   search: searchJa,
   notifications: notificationsJa,
   menu: menuJa,
+  customize: customizeJa,
+  companion: companionJa,
+  living: livingJa,
   seed: {
     dragon: {
       title: "書類ドラゴンの討伐",

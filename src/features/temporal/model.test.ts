@@ -5,6 +5,8 @@ import {
   countAccept,
   matchesAccept,
   daysUntil,
+  artBlobIds,
+  artsOf,
   heroesByKind,
   liveBlobIds,
   linkedQuestDone,
@@ -16,12 +18,14 @@ import {
   suggestedReward,
   urgencyOf,
   type TemporalAcc,
+  type TemporalArt,
+  type TemporalKind,
   type TemporalState,
 } from "./model";
 import type { TemporalEventBody } from "./events";
 import { linkState } from "./links";
 import { project } from "../../domain/projection";
-import { at, DAY, HOUR, MIN, questDef, T0, temporalDef } from "../../test/streams";
+import { at, DAY, HOUR, MIN, questDef, T0, temporalArt, temporalDef } from "../../test/streams";
 
 const NOW = new Date(2026, 9, 2, 12, 0).getTime();
 const midnight = (d: number) => new Date(2026, 9, 2 + d).getTime();
@@ -272,14 +276,50 @@ describe("ilustraciones de «Encargo cumplido»", () => {
   });
 
   it("elige una de su tipo con el azar que recibe, y ninguna si la carpeta está vacía", () => {
-    expect([0, 0.49, 0.5, 0.999999, 1].map((r) => pickHero(heroes, "hunt", r))).toEqual([
+    expect([0, 0.49, 0.5, 0.999999, 1, -1].map((r) => pickHero(heroes.hunt, r))).toEqual([
       "hunt/kazuma.webp",
       "hunt/kazuma.webp",
       "Hunt/aqua.png",
       "Hunt/aqua.png",
       "Hunt/aqua.png",
+      "hunt/kazuma.webp",
     ]);
-    expect(pickHero(heroes, "summons", 0.7)).toBe("summons/subaru.webp");
-    expect(pickHero(heroes, "delivery", 0.3)).toBeUndefined();
+    expect(pickHero(heroes.summons, 0.7)).toBe("summons/subaru.webp");
+    expect(pickHero(heroes.delivery, 0.3)).toBeUndefined();
+  });
+
+  describe("las que añade el jugador (eventos)", () => {
+    const added = (id: string, extra: Partial<TemporalArt> = {}): TemporalEventBody => ({ type: "temporal_art_added", art: temporalArt(id, extra) });
+    const run = (events: TemporalEventBody[]) => {
+      const acc = newTemporalAcc();
+      for (const e of events) applyTemporalEvent(acc, e, NOW);
+      return acc;
+    };
+
+    it("se añaden una vez, se quitan y un añadido repetido no las resucita", () => {
+      const acc = run([added("a"), added("a", { name: "Otra" }), added("b"), { type: "temporal_art_removed", artId: "a" }, added("a")]);
+      expect([...acc.arts.keys()]).toEqual(["b"]);
+      expect(acc.arts.get("b")?.name).toBe("Ilustración b");
+    });
+
+    it("ignora las de un tipo desconocido, sin imagen o sin id; el nombre vacío pasa a «?»", () => {
+      const acc = run([added("x", { kind: "boss" as TemporalKind }), added("y", { blobId: "" }), added("", {}), added("z", { name: "   " })]);
+      expect([...acc.arts.keys()]).toEqual(["z"]);
+      expect(acc.arts.get("z")?.name).toBe("?");
+    });
+
+    it("por tipo y en orden de llegada, y sus imágenes cuentan como usadas", () => {
+      const acc = run([added("b", { createdAt: T0 + 2 }), added("a", { createdAt: T0 + 1 }), added("c", { kind: "summons" })]);
+      expect(artsOf(acc.arts.values(), "hunt").map((a) => a.id)).toEqual(["a", "b"]);
+      expect(artsOf(acc.arts.values(), "delivery")).toEqual([]);
+      expect(artBlobIds(acc.arts.values())).toEqual(new Set(["art-a", "art-b", "art-c"]));
+    });
+
+    it("no tocan al jugador y llegan al estado", () => {
+      const st = project([at(T0, { type: "temporal_art_added", art: temporalArt("a") })]);
+      expect(st.player.xp).toBe(0);
+      expect(st.player.gold).toBe(0);
+      expect([...st.temporalArts.keys()]).toEqual(["a"]);
+    });
   });
 });

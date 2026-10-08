@@ -1,5 +1,5 @@
-// Menú de opciones (features/menu): lo que se calcula para pintarlo y los personajes que
-// añade el jugador. Puro: sin React, Zustand ni DOM, y el tiempo entra como parámetro. Lo
+// Menú de opciones (features/menu): lo que se calcula para pintarlo, los personajes que
+// añade el jugador y lo que dice cada uno según la hora. Puro: sin React, Zustand ni DOM, y el tiempo entra como parámetro. Lo
 // importa el dominio (applyCharacterEvent), así que no puede importar el índice.
 
 import type { QuestState } from "../../domain/types";
@@ -8,6 +8,7 @@ import type { MenuEventBody } from "./events";
 
 /** Parte del día: elige el saludo del personaje del menú. */
 export type Daypart = "morning" | "afternoon" | "evening" | "night";
+export const DAYPARTS: readonly Daypart[] = ["morning", "afternoon", "evening", "night"];
 
 /** Parte del día de una hora local (0–23): mañana de 6 a 13, tarde hasta las 20, noche hasta las 24 y madrugada. */
 export function daypart(hour: number): Daypart {
@@ -41,15 +42,17 @@ const dayStart = (t: number) => {
 export const daysUntil = (endsAt: number, now: number) => Math.max(1, Math.round((dayStart(endsAt) - dayStart(now)) / DAY));
 
 // ───────────── Personajes del menú ─────────────
-// Los de serie salen de los .webp de src/features/menu/characters/ (characters.ts, no son
-// eventos). Los que añade el jugador son eventos (character_added / character_removed),
+// Los de serie salen de los .webp de public/menu/ (characters.ts, no son eventos). Los que añade el jugador son eventos (character_added / character_removed),
 // con la imagen en el almacén de binarios, como el fondo del mercader: se sincronizan.
 
 /** Imagen grande en el almacén de binarios (src/storage/blobStore.ts). En el evento, solo la referencia. */
 export interface CharacterArt {
   blobId: string;
+  /** Una imagen (image/*) o un vídeo (video/webm, video/mp4, video/quicktime). */
   mime: string;
   size: number;
+  /** Se mueve por sí misma (imagen animada o vídeo). Falta en las fijas y en los datos antiguos. */
+  animated?: boolean;
 }
 
 /** Un personaje añadido por el jugador. */
@@ -57,7 +60,7 @@ export interface CharacterDef {
   id: string;
   name: string;
   art: CharacterArt;
-  /** Miniatura (unos 160 px de alto) como data URL, para el selector mientras llega la imagen. */
+  /** Miniatura (unos 160 px de alto; de un vídeo, su primer fotograma) como data URL, para el selector mientras llega la imagen. */
   thumb?: string;
   createdAt: number;
 }
@@ -70,9 +73,13 @@ export interface CharactersAcc {
   list: Map<string, CharacterDef>;
   /** Ids quitados: un `character_added` repetido no los resucita. */
   deleted: Set<string>;
+  /** Frases escritas por el jugador, de cualquier personaje (también de los de serie). */
+  lines: Map<string, VoiceLine>;
+  /** Frases quitadas: un `voice_line_added` repetido no las resucita. */
+  linesDeleted: Set<string>;
 }
 
-export const newCharactersAcc = (): CharactersAcc => ({ list: new Map(), deleted: new Set() });
+export const newCharactersAcc = (): CharactersAcc => ({ list: new Map(), deleted: new Set(), lines: new Map(), linesDeleted: new Set() });
 
 const validCharacter = (c: CharacterDef | undefined): c is CharacterDef =>
   !!c &&
@@ -82,7 +89,7 @@ const validCharacter = (c: CharacterDef | undefined): c is CharacterDef =>
   typeof c.art?.blobId === "string" &&
   c.art.blobId !== "";
 
-/** Aplica un evento de los personajes. Las guardas ignoran los imposibles, como project(). */
+/** Aplica un evento de los personajes y sus frases. Las guardas ignoran los imposibles, como project(). */
 export function applyCharacterEvent(acc: CharactersAcc, e: MenuEventBody): void {
   switch (e.type) {
     case "character_added": {
@@ -93,7 +100,34 @@ export function applyCharacterEvent(acc: CharactersAcc, e: MenuEventBody): void 
       return;
     }
     case "character_removed":
-      if (acc.list.delete(e.characterId)) acc.deleted.add(e.characterId);
+      if (!acc.list.delete(e.characterId)) return;
+      acc.deleted.add(e.characterId);
+      // Sus frases se van con él.
+      for (const l of acc.lines.values())
+        if (l.characterId === e.characterId) {
+          acc.lines.delete(l.id);
+          acc.linesDeleted.add(l.id);
+        }
+      return;
+
+    case "voice_line_added": {
+      const l = e.line;
+      const text = cleanVoice(l?.text);
+      if (!l || typeof l.id !== "string" || !l.id || typeof l.characterId !== "string" || !l.characterId) return;
+      if (!DAYPARTS.includes(l.part) || !text || acc.lines.has(l.id) || acc.linesDeleted.has(l.id)) return;
+      // De un personaje que ya se quitó, no (los de serie no se quitan).
+      if (acc.deleted.has(l.characterId)) return;
+      acc.lines.set(l.id, { id: l.id, characterId: l.characterId, part: l.part, text, createdAt: Number(l.createdAt) || 0 });
+      return;
+    }
+    case "voice_line_updated": {
+      const l = acc.lines.get(e.lineId);
+      const text = cleanVoice(e.text);
+      if (l && text) acc.lines.set(l.id, { ...l, text });
+      return;
+    }
+    case "voice_line_removed":
+      if (acc.lines.delete(e.lineId)) acc.linesDeleted.add(e.lineId);
       return;
   }
 }
@@ -103,6 +137,42 @@ export function characterBlobIds(list: Iterable<CharacterDef>): Set<string> {
   const ids = new Set<string>();
   for (const c of list) if (c.art?.blobId) ids.add(c.art.blobId);
   return ids;
+}
+
+// ───────────── Lo que dice cada personaje ─────────────
+// Frases escritas por el jugador para cada personaje y parte del día, sin límite de frases.
+// Si un personaje tiene alguna para la parte del día, dice una de ellas; si no, la de serie
+// del diccionario (menu.voice.*). Son eventos: llegan a todos los equipos.
+
+/** Largo máximo de una frase (caracteres); no hay límite de frases. */
+export const VOICE_LIMITS = { text: 240 } as const;
+
+/** Una frase del personaje del menú para una parte del día. */
+export interface VoiceLine {
+  id: string;
+  /** El personaje que la dice: uno de serie (`builtin:<archivo>`) o uno añadido. */
+  characterId: string;
+  part: Daypart;
+  text: string;
+  createdAt: number;
+}
+
+/** Texto de una frase: sin saltos ni espacios repetidos, recortado. Vacío si no es texto. */
+export const cleanVoice = (text: unknown): string =>
+  typeof text === "string" ? text.replace(/\s+/g, " ").trim().slice(0, VOICE_LIMITS.text) : "";
+
+/** Las frases de un personaje (de una parte del día, si se dice), en el orden en que se escribieron. */
+export function linesOf(lines: Iterable<VoiceLine>, characterId: string, part?: Daypart): VoiceLine[] {
+  return [...lines]
+    .filter((l) => l.characterId === characterId && (!part || l.part === part))
+    .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1));
+}
+
+/** Lo que dice un personaje: una de sus frases para esa parte del día (`rnd` en [0, 1)); sin ninguna, `undefined` (la de serie). */
+export function voiceLine(lines: Iterable<VoiceLine>, characterId: string, part: Daypart, rnd: number): string | undefined {
+  const own = linesOf(lines, characterId, part);
+  if (!own.length) return undefined;
+  return own[Math.min(own.length - 1, Math.max(0, Math.floor(rnd * own.length)))].text;
 }
 
 // ───────────── Rotación diaria ─────────────

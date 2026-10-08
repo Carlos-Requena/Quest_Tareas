@@ -26,6 +26,7 @@ export const menuEs = {
     almanac: "Almanaque",
     chronicle: "Crónica del aventurero",
     search: "Buscar en todo",
+    customize: "Personalización",
   },
   showcase_one: "{{count}} día",
   showcase_other: "{{count}} días",
@@ -49,7 +50,7 @@ export const menuEs = {
     follow: "Seguir la rotación",
     hint: "Cada día sale uno, sin repetir hasta que hayan salido todos. Elegir otro es solo para hoy en este equipo: mañana la rotación sigue su curso.",
     add: "Añadir personaje",
-    addHint: "WebP o PNG con fondo transparente",
+    addHint: "WebP o PNG con fondo transparente, o un GIF o vídeo animado",
     adding: "Añadiendo…",
     remove: "Quitar",
     confirm: "¿Quitar?",
@@ -66,7 +67,8 @@ export const menuEs = {
     toast: {
       added: "{{name}} se une al menú (elegido para hoy)",
       removed: "{{name}} ya no sale en el menú",
-      bad: "Esa imagen no se puede usar: elige un WebP o PNG de hasta 25 MB",
+      bad: "Ese archivo no se puede usar: elige una imagen (WebP, PNG, GIF) o un vídeo (WebM, MP4, MOV) que este equipo sepa abrir",
+      big: "Demasiado grande: hasta 25 MB una imagen fija y 30 MB una animada o un vídeo",
     },
   },
   settings: {
@@ -104,6 +106,7 @@ export const menuJa: typeof menuEs = {
     almanac: "図鑑",
     chronicle: "冒険者の記録",
     search: "すべてを検索",
+    customize: "カスタマイズ",
   },
   showcase_one: "{{count}}日",
   showcase_other: "{{count}}日",
@@ -127,7 +130,7 @@ export const menuJa: typeof menuEs = {
     follow: "ローテーションに戻す",
     hint: "毎日ひとりずつ、全員が出るまで重ならずに登場します。選び直しはこの端末で今日だけ。明日はローテーションどおりに進みます。",
     add: "キャラクターを追加",
-    addHint: "背景が透明な WebP か PNG",
+    addHint: "背景が透明な WebP か PNG、または GIF や動画",
     adding: "追加中…",
     remove: "外す",
     confirm: "外す？",
@@ -144,7 +147,8 @@ export const menuJa: typeof menuEs = {
     toast: {
       added: "{{name}}がメニューに加わりました（今日の担当）",
       removed: "{{name}}はメニューから外れました",
-      bad: "この画像は使えません。25 MB までの WebP か PNG を選んでください",
+      bad: "このファイルは使えません。この端末で開ける画像（WebP・PNG・GIF）か動画（WebM・MP4・MOV）を選んでください",
+      big: "大きすぎます。静止画は 25 MB、アニメーションや動画は 30 MB までです",
     },
   },
   settings: {

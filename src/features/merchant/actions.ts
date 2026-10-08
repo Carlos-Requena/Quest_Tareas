@@ -6,13 +6,11 @@ import { isBuiltinGear } from "../armory/model";
 import i18n, { num } from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
 import { RARITIES, type Rarity } from "../items/model";
-import { liveBlobIds } from "../temporal/model";
-import { characterBlobIds } from "../menu/model";
+import { blobsInUse } from "../../domain/blobs";
 import {
   buyBlocker,
   clampText,
   GEAR_LIMITS,
-  gearBlobIds,
   isGearSlot,
   needsArt,
   priceOf,
@@ -71,14 +69,11 @@ async function storeArt(d: GearDraft): Promise<GearArt | undefined> {
   }
 }
 
-/** Borra del almacén las imágenes que ya no usa ninguna pieza ni ningún encargo. */
+/** Borra del almacén las imágenes que ya no usa nadie (ni las piezas, ni los encargos, ni los personajes del menú). */
 async function collect(candidates: (string | undefined)[]) {
   const ids = candidates.filter((id): id is string => !!id);
   if (!ids.length) return;
-  const { state } = useGame.getState();
-  const live = liveBlobIds(state.temporals.values());
-  for (const id of gearBlobIds(state.gear.values())) live.add(id);
-  for (const id of characterBlobIds(state.characters.values())) live.add(id);
+  const live = blobsInUse(useGame.getState().state);
   const blobs = await openBlobStore();
   for (const id of new Set(ids)) if (!live.has(id)) await blobs.remove(id);
 }

@@ -72,7 +72,7 @@ Cada semana (de lunes a lunes, hora local; con cambio de hora dura 167 o 169 hor
 
 - **Icono** de 160 px como *data URL* dentro de `gear_created` / `gear_updated`, como los objetos. Sin imagen, el **glifo de la ranura** sobre el color de la rareza.
 - **Fondo del menú**: además, la imagen grande (hasta 1.920 px, WebP) en el **almacén de binarios**; en el evento solo va `art: { blobId, mime, size }` ([ADR-11](../../../docs/decisions/ADR-11-almacen-de-binarios.md)). La sincroniza [sync](../sync/README.md) como los adjuntos.
-- **Limpieza compartida**: un binario solo se borra si no lo usa ningún encargo, pieza ni personaje (`liveBlobIds`, `gearBlobIds` y `characterBlobIds`).
+- **Limpieza compartida**: un binario solo se borra si no lo usa nadie más (`blobsInUse`, en `src/domain/blobs.ts`, que junta los de los encargos, el mercader y los personajes).
 
 ### Retirar una pieza
 
@@ -172,7 +172,6 @@ En el teléfono: Hu Tao arriba, la mercancía debajo y la ficha de la pieza eleg
 - **features/armory** (`model.ts`, `labels.ts`): las piezas de serie y sus nombres traducidos. Para añadir o cambiar una pieza de serie, lee su README.
 - **features/collectibles** (`OfferPanel`, `model`, `actions`): la pestaña «Coleccionable». Para cambiar la oferta, lee su README.
 - **features/equipment** (`actions.ts`): «Ponérmelo» desde la ficha.
-- **features/temporal** y **features/menu** (`model.ts`: `liveBlobIds`, `characterBlobIds`): no borrar binarios que usan otros.
 - **La usan:** `armory`, `collectibles`, `equipment`, `items` (almanaques de equipo), `menu`, `sync`, `calendar` y `temporal` (su teclado espera con la tienda abierta).
 
 ## Estado actual

@@ -1,9 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { project } from "../../domain/projection";
 import type { EventBody } from "../../domain/events";
-import { characterDef, questDef, randomStream, withMeta } from "../../test/streams";
+import { characterDef, questDef, randomStream, voiceLine, withMeta } from "../../test/streams";
 import { nextWeekStart } from "../merchant/model";
-import { activeQuests, characterBlobIds, characterOfDay, dayNumber, daypart, daysUntil, rotationOrder, shownCharacter } from "./model";
+import {
+  activeQuests,
+  characterBlobIds,
+  characterOfDay,
+  dayNumber,
+  daypart,
+  daysUntil,
+  linesOf,
+  rotationOrder,
+  shownCharacter,
+  VOICE_LIMITS,
+  voiceLine as voiceLine_,
+  type Daypart,
+  type VoiceLine,
+} from "./model";
+import { T0 } from "../../test/streams";
 
 describe("saludo según la hora", () => {
   it("mañana de 6 a 13, tarde hasta las 20, noche hasta medianoche y madrugada", () => {
@@ -89,6 +104,72 @@ describe("personajes añadidos (eventos)", () => {
     const ev = randomStream("personajes", 600);
     expect(ev.some((e) => e.type === "character_added")).toBe(true);
     expect(ev.some((e) => e.type === "character_removed")).toBe(true);
+  });
+});
+
+describe("lo que dice cada personaje (eventos)", () => {
+  const line = (id: string, extra: Partial<VoiceLine> = {}): EventBody => ({ type: "voice_line_added", line: voiceLine(id, extra) });
+
+  it("se añaden una vez, se editan, se quitan y un añadido repetido no las resucita", () => {
+    const st = project(
+      withMeta([
+        line("a"),
+        line("a", { text: "Repetida" }),
+        line("b", { part: "night" }),
+        { type: "voice_line_updated", lineId: "b", text: "  ¿Despierto\n  aún?  " },
+        { type: "voice_line_removed", lineId: "a" },
+        line("a"),
+      ]),
+    );
+    expect([...st.voiceLines.keys()]).toEqual(["b"]);
+    expect(st.voiceLines.get("b")?.text).toBe("¿Despierto aún?");
+  });
+
+  it("ignora las vacías, las de una parte del día desconocida, las de un personaje quitado y las ediciones que la dejarían vacía", () => {
+    const st = project(
+      withMeta([
+        { type: "character_added", character: characterDef("c") },
+        { type: "character_removed", characterId: "c" },
+        line("x", { text: "   " }),
+        line("y", { part: "noon" as Daypart }),
+        line("z", { characterId: "c" }),
+        line("ok", { text: "x".repeat(VOICE_LIMITS.text + 50) }),
+        { type: "voice_line_updated", lineId: "ok", text: " " },
+        { type: "voice_line_updated", lineId: "nadie", text: "Hola" },
+      ]),
+    );
+    expect([...st.voiceLines.keys()]).toEqual(["ok"]);
+    expect(st.voiceLines.get("ok")?.text).toHaveLength(VOICE_LIMITS.text);
+  });
+
+  it("las de un personaje añadido se van con él; las de los de serie se pueden escribir", () => {
+    const st = project(
+      withMeta([
+        { type: "character_added", character: characterDef("c") },
+        line("1", { characterId: "c" }),
+        line("2", { characterId: "builtin:kazuma" }),
+        { type: "character_removed", characterId: "c" },
+      ]),
+    );
+    expect([...st.voiceLines.keys()]).toEqual(["2"]);
+    expect(st.player.xp).toBe(0);
+  });
+
+  it("sin límite de frases: dice una de las suyas para esa hora, al azar; sin ninguna, la de serie", () => {
+    const lines = Array.from({ length: 50 }, (_, i) => voiceLine(`l${i}`, { text: `Frase ${i}`, createdAt: T0 + i }));
+    lines.push(voiceLine("noche", { part: "night", text: "Noche" }), voiceLine("otro", { characterId: "builtin:aqua", text: "Aqua" }));
+    expect(linesOf(lines, "builtin:kazuma", "morning")).toHaveLength(50);
+    expect(linesOf(lines, "builtin:kazuma")).toHaveLength(51);
+    expect(voiceLine_(lines, "builtin:kazuma", "morning", 0)).toBe("Frase 0");
+    expect(voiceLine_(lines, "builtin:kazuma", "morning", 0.999)).toBe("Frase 49");
+    expect(voiceLine_(lines, "builtin:kazuma", "night", 0.5)).toBe("Noche");
+    expect(voiceLine_(lines, "builtin:kazuma", "afternoon", 0.5)).toBeUndefined();
+    expect(voiceLine_(lines, "builtin:mio", "morning", 0.5)).toBeUndefined();
+  });
+
+  it("los historiales aleatorios las ejercitan", () => {
+    const ev = randomStream("frases", 1500);
+    for (const type of ["voice_line_added", "voice_line_updated", "voice_line_removed"]) expect(ev.some((e) => e.type === type)).toBe(true);
   });
 });
 

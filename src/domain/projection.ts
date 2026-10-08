@@ -19,7 +19,9 @@ import { questReward, temporalValue } from "../features/rewards/model";
 import { applyCollectibleEvent } from "../features/collectibles/model";
 import { cleanContacts } from "../features/contacts/model";
 import { applyAgendaEvent, newAgendaAcc, type AgendaAcc } from "../features/agenda/model";
-import { applyCharacterEvent, newCharactersAcc, type CharactersAcc } from "../features/menu/model";
+import { BUILTIN_PREFIX, applyCharacterEvent, newCharactersAcc, type CharactersAcc } from "../features/menu/model";
+import { applyStyleEvent, newStylesAcc, type StylesAcc } from "../features/living/model";
+import { applyCompanionEvent, dropCompanionOf, newCompanionAcc, type CompanionAcc } from "../features/companion/model";
 import { isEditable, patchQuest } from "../features/editing/model";
 import { questFailsBy, temporalFailsBy } from "../features/failure/model";
 import { undoneIn } from "../features/undo/model";
@@ -31,7 +33,7 @@ import { undoneIn } from "../features/undo/model";
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 11;
+export const PROJECTION_VERSION = 13;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -49,8 +51,12 @@ export interface ProjectionAcc {
   chronicle: ChronicleAcc;
   /** Agenda personal (features/agenda): no toca al jugador. */
   agenda: AgendaAcc;
-  /** Personajes del menú añadidos por el jugador (features/menu): no tocan al jugador. */
+  /** Personajes del menú añadidos por el jugador y sus frases (features/menu): no tocan al jugador. */
   characters: CharactersAcc;
+  /** Cómo se mueve cada personaje (features/living): no toca al jugador. */
+  styles: StylesAcc;
+  /** El compañero de «Mi día» y sus frases (features/companion): no toca al jugador. */
+  companion: CompanionAcc;
   xp: number;
   gold: number;
   completedCount: number;
@@ -67,6 +73,8 @@ export const newProjectionAcc = (): ProjectionAcc => ({
   chronicle: newChronicleAcc(),
   agenda: newAgendaAcc(),
   characters: newCharactersAcc(),
+  styles: newStylesAcc(),
+  companion: newCompanionAcc(),
   xp: 0,
   gold: 0,
   completedCount: 0,
@@ -307,7 +315,9 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
     case "temporal_accepted":
     case "temporal_postponed":
     case "temporal_completed":
-    case "temporal_deleted": {
+    case "temporal_deleted":
+    case "temporal_art_added":
+    case "temporal_art_removed": {
       // Cumplir un encargo temporal también da XP y oro (copiados en el evento).
       // Solo se puede si sus quests enlazadas están terminadas.
       const earned = applyTemporalEvent(temporals, e, e.ts, linkDone);
@@ -351,10 +361,34 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
       applyAgendaEvent(acc.agenda, e);
       break;
 
-    case "character_added":
     case "character_removed":
-      // Los personajes del menú son decoración: no dan XP ni oro.
+      // Su estilo y sus frases de compañero se van con él (las del menú las quita applyCharacterEvent).
+      if (acc.characters.list.has(e.characterId)) {
+        acc.styles.delete(e.characterId);
+        dropCompanionOf(acc.companion, e.characterId);
+      }
       applyCharacterEvent(acc.characters, e);
+      break;
+    case "character_added":
+    case "voice_line_added":
+    case "voice_line_updated":
+    case "voice_line_removed":
+      // Los personajes del menú y lo que dicen son decoración: no dan XP ni oro.
+      applyCharacterEvent(acc.characters, e);
+      break;
+
+    case "character_style_set":
+    case "character_style_reset":
+      // Cómo se mueve un personaje (features/living): decoración.
+      applyStyleEvent(acc.styles, e, (id) => characterExists(acc.characters, id));
+      break;
+
+    case "companion_chosen":
+    case "companion_line_added":
+    case "companion_line_updated":
+    case "companion_line_removed":
+      // El compañero de «Mi día» (features/companion): decoración.
+      applyCompanionEvent(acc.companion, e, (id) => characterExists(acc.characters, id));
       break;
 
     case "collectible_purchased": {
@@ -369,12 +403,15 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
   }
 }
 
+/** Un personaje existe: los de serie siempre (están en public/menu/); los añadidos, mientras no se quiten. */
+const characterExists = (c: CharactersAcc, id: string) => id.startsWith(BUILTIN_PREFIX) || c.list.has(id);
+
 /**
  * Cierra la proyección: lo que se deriva del acumulador entero (nivel, rango, huecos,
  * el encargo de cada quest y si está en reserva). Se puede llamar después de cada evento.
  */
 export function finishProjection(acc: ProjectionAcc): GameState {
-  const { quests, items, temporals, merchant, equipment, attributes, chronicle, agenda, characters, xp, gold, completedCount } = acc;
+  const { quests, items, temporals, merchant, equipment, attributes, chronicle, agenda, characters, styles, companion, xp, gold, completedCount } = acc;
   // Cada quest sabe a qué encargo pendiente pertenece (para su fecha y su enlace).
   // Se recalcula entero: tras desenlazar o cumplir un encargo, la quest ya no lo tiene.
   // Las de un encargo sin aceptar quedan en reserva, salvo las que ya estén en curso.
@@ -399,10 +436,14 @@ export function finishProjection(acc: ProjectionAcc): GameState {
     quests,
     items: items.catalog,
     temporals: temporals.board,
+    temporalArts: temporals.arts,
     gear: fullCatalog(merchant),
     chronicle,
     agenda: agenda.entries,
     characters: characters.list,
+    voiceLines: characters.lines,
+    characterStyles: styles,
+    companion: { chosen: companion.chosen, lines: companion.lines },
     player: {
       xp,
       gold,

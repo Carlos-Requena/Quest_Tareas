@@ -19,6 +19,9 @@ export interface MenuCharacter {
   src?: string;
   blobId?: string;
   thumb?: string;
+  /** Del jugador: tipo del archivo (una imagen o un vídeo) y si se mueve por sí mismo. */
+  mime?: string;
+  animated?: boolean;
   builtin: boolean;
 }
 
@@ -31,7 +34,7 @@ export const BUILTIN_CHARACTERS: MenuCharacter[] = FILES.map((file) => {
 export function allCharacters(added: Iterable<CharacterDef>): MenuCharacter[] {
   const mine = [...added]
     .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
-    .map((c): MenuCharacter => ({ id: c.id, name: c.name, blobId: c.art.blobId, thumb: c.thumb, builtin: false }));
+    .map((c): MenuCharacter => ({ id: c.id, name: c.name, blobId: c.art.blobId, thumb: c.thumb, mime: c.art.mime, animated: !!c.art.animated, builtin: false }));
   return [...BUILTIN_CHARACTERS, ...mine];
 }
 

@@ -11,6 +11,8 @@ import type { EditingEventBody } from "../features/editing/events";
 import type { FailureEventBody } from "../features/failure/events";
 import type { UndoEventBody } from "../features/undo/events";
 import type { MenuEventBody } from "../features/menu/events";
+import type { LivingEventBody } from "../features/living/events";
+import type { CompanionEventBody } from "../features/companion/events";
 import type { Drop } from "../features/items/model";
 
 /**
@@ -48,7 +50,9 @@ export type EventBody =
   | EditingEventBody
   | FailureEventBody
   | UndoEventBody
-  | MenuEventBody;
+  | MenuEventBody
+  | LivingEventBody
+  | CompanionEventBody;
 
 /**
  * Versión del formato de los eventos que escribe esta app. NORMA: si cambias la forma

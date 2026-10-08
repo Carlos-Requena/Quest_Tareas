@@ -10,6 +10,7 @@ El historial de verificación de cada funcionalidad está en [verificacion/](ver
 
 | Fecha | Cambio | `PROJECTION_VERSION` | Tests en ese momento |
 |---|---|---|---|
+| 2026-10-08 | Personajes vivos (malla de WebGL, aura, partículas, entrada gacha; vídeo e imagen animada como personaje) y compañero de Mi día, editables en la personalización (ADR-52). El mismo día: personalización con frases e ilustraciones (ADR-51) | 13 | 496 en 42 archivos |
 | 2026-10-07 | Consolidación de la documentación: mapas de símbolos en las funcionalidades grandes (menu, items, temporal, failure, chronicle, merchant, sync), procedimientos seguros para empezar de cero, copias duplicadas sustituidas por enlaces y comprobaciones nuevas en `scripts/docs.mjs` (símbolos enlazados, archivos ajenos en `docs/`, numeración de las ADR, claves del frontmatter, comandos destructivos y cifras de líneas) | 11 | 464 en 39 archivos |
 | 2026-10-07 | Documentación reestructurada: guía compacta, índice generado desde el código (`pnpm docs:index`), una ADR por archivo, runbooks, historial aparte y una plantilla común para los README | 11 | 464 en 39 archivos |
 | 2026-10-07 | Personajes del menú: rotación diaria, elegir para hoy, añadir y quitar con imagen sincronizada (ADR-50) | 11 | 464 en 39 archivos |
@@ -39,6 +40,8 @@ Las cifras de tests son las que se apuntaron en la documentación de cada moment
 
 | Versión | Por qué subió |
 |---|---|
+| 13 | El acumulador gana los estilos de los personajes (`character_style_*`) y el compañero de Mi día (`companion_*`); quitar un personaje se lleva los dos |
+| 12 | Los acumuladores ganan las frases de los personajes del menú (`voice_line_*`) y las ilustraciones de «Encargo cumplido» del jugador (`temporal_art_*`) |
 | 11 | El acumulador gana los personajes del menú (`character_added`, `character_removed`) |
 | 10 | Editar quests, deshacer, fallos y repetición por días de la semana |
 | 9 | El acumulador gana la agenda |
@@ -173,6 +176,7 @@ Todas las funciones de la fase 1 están hechas; la verificación ha sido manual 
 | Avisos del sistema (`tauri-plugin-notification`) | Hecho, sin ver un aviso de verdad | Tests del plan; `cargo check` y compilación para el simulador de iOS con el plugin; en el navegador, el temporizador avisa a su hora. Sin ver un aviso del sistema en macOS, Windows ni el iPhone |
 | Menú de opciones: pestaña «MENU» (tecla `O`) con barrido, Kazuma, tarjetas de cada sección en 3D, coleccionable de la semana y ajustes; barra del teléfono a cuatro botones | Hecho | 452 tests en 39 archivos (partes del día, quest actual y días hasta el escaparate con cambio de hora). En el navegador a 1280 × 800, 1024 × 680 y 402 × 874, en español y japonés: barrido, paralaje, ventanas encima del menú y Escape, secciones y búsqueda. Sin probar en la app nativa ni en el iPhone, ni el sonido del barrido |
 | Personajes del menú: rotación diaria sin repetir, elegir otro para hoy y añadir o quitar personajes con su imagen (sincronizados) | Hecho | 464 tests (eventos y guardas, rotación en 2.000 días con 5, 3 y 2 personajes, cambio de hora, elección del día; prueba de mutación). En el navegador a 1280 × 800 y 402 × 874: los cinco de `public/menu/`, elegir, volver a la rotación, añadir un PNG y quitarlo (con su imagen). Sin probar la llegada a otro equipo por Drive ni en la app nativa |
+| Personalización: ventana Customize del menú para añadir personajes con sus frases por hora (sin límite) e ilustraciones de «Encargo cumplido» por tipo de encargo (sincronizadas); ilustraciones de serie en `public/temporal/<tipo>/` | Hecho | 475 tests (frases e ilustraciones: eventos, guardas, sin límite y azar; en `randomStream`). En el navegador a 1.280 × 800, 1.024 × 700 y 402 × 874, en español y japonés. Sin probar en la app nativa ni la llegada a otro equipo por Drive |
 | Sincronización con Google Drive (fase 2) | Hecho | 18 tests con dos y tres equipos en memoria y un Drive falso (la puerta de la fase: el mismo estado en cualquier orden). En la app nativa de macOS con Google Drive de verdad, dos copias con bases distintas: inicio de sesión, ejemplos juntados y acciones en las dos con los mismos 37 eventos. Sin probar en Windows, con dos equipos físicos ni los adjuntos con Drive de verdad |
 
 La base de datos de la app nativa está en `~/Library/Application Support/com.quests.app/quests.db` (macOS) y en `%APPDATA%\com.quests.app\` (Windows).

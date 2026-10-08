@@ -61,6 +61,8 @@ Una decisión por archivo: qué se decidió, qué se descartó, por qué y qué 
 | [ADR-48](ADR-48-alta-rapida-y-busqueda.md) | Alta rápida de una línea y búsqueda sin tildes | aceptada | quickadd, search | 2026-10-06 |
 | [ADR-49](ADR-49-menu-de-opciones.md) | Menú de opciones al estilo del menú principal de un gacha | aceptada | menu, mobile | 2026-10-07 |
 | [ADR-50](ADR-50-personajes-del-menu.md) | Personajes del menú: de serie en public/ y añadidos con eventos | aceptada | menu | 2026-10-07 |
+| [ADR-51](ADR-51-personalizacion.md) | Personalización: una ventana que solo presenta; cada dato, en su funcionalidad | aceptada | customize, menu, temporal | 2026-10-08 |
+| [ADR-52](ADR-52-personajes-vivos-y-companero.md) | Personajes vivos con una malla de WebGL y un compañero en Mi día, con su estilo y sus frases como eventos | aceptada | living, companion, menu, customize, today | 2026-10-08 |
 <!-- /generado:adr -->
 
 ## Añadir una ADR

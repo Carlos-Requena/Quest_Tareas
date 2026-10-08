@@ -4,6 +4,14 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-08 · Frases por hora y tarjeta Customize
+
+Con `pnpm dev` en el navegador del panel (Chromium), con datos de prueba.
+
+- **Tests:** frases añadidas, editadas, quitadas, repetidas, vacías, de una parte del día desconocida o de un personaje quitado; las de un personaje añadido se van con él; 50 frases a la misma hora y la elegida según el azar. Los tres eventos entran en `randomStream`.
+- **Menú (1.280 × 800 y 402 × 874):** la fila de abajo con cuatro tarjetas (Chronicle, Calendar, Search, Customize) sin salirse del filo de la grande; en el teléfono, Customize a lo ancho como Search. Con Kazuma elegido para hoy y una frase suya de mañana, el menú la dice en lugar de la de serie.
+- **No se verificó:** la app nativa ni la llegada de las frases a otro equipo.
+
 ## Registro hasta el 2026-10-07
 
 - **Tests** (`model.test.ts`, 16): los personajes añadidos (una vez, quitados sin resucitar, sin los de serie ni los que no traen imagen, sin tocar al jugador, sus imágenes cuentan como usadas); la rotación (todos una vez por vuelta, el orden cambia de vuelta en vuelta, nunca dos días seguidos el mismo con 5, 3 y 2 personajes en 2.000 días, igual sea cual sea el orden de la lista, medianoche y cambio de hora); elegir para hoy no cambia el de mañana y uno quitado vuelve a la rotación. Prueba de mutación: sin el arreglo entre vueltas, falla el test de los días seguidos. Además: las cuatro partes del día en sus bordes; la quest actual es la última aceptada y no cuentan las abandonadas; los días hasta el cambio del escaparate, también la semana del cambio de hora (encontró un fallo: contando milisegundos, el lunes a primera hora de esa semana salían 8 días; ahora se cuentan medianoches).

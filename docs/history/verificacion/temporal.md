@@ -4,6 +4,14 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-08 · Ilustraciones añadidas por el jugador
+
+Con `pnpm dev` en el navegador del panel (Chromium), con datos de prueba. La ventana donde se añaden está en [customize](customize.md).
+
+- **Tests:** `temporal_art_added` / `temporal_art_removed` (repetidas, quitadas que no vuelven, de un tipo desconocido, sin imagen o sin id, nombre vacío), `artsOf` por tipo y en orden, `artBlobIds` y que llegan a `GameState.temporalArts` sin tocar al jugador; `pickHero` sobre listas. Entran en `randomStream`.
+- **Interfaz:** una ilustración añadida a Citación sale al azar junto a Subaru en seis encargos cumplidos, impresa en sepia en la animación; quitarla borra su binario de IndexedDB.
+- **No se verificó:** la app nativa ni la llegada a otro equipo por Drive.
+
 ## 2026-10-08 · Ilustraciones al cumplir según el tipo
 
 Con `pnpm dev` en el navegador del panel (Chromium), a unos 1.024 px y a 402 × 874, en japonés.

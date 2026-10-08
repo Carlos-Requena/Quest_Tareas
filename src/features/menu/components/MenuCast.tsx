@@ -10,8 +10,12 @@ import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
 import { useBlobUrl } from "../../equipment/useBlobUrl";
 import { addCharacter, pickCharacter, removeCharacter } from "../actions";
 import { allCharacters, prettyName, type MenuCharacter } from "../characters";
+import { isVideoMime } from "../media";
 import { characterOfDay, dayNumber, shownCharacter } from "../model";
 import { useMenuUi } from "../ui";
+
+/** Archivos que se pueden elegir para un personaje: imágenes (también animadas) y vídeos. */
+export const CHARACTER_ACCEPT = "image/webp,image/png,image/avif,image/gif,image/*,video/webm,video/mp4,video/quicktime";
 
 /** Los personajes y cuál toca: el de la rotación, el elegido a mano (en este equipo) y el de mañana. */
 export function useCast() {
@@ -42,11 +46,16 @@ export function characterName(c: MenuCharacter | undefined, t: TFunction): strin
   return i18n.exists(key) ? String(t(key as never)) : prettyName(c.key ?? "");
 }
 
-/** Imagen de un personaje: la de serie, o la del almacén (la miniatura mientras llega o si aún no está en este equipo). */
+/**
+ * Imagen de un personaje: la de serie, o la del almacén (la miniatura mientras llega o si aún
+ * no está en este equipo). Un vídeo se reproduce en bucle, sin sonido.
+ */
 export function CharacterImage({ c, className }: { c: MenuCharacter; className?: string }) {
   const blob = useBlobUrl(c.builtin ? undefined : c.blobId);
   const src = c.src ?? blob ?? c.thumb;
   if (!src) return null;
+  if (blob && isVideoMime(c.mime))
+    return <video className={className} src={blob} poster={c.thumb} autoPlay muted loop playsInline disablePictureInPicture aria-hidden />;
   return <img className={`${className ?? ""} ${!c.builtin && !blob ? "is-thumb" : ""}`} src={src} alt="" draggable={false} />;
 }
 
@@ -153,7 +162,7 @@ function Panel() {
             <span className="mn-card-name">{busy ? t("menu.cast.adding") : t("menu.cast.add")}</span>
             <span className="mn-card-hint">{t("menu.cast.addHint")}</span>
           </button>
-          <input ref={file} type="file" accept="image/webp,image/png,image/avif,image/*" hidden onChange={onFile} />
+          <input ref={file} type="file" accept={CHARACTER_ACCEPT} hidden onChange={onFile} />
         </div>
 
         <footer className="mn-cast-f">

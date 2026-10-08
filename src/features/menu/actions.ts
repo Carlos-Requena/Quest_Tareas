@@ -7,8 +7,7 @@ import { sfx } from "../../lib/sfx";
 import { uid } from "../../lib/id";
 import i18n from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
-import { gearBlobIds } from "../merchant/model";
-import { liveBlobIds } from "../temporal/model";
+import { blobsInUse } from "../../domain/blobs";
 import { switchSection, temporalBusy } from "../temporal";
 import { merchantBusy } from "../merchant/ui";
 import { characterBusy } from "../equipment/ui";
@@ -18,9 +17,10 @@ import { editingBusy } from "../editing/ui";
 import { failureBusy } from "../failure/ui";
 import { quickBusy } from "../quickadd/ui";
 import { searchBusy } from "../search/ui";
+import { customizeBusy } from "../customize/ui";
 import { openSearch } from "../search/actions";
-import { BUILTIN_PREFIX, CHARACTER_LIMITS, characterBlobIds, dayNumber, type CharacterDef } from "./model";
-import { nameFromFile, prepareCharacter } from "./image";
+import { BUILTIN_PREFIX, CHARACTER_LIMITS, cleanVoice, dayNumber, type CharacterDef, type Daypart } from "./model";
+import { nameFromFile, prepareCharacter, type MediaError } from "./image";
 import { menuBusy, useMenuUi } from "./ui";
 
 /** Abre el menú con su barrido (botón de la cabecera, tecla O o la barra del teléfono). */
@@ -75,7 +75,8 @@ export function windowOpen(): boolean {
     editingBusy() ||
     failureBusy() ||
     searchBusy() ||
-    quickBusy()
+    quickBusy() ||
+    customizeBusy()
   );
 }
 
@@ -99,9 +100,10 @@ export async function addCharacter(file: File): Promise<string | undefined> {
   let images;
   try {
     images = await prepareCharacter(file);
-  } catch {
+  } catch (err) {
     sfx.cancel();
-    say(() => i18n.t("menu.cast.toast.bad"));
+    const why: MediaError = err === "big" ? "big" : "bad";
+    say(() => i18n.t(`menu.cast.toast.${why}`));
     return undefined;
   }
   const blobId = await (await openBlobStore()).put(images.art);
@@ -109,7 +111,7 @@ export async function addCharacter(file: File): Promise<string | undefined> {
   const character: CharacterDef = {
     id: uid(),
     name,
-    art: { blobId, mime: images.art.type, size: images.art.size },
+    art: { blobId, mime: images.art.type, size: images.art.size, ...(images.animated ? { animated: true } : {}) },
     thumb: images.thumb,
     createdAt: Date.now(),
   };
@@ -128,10 +130,36 @@ export async function removeCharacter(id: string) {
   sfx.cancel();
   await dispatch({ type: "character_removed", characterId: id });
   if (useMenuUi.getState().pick?.id === id) useMenuUi.getState().setPick(undefined);
-  const after = useGame.getState().state;
-  const live = liveBlobIds(after.temporals.values());
-  for (const b of gearBlobIds(after.gear.values())) live.add(b);
-  for (const b of characterBlobIds(after.characters.values())) live.add(b);
-  if (!live.has(cur.art.blobId)) await (await openBlobStore()).remove(cur.art.blobId);
+  if (!blobsInUse(useGame.getState().state).has(cur.art.blobId)) await (await openBlobStore()).remove(cur.art.blobId);
   say(() => i18n.t("menu.cast.toast.removed", { name: cur.name }));
+}
+
+// ───────────── Lo que dice cada personaje ─────────────
+// Frases escritas por el jugador (ventana de personalización, features/customize). Sin
+// límite de frases; cada una, de hasta VOICE_LIMITS.text caracteres. Se sincronizan.
+
+/** Añade una frase a un personaje (de serie o añadido) para una parte del día. `false` si está vacía. */
+export async function addVoiceLine(characterId: string, part: Daypart, text: string): Promise<boolean> {
+  const clean = cleanVoice(text);
+  if (!clean) return false;
+  await useGame.getState().dispatch({ type: "voice_line_added", line: { id: uid(), characterId, part, text: clean, createdAt: Date.now() } });
+  sfx.tick();
+  return true;
+}
+
+/** Cambia el texto de una frase. `false` si queda vacía (para quitarla, `removeVoiceLine`). */
+export async function updateVoiceLine(lineId: string, text: string): Promise<boolean> {
+  const cur = useGame.getState().state.voiceLines.get(lineId);
+  const clean = cleanVoice(text);
+  if (!cur || !clean) return false;
+  if (clean !== cur.text) await useGame.getState().dispatch({ type: "voice_line_updated", lineId, text: clean });
+  sfx.tick();
+  return true;
+}
+
+/** Quita una frase. */
+export async function removeVoiceLine(lineId: string) {
+  if (!useGame.getState().state.voiceLines.has(lineId)) return;
+  sfx.cancel();
+  await useGame.getState().dispatch({ type: "voice_line_removed", lineId });
 }

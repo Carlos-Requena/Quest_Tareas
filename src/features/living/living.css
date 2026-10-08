@@ -1,0 +1,353 @@
+/* ───────────── Personajes vivos (features/living) ─────────────
+   .lv llena su caja; .lv-place es el rectángulo exacto de la imagen (de pie sobre el borde de
+   abajo). Dentro: el aura (detrás), .lv-in (la entrada, GSAP), .lv-frame (sombra, brillo y
+   bordes suaves), .lv-body (el movimiento de CSS cuando no hay malla), las partículas y el
+   destello de la entrada. */
+
+.lv {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.lv-place {
+  position: absolute;
+}
+.lv-in {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+}
+.lv-frame {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--gold-hi) 55%, transparent)) drop-shadow(0 22px 40px rgba(0, 0, 0, 0.5));
+}
+/* Con aura: el filo y un halo del color del aura. */
+.lv-frame.has-aura {
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--lv-aura) 70%, var(--gold-hi))) drop-shadow(0 0 16px color-mix(in srgb, var(--lv-aura) 32%, transparent))
+    drop-shadow(0 22px 40px rgba(0, 0, 0, 0.5));
+}
+/* Bordes suaves: para una imagen o un vídeo con fondo, que se funda con el menú. */
+.lv-frame.is-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 80%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 80%, transparent);
+  mask-composite: intersect;
+  mask-repeat: no-repeat;
+}
+
+.lv-body {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+}
+/* Sin malla (vídeo, imagen animada o sin WebGL): respira y se mece entero, con CSS. */
+.lv-body.is-moving {
+  animation:
+    lv-breath 5.4s ease-in-out infinite alternate,
+    lv-sway 8s ease-in-out infinite;
+}
+@keyframes lv-breath {
+  from {
+    translate: 0 0;
+    scale: 1 1;
+  }
+  to {
+    translate: 0 calc(var(--lv-breath) * -4px);
+    scale: 1 calc(1 + var(--lv-breath) * 0.006);
+  }
+}
+@keyframes lv-sway {
+  0%,
+  100% {
+    rotate: calc(var(--lv-sway) * -0.45deg);
+  }
+  50% {
+    rotate: calc(var(--lv-sway) * 0.45deg);
+  }
+}
+
+.lv-media {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  user-select: none;
+}
+/* La malla pinta encima: la imagen sigue ahí (es su textura) pero no se ve. */
+.lv-media.is-hidden {
+  visibility: hidden;
+}
+/* Solo la miniatura (la imagen grande aún no ha llegado a este equipo): borrosa a propósito. */
+.lv-media.is-thumb {
+  filter: blur(2px);
+  opacity: 0.85;
+}
+/* El lienzo de la malla, con margen a los lados y arriba para lo que mueve el viento. */
+.lv-host {
+  position: absolute;
+  left: calc(var(--lv-pad-x) * -1);
+  right: calc(var(--lv-pad-x) * -1);
+  top: calc(var(--lv-pad-top) * -1);
+  bottom: 0;
+}
+.lv-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Barrido de luz: una banda que cruza la silueta (recortada con la propia imagen) cada pocos segundos. */
+.lv-shine {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    color-mix(in srgb, var(--lv-aura) 22%, transparent) 45%,
+    color-mix(in srgb, var(--star) 60%, transparent) 49%,
+    color-mix(in srgb, var(--lv-aura) 22%, transparent) 53%,
+    transparent 58%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  animation: lv-shine 7s ease-in-out infinite;
+  animation-delay: 1.2s;
+  background-position: 100% 0;
+}
+@keyframes lv-shine {
+  0% {
+    background-position: 100% 0;
+  }
+  26%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+/* Aura: un resplandor del color elegido detrás del personaje, que late despacio. */
+.lv-aura {
+  position: absolute;
+  left: -14%;
+  right: -14%;
+  top: 2%;
+  bottom: 8%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 46%,
+    color-mix(in srgb, var(--lv-aura) 36%, transparent),
+    color-mix(in srgb, var(--lv-aura) 12%, transparent) 55%,
+    transparent 74%
+  );
+  opacity: 0.85;
+}
+.lv-aura.is-live {
+  animation: lv-aura 4.8s ease-in-out infinite alternate;
+}
+@keyframes lv-aura {
+  from {
+    opacity: 0.55;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1.04;
+  }
+}
+
+/* ── Entrada gacha: destello, anillos y rayos (GSAP los enciende; ocultos por defecto) ── */
+.lv-burst {
+  position: absolute;
+  inset: 0;
+}
+.lv-burst > span {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0;
+}
+.lv-flash {
+  width: 110%;
+  margin: -55% 0 0 -55%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--star) 95%, transparent),
+    color-mix(in srgb, var(--lv-aura) 55%, transparent) 32%,
+    transparent 66%
+  );
+  mix-blend-mode: screen;
+}
+.lv-ring {
+  width: 80%;
+  margin: -40% 0 0 -40%;
+  border: 2px solid color-mix(in srgb, var(--gold-hi) 85%, transparent);
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--lv-aura) 60%, transparent),
+    inset 0 0 18px color-mix(in srgb, var(--lv-aura) 45%, transparent);
+}
+.lv-rays {
+  width: 170%;
+  margin: -85% 0 0 -85%;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--gold-hi) 42%, transparent) 0deg 3deg, transparent 3deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, #000 8%, transparent 62%);
+  mask-image: radial-gradient(circle, #000 8%, transparent 62%);
+  mix-blend-mode: screen;
+}
+
+/* ── Partículas ── */
+.lv-fx {
+  position: absolute;
+  inset: -4% -16% 0;
+  container-type: size;
+}
+.lv-fx i {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  opacity: 0;
+  animation-duration: var(--s);
+  animation-delay: var(--d);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+/* Polvo dorado que sube. */
+.lv-fx.is-dust i {
+  top: auto;
+  bottom: calc(var(--y) * 0.35);
+  width: calc(3px * var(--k) + 1px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--gold-hi);
+  box-shadow: 0 0 6px var(--gold);
+  animation-name: lv-rise;
+}
+/* Ascuas: suben más deprisa, parpadean y se apagan. */
+.lv-fx.is-embers i {
+  top: auto;
+  bottom: calc(var(--y) * 0.2);
+  width: calc(3px * var(--k) + 1px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--fire-core), var(--ember));
+  box-shadow: 0 0 8px var(--fire);
+  animation-name: lv-rise, lv-flicker;
+  animation-duration: calc(var(--s) * 0.6), 0.9s;
+}
+@keyframes lv-rise {
+  0% {
+    translate: 0 0;
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.85;
+  }
+  75% {
+    opacity: 0.4;
+  }
+  100% {
+    translate: var(--dx) -78cqh;
+    opacity: 0;
+  }
+}
+@keyframes lv-flicker {
+  50% {
+    scale: 0.6;
+  }
+}
+/* Destellos: estrellas de cuatro puntas que se encienden y se apagan en su sitio. */
+.lv-fx.is-sparkles i {
+  width: calc(16px * var(--k));
+  aspect-ratio: 1;
+  background: radial-gradient(circle, var(--star), color-mix(in srgb, var(--lv-aura) 70%, var(--gold-hi)) 70%);
+  clip-path: polygon(50% 0, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0 50%, 42% 42%);
+  animation-name: lv-twinkle;
+}
+@keyframes lv-twinkle {
+  0% {
+    scale: 0;
+    rotate: 0deg;
+    opacity: 0;
+  }
+  10% {
+    scale: 1;
+    rotate: 45deg;
+    opacity: 1;
+  }
+  22%,
+  100% {
+    scale: 0;
+    rotate: 90deg;
+    opacity: 0;
+  }
+}
+/* Pétalos que caen girando. */
+.lv-fx.is-petals i {
+  top: -4%;
+  width: calc(11px * var(--k));
+  height: calc(7px * var(--k));
+  border-radius: 80% 0 80% 0;
+  background: linear-gradient(135deg, var(--petal), var(--petal-lo));
+  animation-name: lv-fall;
+  animation-duration: calc(var(--s) * 1.3);
+}
+/* Nieve: cae despacio y se mece. */
+.lv-fx.is-snow i {
+  top: -4%;
+  width: calc(4px * var(--k) + 1px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--frost);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--frost) 70%, transparent);
+  animation-name: lv-fall;
+  animation-duration: calc(var(--s) * 1.6);
+}
+@keyframes lv-fall {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  50% {
+    translate: var(--dx) 52cqh;
+    rotate: 200deg;
+  }
+  90% {
+    opacity: 0.7;
+  }
+  100% {
+    translate: calc(var(--dx) * -0.4) 104cqh;
+    rotate: 400deg;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-body.is-moving,
+  .lv-aura.is-live,
+  .lv-shine,
+  .lv-fx i {
+    animation: none;
+  }
+}
+
+/* ───────────── Teléfono ───────────── */
+@media (max-width: 760px) {
+  /* La mitad de partículas: el personaje es más pequeño y la batería, de verdad. */
+  .lv-fx i:nth-child(2n) {
+    display: none;
+  }
+}

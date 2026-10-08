@@ -1,6 +1,6 @@
 import type { Pomodoro, PomodoroConfig } from "../features/pomodoro/model";
 import type { ItemDef, Pity } from "../features/items/model";
-import type { TemporalState } from "../features/temporal/model";
+import type { TemporalArt, TemporalState } from "../features/temporal/model";
 import type { GearDef, Purchase } from "../features/merchant/model";
 import type { Equipped } from "../features/equipment/model";
 import type { Attribute } from "../features/attributes/model";
@@ -9,7 +9,9 @@ import type { Streak } from "../features/streaks/model";
 import type { ChronicleAcc } from "../features/chronicle/model";
 import type { ContactRef } from "../features/contacts/model";
 import type { AgendaState } from "../features/agenda/model";
-import type { CharacterDef } from "../features/menu/model";
+import type { CharacterDef, VoiceLine } from "../features/menu/model";
+import type { StylePatch } from "../features/living/model";
+import type { CompanionLine } from "../features/companion/model";
 
 export type Category = "elite" | "repeat" | "request";
 
@@ -146,8 +148,16 @@ export interface GameState {
   chronicle: ChronicleAcc;
   /** Agenda personal por horas: bloques de un día o que se repiten (features/agenda). */
   agenda: Map<string, AgendaState>;
-  /** Personajes del menú añadidos por el jugador; los de serie están en el código (features/menu). */
+  /** Ilustraciones de «Encargo cumplido» añadidas por el jugador; las de serie están en public/temporal/ (features/temporal). */
+  temporalArts: Map<string, TemporalArt>;
+  /** Personajes del menú añadidos por el jugador; los de serie están en public/menu/ (features/menu). */
   characters: Map<string, CharacterDef>;
+  /** Lo que dice cada personaje del menú según la hora, escrito por el jugador (features/menu). */
+  voiceLines: Map<string, VoiceLine>;
+  /** Cómo se mueve cada personaje del menú: lo cambiado sobre los valores por defecto (features/living). */
+  characterStyles: Map<string, StylePatch>;
+  /** El compañero de «Mi día»: el elegido (sin él, el personaje de hoy) y sus frases (features/companion). */
+  companion: { chosen?: string; lines: Map<string, CompanionLine> };
   player: PlayerState;
 }
 

@@ -4,8 +4,7 @@ import { sfx } from "../../lib/sfx";
 import i18n from "../../i18n";
 import { openBlobStore } from "../../storage/blobStore";
 import type { QuestDef, QuestState } from "../../domain/types";
-import { gearBlobIds } from "../merchant/model";
-import { characterBlobIds } from "../menu/model";
+import { blobsInUse } from "../../domain/blobs";
 import { questReward, questValue, temporalValue, type Reward } from "../rewards/model";
 import {
   TEMPORAL_KINDS,
@@ -13,9 +12,10 @@ import {
   clampSkulls,
   clampText,
   isAccepted,
-  liveBlobIds,
   pendingLinks,
+  ART_LIMITS,
   type AttachmentRef,
+  type TemporalArt,
   type TemporalDef,
   type TemporalKind,
   type TemporalPatch,
@@ -23,6 +23,7 @@ import {
 } from "./model";
 import type { PreparedFile } from "./files";
 import { useTemporalUi } from "./ui";
+import { nameFromFile, prepareCharacter } from "../menu/image";
 import { offerUndo } from "../undo/actions";
 import { UNDO_WINDOW_MS } from "../undo/model";
 import { useHorizonUi } from "../horizon/ui";
@@ -194,13 +195,10 @@ async function storeFiles(files: PreparedFile[]): Promise<AttachmentRef[]> {
   return out;
 }
 
-/** Borra del almacén los binarios que ya no usa ningún encargo (ni el fondo del mercader ni los personajes del menú, que comparten almacén). */
+/** Borra del almacén los binarios que ya no usa nadie (el almacén lo comparten encargos, mercader y personajes del menú). */
 async function collect(candidates: string[]) {
   if (!candidates.length) return;
-  const { state } = useGame.getState();
-  const live = liveBlobIds(state.temporals.values());
-  for (const id of gearBlobIds(state.gear.values())) live.add(id);
-  for (const id of characterBlobIds(state.characters.values())) live.add(id);
+  const live = blobsInUse(useGame.getState().state);
   const blobs = await openBlobStore();
   for (const id of new Set(candidates)) if (!live.has(id)) await blobs.remove(id);
 }
@@ -474,4 +472,41 @@ export function goToTemporal(temporalId: string) {
   useTemporalUi.getState().setAccept("all");
   g.setSection("temporal");
   useTemporalUi.getState().open(temporalId);
+}
+
+// ───────────── Ilustraciones de «Encargo cumplido» ─────────────
+
+/**
+ * Añade una ilustración del jugador a un tipo de encargo (ventana de personalización). La
+ * imagen se prepara como la de un personaje del menú (sin perder la transparencia), va al
+ * almacén de binarios y el evento lleva su referencia y una miniatura (se sincroniza).
+ */
+export async function addTemporalArt(kind: TemporalKind, file: File): Promise<string | undefined> {
+  const { dispatch, say } = useGame.getState();
+  let images;
+  try {
+    images = await prepareCharacter(file);
+  } catch {
+    sfx.cancel();
+    say(() => i18n.t("temporal.toast.artBad"));
+    return undefined;
+  }
+  const blobId = await (await openBlobStore()).put(images.art);
+  const name = nameFromFile(file.name).slice(0, ART_LIMITS.name) || i18n.t("temporal.art.unnamed");
+  const art: TemporalArt = { id: uid(), kind, name, blobId, mime: images.art.type, size: images.art.size, thumb: images.thumb, createdAt: Date.now() };
+  await dispatch({ type: "temporal_art_added", art });
+  sfx.tick();
+  say(() => i18n.t("temporal.toast.artAdded", { name, kind: i18n.t(`temporal.kinds.${kind}`) }));
+  return art.id;
+}
+
+/** Quita una ilustración del jugador (las de serie están en public/temporal/). Borra su imagen si nadie más la usa. */
+export async function removeTemporalArt(id: string) {
+  const { state, dispatch, say } = useGame.getState();
+  const cur = state.temporalArts.get(id);
+  if (!cur) return;
+  sfx.cancel();
+  await dispatch({ type: "temporal_art_removed", artId: id });
+  await collect([cur.blobId]);
+  say(() => i18n.t("temporal.toast.artRemoved", { name: cur.name }));
 }

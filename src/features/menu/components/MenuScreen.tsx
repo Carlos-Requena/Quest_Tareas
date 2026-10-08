@@ -15,7 +15,8 @@ import { MenuTiles } from "./MenuTiles";
 import { MenuSettings } from "./MenuSettings";
 import { MenuBack, MenuCurrency, MenuPlayer, MenuVoice, WeeklyNews } from "./MenuPanels";
 import { Sigil } from "./MenuIcons";
-import { CharacterImage, MenuCast, characterName, useCast } from "./MenuCast";
+import { LivingCharacter, useCharacterStyle } from "../../living";
+import { MenuCast, characterName, useCast } from "./MenuCast";
 import "../menu.css";
 
 // ───────────── Barrido ─────────────
@@ -108,6 +109,9 @@ function Screen() {
   const still = calm();
   const cast = useCast();
   const hero = cast.current;
+  const style = useCharacterStyle(hero?.id);
+  // Con la entrada «gacha» el personaje no se desliza: se revela en su sitio (features/living).
+  const slide = !still && style.entrance === "slide";
 
   useEffect(() => {
     root.current?.focus({ preventScroll: true });
@@ -165,21 +169,19 @@ function Screen() {
           </span>
         </div>
 
-        {/* El personaje de hoy: el paralaje en .mn-hero, la entrada (y el cambio) en .mn-hero-in y la respiración en .mn-breathe. */}
+        {/* El personaje de hoy: el paralaje en .mn-hero, la entrada (y el cambio) en .mn-hero-in y, dentro, el personaje vivo (features/living). */}
         <div className="mn-hero" aria-hidden>
           <AnimatePresence mode="popLayout">
             {hero && (
               <motion.div
                 key={hero.id}
                 className="mn-hero-in"
-                initial={still ? { opacity: 0 } : { opacity: 0, x: -80 }}
+                initial={slide ? { opacity: 0, x: -80 } : { opacity: 0 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={still ? { opacity: 0 } : { opacity: 0, x: 60, transition: { duration: 0.25 } }}
-                transition={{ delay: still ? 0 : 0.12, duration: still ? 0.2 : 0.75, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ delay: slide ? 0.12 : 0, duration: slide ? 0.75 : 0.2, ease: [0.16, 1, 0.3, 1] }}
               >
-                <div className="mn-breathe">
-                  <CharacterImage c={hero} className="mn-char" />
-                </div>
+                <LivingCharacter c={hero} style={style} entrance={0} delay={0.3} className="mn-char" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -193,7 +195,7 @@ function Screen() {
           </div>
           <div className="mn-left">
             <MenuPlayer />
-            <MenuVoice speaker={characterName(hero, t)} />
+            <MenuVoice speaker={characterName(hero, t)} characterId={hero?.id} />
             <WeeklyNews />
           </div>
           <MenuTiles />

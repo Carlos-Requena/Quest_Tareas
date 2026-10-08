@@ -1608,19 +1608,16 @@
   opacity: 0;
   pointer-events: none;
 }
-/* Ilustración del tipo de encargo (public/temporal/<tipo>/), impresa en tinta sepia como la
-   silueta: el multiplicado deja ver el degradado del pergamino a través de ella y borra el
-   blanco. Los pies y el lado del texto se funden con el papel, para que la recompensa se lea
-   aunque la ilustración sea ancha. GSAP controla la opacidad del marco. */
-.tco-art {
-  top: 7%;
-  bottom: 3%;
-  right: 3%;
-  width: 40%;
-  height: auto;
+/* Ilustración del tipo de encargo (IllustrationArt), impresa en tinta sepia como la silueta:
+   el multiplicado deja ver el degradado del pergamino a través de ella y borra el blanco. Los
+   pies y el lado del texto se funden con el papel, para que la recompensa se lea aunque la
+   ilustración sea ancha. La misma en «Encargo cumplido» y en la vista previa de la ventana de
+   personalización (features/customize), que solo la colocan. */
+.t-art {
   mix-blend-mode: multiply;
+  pointer-events: none;
 }
-.tco-art img {
+.t-art img {
   display: block;
   width: 100%;
   height: 100%;
@@ -1634,6 +1631,14 @@
   mask-composite: intersect;
   -webkit-user-drag: none;
   user-select: none;
+}
+/* En «Encargo cumplido», a la derecha y a lo alto del pergamino. GSAP controla su opacidad. */
+.tco-art {
+  top: 7%;
+  bottom: 3%;
+  right: 3%;
+  width: 40%;
+  height: auto;
 }
 /* Silueta de calavera al fondo, como la del monstruo vencido en el vídeo. */
 .tco-shade {

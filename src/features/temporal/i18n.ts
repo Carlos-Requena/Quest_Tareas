@@ -180,6 +180,12 @@ export const temporalEs = {
     postponeBusy: "Antes termina o abandona «{{title}}», que está en curso",
     acceptFirst: "Antes acepta «{{title}}»",
     reserved: "«{{title}}» saldrá en el Quest Board al aceptar «{{temporal}}»",
+    artAdded: "Ilustración «{{name}}» añadida a {{kind}}",
+    artRemoved: "Ilustración «{{name}}» quitada",
+    artBad: "Esa imagen no se pudo leer",
+  },
+  art: {
+    unnamed: "Sin nombre",
   },
   reminder: {
     pending_one: "Para hoy: «{{title}}» (T para verlo)",
@@ -368,6 +374,12 @@ export const temporalJa: typeof temporalEs = {
     postponeBusy: "先に受注中の「{{title}}」を達成するか取りやめてください",
     acceptFirst: "先に「{{title}}」を受注してください",
     reserved: "「{{title}}」は「{{temporal}}」を受注すると掲示されます",
+    artAdded: "挿絵「{{name}}」を{{kind}}に追加しました",
+    artRemoved: "挿絵「{{name}}」を外しました",
+    artBad: "その画像は読み込めませんでした",
+  },
+  art: {
+    unnamed: "名無し",
   },
   reminder: {
     pending_one: "本日の依頼：「{{title}}」（T で確認）",

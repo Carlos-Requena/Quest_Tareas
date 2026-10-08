@@ -24,8 +24,29 @@ export const KIND_META: Record<TemporalKind, { tag: string; red: boolean }> = {
   gathering: { tag: "Gathering", red: false },
 };
 
+// ───────────── Ilustraciones de «Encargo cumplido» ─────────────
+// Las de serie son las imágenes de public/temporal/<tipo>/ (heroes.ts); las que añade el
+// jugador son eventos (temporal_art_added / temporal_art_removed), con la imagen en el
+// almacén de binarios, como los personajes del menú: se sincronizan.
+
+/** Una ilustración añadida por el jugador para un tipo de encargo. */
+export interface TemporalArt {
+  id: string;
+  kind: TemporalKind;
+  name: string;
+  /** Imagen grande en el almacén de binarios (src/storage/blobStore.ts). */
+  blobId: string;
+  mime: string;
+  size: number;
+  /** Miniatura (unos 160 px de alto) como data URL, mientras llega la imagen. */
+  thumb?: string;
+  createdAt: number;
+}
+
+export const ART_LIMITS = { name: 30 } as const;
+
 /**
- * Ilustraciones de «Encargo cumplido» por tipo, a partir de las rutas de public/temporal/
+ * Ilustraciones de serie por tipo, a partir de las rutas de public/temporal/
  * («hunt/kazuma.webp» → hunt). Lo que no está en la carpeta de un tipo se ignora.
  */
 export function heroesByKind(files: readonly string[]): Record<TemporalKind, string[]> {
@@ -38,10 +59,21 @@ export function heroesByKind(files: readonly string[]): Record<TemporalKind, str
   return out;
 }
 
-/** Una al azar de las de su tipo (`rnd` en [0, 1)); sin ninguna, `undefined`: se dibuja la silueta. */
-export function pickHero(heroes: Record<TemporalKind, readonly string[]>, kind: TemporalKind, rnd: number): string | undefined {
-  const list = heroes[kind] ?? [];
+/** Una al azar de las ilustraciones de un tipo (`rnd` en [0, 1)); sin ninguna, `undefined`: se dibuja la silueta. */
+export function pickHero<T>(list: readonly T[], rnd: number): T | undefined {
   return list.length ? list[Math.min(list.length - 1, Math.max(0, Math.floor(rnd * list.length)))] : undefined;
+}
+
+/** Las ilustraciones del jugador de un tipo, en el orden en que se añadieron. */
+export function artsOf(arts: Iterable<TemporalArt>, kind: TemporalKind): TemporalArt[] {
+  return [...arts].filter((a) => a.kind === kind).sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1));
+}
+
+/** Binarios que usan las ilustraciones (para no borrarlos al limpiar el almacén ni dejar de subirlos). */
+export function artBlobIds(arts: Iterable<TemporalArt>): Set<string> {
+  const ids = new Set<string>();
+  for (const a of arts) if (a.blobId) ids.add(a.blobId);
+  return ids;
 }
 
 // ───────────── Dificultad y recompensa ─────────────
@@ -291,9 +323,13 @@ export interface TemporalAcc {
   board: Map<string, TemporalState>;
   /** Ids retirados: un `temporal_created` repetido no los resucita. */
   deleted: Set<string>;
+  /** Ilustraciones de «Encargo cumplido» añadidas por el jugador. */
+  arts: Map<string, TemporalArt>;
+  /** Ilustraciones quitadas: un `temporal_art_added` repetido no las resucita. */
+  artsDeleted: Set<string>;
 }
 
-export const newTemporalAcc = (): TemporalAcc => ({ board: new Map(), deleted: new Set() });
+export const newTemporalAcc = (): TemporalAcc => ({ board: new Map(), deleted: new Set(), arts: new Map(), artsDeleted: new Set() });
 
 /** Datos tolerantes: lo que venga mal formado se corrige al leer, sin reescribir el evento. */
 function normalize<T extends Omit<TemporalDef, "planned">>(def: T): T {
@@ -411,6 +447,18 @@ export function applyTemporalEvent(acc: TemporalAcc, e: TemporalEventBody, ts: n
     }
     case "temporal_deleted":
       if (acc.board.delete(e.temporalId)) acc.deleted.add(e.temporalId);
+      return;
+
+    case "temporal_art_added": {
+      const a = e.art;
+      if (!a || typeof a.id !== "string" || !a.id || !TEMPORAL_KINDS.includes(a.kind) || typeof a.blobId !== "string" || !a.blobId) return;
+      if (acc.arts.has(a.id) || acc.artsDeleted.has(a.id)) return;
+      const name = typeof a.name === "string" ? a.name.trim().slice(0, ART_LIMITS.name) : "";
+      acc.arts.set(a.id, { ...a, name: name || "?", createdAt: Number(a.createdAt) || 0 });
+      return;
+    }
+    case "temporal_art_removed":
+      if (acc.arts.delete(e.artId)) acc.artsDeleted.add(e.artId);
       return;
   }
 }

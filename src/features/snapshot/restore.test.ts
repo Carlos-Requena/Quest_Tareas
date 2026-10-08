@@ -30,7 +30,7 @@ function memoryStore(events: GameEvent[]) {
   return { store, calls };
 }
 
-const ev = randomStream("restore", 250);
+const ev = randomStream("restore-1", 250);
 const stateOf = (acc: Parameters<typeof finishProjection>[0]) => canonical(finishProjection(acc));
 const full = canonical(project(ev));
 

@@ -338,7 +338,7 @@ interface BlobStore {
 - **Direccionado por contenido**: la clave es el SHA-256 del archivo. El mismo archivo tiene el mismo id en todos los equipos y guardarlo dos veces no ocupa el doble.
 - **Tauri**: tabla `blobs` en el mismo `quests.db` (`id`, `mime`, `size`, `data` en base64, `created`, `synced`), con la misma conexión que los eventos (`sqliteDb()`): sin plugins ni permisos nuevos. El puente JS↔Rust viaja en JSON, por eso el binario va en base64.
 - **Navegador**: IndexedDB (`quests.blobs`), que admite archivos grandes.
-- **Limpieza compartida**: antes de borrar un binario se comprueba que no lo use ningún encargo, pieza ni personaje (`liveBlobIds`, `gearBlobIds` y `characterBlobIds`).
+- **Limpieza compartida**: antes de borrar un binario se comprueba que no lo use ningún adjunto, ilustración, pieza ni personaje (`blobsInUse`, en `src/domain/blobs.ts`). La sincronización sube y baja ese mismo conjunto.
 
 ### Datos de ejemplo
 

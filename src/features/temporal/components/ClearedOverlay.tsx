@@ -11,6 +11,7 @@ import { tornEdge } from "../look";
 import { seededRandom } from "../../../lib/id";
 import { useTemporalUi, type TemporalClear } from "../ui";
 import { heroFor } from "../heroes";
+import { IllustrationArt } from "./IllustrationArt";
 import { Skull } from "./Skull";
 import { quote, titleSize } from "./PostedOverlay";
 import { KeyHint } from "../../mobile";
@@ -43,8 +44,9 @@ function Scene({ clear, t }: { clear: TemporalClear; t: TemporalState }) {
   const tl = useRef<gsap.core.Timeline>(undefined);
   const closing = useRef(false);
   const clip = useMemo(() => tornEdge(`${t.id}:clear`, 16, 46), [t.id]);
-  // Una al azar de public/temporal/<tipo>/, elegida una vez por escena.
-  const [art] = useState(() => heroFor(t.kind));
+  // Una al azar de las de su tipo (de serie y del jugador), elegida una vez por escena.
+  const arts = useGame((s) => s.state.temporalArts);
+  const [art] = useState(() => heroFor(t.kind, arts.values()));
   // Fila centrada entre el texto y la recompensa: «💀💀💀» → «💀 × 3 = …».
   const skulls = useMemo(() => {
     const rnd = seededRandom(`${t.id}:clear`);
@@ -232,7 +234,7 @@ function Scene({ clear, t }: { clear: TemporalClear; t: TemporalState }) {
           <div className="tco-paper" style={{ clipPath: clip }}>
             <div className="tco-rays" />
             <Skull className="tco-shade" />
-            {art ? <Art src={art} /> : <Hero />}
+            {art ? <IllustrationArt ill={art} className="tco-hero tco-art" /> : <Hero />}
             <div className="tpo-frame" />
             <div className="tco-head">
               <span className="tco-orn" />
@@ -289,15 +291,6 @@ function Scene({ clear, t }: { clear: TemporalClear; t: TemporalState }) {
       <p className="tco-hint">
         <KeyHint i18nKey="temporal.clear.hint" touch="continue" />
       </p>
-    </div>
-  );
-}
-
-/** Ilustración del tipo de encargo, impresa en tinta sepia sobre el pergamino como la silueta. */
-function Art({ src }: { src: string }) {
-  return (
-    <div className="tco-hero tco-art" aria-hidden>
-      <img src={src} alt="" draggable={false} decoding="async" />
     </div>
   );
 }

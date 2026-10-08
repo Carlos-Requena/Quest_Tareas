@@ -5,10 +5,11 @@
 import { EVENT_VERSION, type EventBody, type GameEvent } from "../domain/events";
 import type { QuestDef } from "../domain/types";
 import { RARITIES, type ItemDef } from "../features/items/model";
-import { TEMPORAL_KINDS, type TemporalDef } from "../features/temporal/model";
+import { TEMPORAL_KINDS, type TemporalArt, type TemporalDef } from "../features/temporal/model";
 import { GEAR_SLOTS, type GearDef } from "../features/merchant/model";
 import type { AgendaDef } from "../features/agenda/model";
-import type { CharacterDef } from "../features/menu/model";
+import type { CharacterDef, VoiceLine } from "../features/menu/model";
+import type { CompanionLine } from "../features/companion/model";
 import { seededRandom } from "../lib/id";
 
 export const T0 = Date.UTC(2026, 0, 1);
@@ -58,6 +59,18 @@ export function temporalDef(id: string, extra: Partial<TemporalDef> = {}): Tempo
 
 export function characterDef(id: string, extra: Partial<CharacterDef> = {}): CharacterDef {
   return { id, name: `Personaje ${id}`, art: { blobId: `blob-${id}`, mime: "image/webp", size: 1000 }, createdAt: T0, ...extra };
+}
+
+export function voiceLine(id: string, extra: Partial<VoiceLine> = {}): VoiceLine {
+  return { id, characterId: "builtin:kazuma", part: "morning", text: `Frase ${id}`, createdAt: T0, ...extra };
+}
+
+export function companionLine(id: string, extra: Partial<CompanionLine> = {}): CompanionLine {
+  return { id, characterId: "builtin:kazuma", situation: "due", text: `Frase ${id}`, createdAt: T0, ...extra };
+}
+
+export function temporalArt(id: string, extra: Partial<TemporalArt> = {}): TemporalArt {
+  return { id, kind: "hunt", name: `Ilustración ${id}`, blobId: `art-${id}`, mime: "image/webp", size: 1000, createdAt: T0, ...extra };
 }
 
 export function agendaDef(id: string, extra: Partial<AgendaDef> = {}): AgendaDef {
@@ -147,17 +160,64 @@ export function randomStream(seed: string, n: number): GameEvent[] {
     return { type: "event_undone", eventId: `${seed}-${String(Math.max(0, i - 1 - Math.floor(rnd() * 5))).padStart(5, "0")}` };
   };
 
-  // Personajes del menú (features/menu): repetidos, quitados, de serie (prohibido) y sin imagen.
+  // Personajes del menú (features/menu): repetidos, quitados, de serie (prohibido) y sin imagen;
+  // y sus frases: de personajes quitados, vacías, de una parte del día desconocida, editadas y quitadas.
   const C = ["c0", "c1", "builtin:kazuma"];
+  const VL = ["l0", "l1", "l2"];
   const characterBody = (): EventBody => {
     const c = pick(C);
-    if (rnd() < 0.65)
+    const r = rnd();
+    if (r < 0.35)
       return { type: "character_added", character: characterDef(c, rnd() < 0.15 ? { art: { blobId: "", mime: "image/webp", size: 0 } } : {}) };
-    return { type: "character_removed", characterId: c };
+    if (r < 0.5) return { type: "character_removed", characterId: c };
+    if (r < 0.75)
+      return {
+        type: "voice_line_added",
+        line: voiceLine(pick(VL), { characterId: c, part: pick(["morning", "afternoon", "evening", "night", "noon"] as never[]), text: pick(["Hola", "  ", "Buenas\nnoches"]) }),
+      };
+    if (r < 0.88) return { type: "voice_line_updated", lineId: pick(VL), text: pick(["Otra", ""]) };
+    return { type: "voice_line_removed", lineId: pick(VL) };
   };
 
+  // Cómo se mueve cada personaje (features/living): parches válidos, mezclados con campos
+  // desconocidos o fuera de rango, de personajes quitados o que no existen, y restablecer.
+  const styleBody = (): EventBody => {
+    const c = pick([...C, "nadie"]);
+    if (rnd() < 0.2) return { type: "character_style_reset", characterId: c };
+    return {
+      type: "character_style_set",
+      characterId: c,
+      style: pick([{ breath: 3 }, { wind: 0, aura: "jade" }, { particles: "petals", entrance: "gacha" }, { breath: 7, aura: "rosa" }, { fade: true, shine: false }, {}] as never[]),
+    };
+  };
+
+  // El compañero de «Mi día» (features/companion): elegir (también a uno quitado o que no
+  // existe) y volver al de hoy; frases de situaciones desconocidas, vacías, editadas y quitadas.
+  const CL = ["k0", "k1", "k2"];
+  const companionBody = (): EventBody => {
+    const r = rnd();
+    if (r < 0.25) return { type: "companion_chosen", ...(rnd() < 0.7 ? { characterId: pick([...C, "nadie"]) } : {}) };
+    if (r < 0.65)
+      return {
+        type: "companion_line_added",
+        line: companionLine(pick(CL), { characterId: pick(C), situation: pick(["tonight", "streak", "due", "clear", "boss"] as never[]), text: pick(["Vamos", " ", "Hoy\ntoca {{title}}"]) }),
+      };
+    if (r < 0.85) return { type: "companion_line_updated", lineId: pick(CL), text: pick(["Otra", ""]) };
+    return { type: "companion_line_removed", lineId: pick(CL) };
+  };
+
+  // Ilustraciones de «Encargo cumplido» (features/temporal): repetidas, quitadas, sin imagen y de un tipo desconocido.
+  const ARTS = ["a0", "a1"];
+  const artBody = (): EventBody =>
+    rnd() < 0.6
+      ? { type: "temporal_art_added", art: temporalArt(pick(ARTS), { kind: pick([...TEMPORAL_KINDS, "boss"] as never[]), ...(rnd() < 0.15 ? { blobId: "" } : {}) }) }
+      : { type: "temporal_art_removed", artId: pick(ARTS) };
+
   const body = (i: number): EventBody => {
-    if (rnd() < 0.03) return characterBody();
+    if (rnd() < 0.05) return characterBody();
+    if (rnd() < 0.03) return styleBody();
+    if (rnd() < 0.03) return companionBody();
+    if (rnd() < 0.02) return artBody();
     if (rnd() < 0.12) return gearBody();
     if (rnd() < 0.06) return agendaBody();
     if (rnd() < 0.06) return laterBody(i);

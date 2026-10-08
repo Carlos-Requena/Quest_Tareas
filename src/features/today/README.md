@@ -33,6 +33,7 @@ La primera vista del [calendario](../calendar/README.md) (**Mi día** · Semana 
 | **Próximos días** | Mañana y los dos siguientes: cuántos encargos, quests y bloques | Pulsar uno abre su día por horas |
 | **Hecho hoy** | Quests y encargos de hoy en la crónica, con su XP y oro (y lo perdido) | Cerrar el día |
 
+- **Arriba, el compañero** ([companion](../companion/README.md)): un personaje que comenta la situación del día con las mismas reglas de estos bloques.
 - Las quests de un encargo sin aceptar (en reserva) no salen. Una quest sale en un solo bloque (las de racha en peligro no se repiten en «Toca hoy»). Sin nada, «Día libre».
 - Se calcula de las quests, los encargos, la agenda y la crónica con la hora (`now`), sin estado propio: la vista elegida la recuerda el calendario (`quests.calendarView`).
 
@@ -67,8 +68,9 @@ No tiene eventos.
 - **features/temporal** (`model.ts`, `actions.ts`, `Skull`): los encargos de hoy y abrir su cartel.
 - **features/agenda** (`model.ts`): los bloques de hoy.
 - **features/streaks**, **features/complex**, **features/failure**, **features/chronicle** (sus `model.ts`): rachas en peligro, lo que toca hoy, lo que falla esta noche y lo hecho hoy.
+- **features/companion** (`index`: `CompanionBox`): el compañero de arriba. Para cambiar lo que dice, lee su README.
 - Para cambiar la vista no hace falta leer esos README, salvo que cambie la regla de un bloque.
-- **La usan:** `calendar` (la vista).
+- **La usan:** `calendar` (la vista) y `companion` (el tipo `TodayPlan`, para la situación del día).
 
 ## Estado actual
 

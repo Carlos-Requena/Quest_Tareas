@@ -3,9 +3,9 @@ funcionalidad: temporal
 titulo: Encargos temporales
 resumen: Tablón aparte de carteles con fecha (citas, entregas), calaveras según la dificultad, adjuntos, quests enlazadas y aceptados o sin aceptar.
 tipo: dominio
-eventos: [temporal_created, temporal_updated, temporal_attached, temporal_detached, temporal_linked, temporal_unlinked, temporal_accepted, temporal_postponed, temporal_completed, temporal_deleted]
+eventos: [temporal_created, temporal_updated, temporal_attached, temporal_detached, temporal_linked, temporal_unlinked, temporal_accepted, temporal_postponed, temporal_completed, temporal_deleted, temporal_art_added, temporal_art_removed]
 preferencias: [quests.temporalAccept]
-adr: [ADR-11, ADR-12, ADR-14, ADR-38]
+adr: [ADR-11, ADR-12, ADR-14, ADR-38, ADR-51]
 ---
 
 # Encargos temporales
@@ -29,7 +29,8 @@ Es lo que se planifica a largo plazo: un encargo se clava **sin aceptar** (sus q
 | R9 | Distinguir los encargos comenzados de los no aceptados, sin que sus quests aparezcan todavía | `TemporalState.acceptedAt`, `temporal_accepted` / `temporal_postponed`, `TemporalDef.planned`; `QuestState.reserved` |
 | R10 | Un sello de «aceptado» y elegir ver todos, aceptados o sin aceptar | Sello «ACCEPTED» de tinta azul; `AcceptFilter` con su número, que cada equipo recuerda |
 | R11 | La app abre en las quests y se pueden crear quests sueltas | La app arranca en el Quest Board; las quests sueltas no tienen encargo |
-| R12 | Al cumplirlo, una ilustración según el tipo de encargo, elegida al azar, impresa como la silueta del aventurero | Una carpeta por tipo en `public/temporal/<tipo>/`; `heroFor` elige una al azar y `ClearedOverlay` la imprime en sepia sobre el pergamino |
+| R12 | Al cumplirlo, una ilustración según el tipo de encargo, elegida al azar, impresa como la silueta del aventurero | Una carpeta por tipo en `public/temporal/<tipo>/` y las que añada el jugador; `heroFor` elige una al azar y `IllustrationArt` la imprime en sepia sobre el pergamino |
+| R13 | Añadir ilustraciones desde la app | Pestaña Bounties de la [personalización](../customize/README.md): `temporal_art_added` / `temporal_art_removed`, con la imagen en el almacén de binarios |
 
 ## Reglas y decisiones
 
@@ -57,7 +58,7 @@ La recompensa **no se escribe a mano**: es una base por calaveras más un bono s
 
 ### Ilustraciones al cumplir
 
-Al cumplir un encargo, la escena de «Encargo cumplido» enseña una **ilustración de su tipo**, elegida **al azar** entre las de su carpeta, en lugar de la silueta del aventurero. Son archivos de serie, como los personajes del [menú](../menu/README.md): no son eventos ni se sincronizan.
+Al cumplir un encargo, la escena de «Encargo cumplido» enseña una **ilustración de su tipo**, elegida **al azar** entre las de serie y las que ha añadido el jugador, en lugar de la silueta del aventurero. Como los personajes del [menú](../menu/README.md), las de serie son archivos de `public/` y las del jugador, eventos.
 
 | Tipo | Carpeta | De serie |
 |---|---|---|
@@ -67,10 +68,11 @@ Al cumplir un encargo, la escena de «Encargo cumplido» enseña una **ilustraci
 | Expedición | `public/temporal/scout/` | — |
 | Reunión | `public/temporal/gathering/` | — |
 
-- **Para añadir una**, basta con dejar el archivo (`.webp` o `.png`, mejor con fondo transparente y de cuerpo entero) en la carpeta de su tipo. Como `import.meta.glob` no ve `public/`, el plugin `temporalHeroes` de `vite.config.ts` lista las carpetas como el módulo virtual `virtual:temporal-heroes`; con `pnpm dev`, añadir o quitar un archivo recarga la app. Lo que no está en la carpeta de un tipo se ignora.
-- **Sin ninguna en su carpeta**, sale la silueta del aventurero de siempre.
+- **De serie:** basta con dejar el archivo (`.webp` o `.png`, mejor con fondo transparente y de cuerpo entero) en la carpeta de su tipo. Como `import.meta.glob` no ve `public/`, el plugin `temporalHeroes` de `vite.config.ts` lista las carpetas como el módulo virtual `virtual:temporal-heroes`; con `pnpm dev`, añadir o quitar un archivo recarga la app. Lo que no está en la carpeta de un tipo se ignora. No se quitan desde la app.
+- **Del jugador** (`TemporalArt`): se añaden y se quitan en la pestaña Bounties de la [personalización](../customize/README.md) (`addTemporalArt`, `removeTemporalArt`). La imagen se prepara como la de un personaje del menú (WebP, PNG o AVIF de hasta 5 MB tal cual; mayor, reducida a 1.800 px sin perder la transparencia) y va al almacén de binarios; el evento lleva su referencia y una miniatura de 160 px, que se pinta mientras llega la imagen. Quitarla borra la imagen si nadie más la usa y no se deshace. Llegan a todos los equipos.
+- **Sin ninguna de su tipo**, sale la silueta del aventurero de siempre.
 - **Se elige una vez por escena** (`useState`), con `Math.random`: es interfaz, no dominio, y no se guarda cuál salió.
-- **Impresa como la silueta:** en sepia (`grayscale` + `sepia`), con opacidad 0,55 y **multiplicada** sobre el pergamino, de modo que el degradado del papel se ve a través de ella y el blanco desaparece. Los pies y el lado del texto se funden con el papel (dos máscaras de degradado), para que la recompensa se lea aunque la ilustración sea ancha. Va a la derecha, a lo alto del pergamino (un 40 % del ancho).
+- **Impresa como la silueta** (`IllustrationArt`, clase `.t-art`): en sepia (`grayscale` + `sepia`), con opacidad 0,55 y **multiplicada** sobre el pergamino, de modo que el degradado del papel se ve a través de ella y el blanco desaparece. Los pies y el lado del texto se funden con el papel (dos máscaras de degradado), para que la recompensa se lea aunque la ilustración sea ancha. En la escena va a la derecha, a lo alto del pergamino (un 40 % del ancho); la vista previa de la personalización usa el mismo componente.
 
 ### El tiempo se calcula, no se guarda
 
@@ -91,7 +93,7 @@ El evento lleva una referencia (`AttachmentRef`: nombre, tipo, tamaño, una mini
 - **Tauri:** tabla `blobs` en el mismo `quests.db`, con la misma conexión que los eventos (`sqliteDb()`). **Navegador:** IndexedDB (`quests.blobs`).
 - **Límites:** PDF e imágenes (PNG, JPEG, WebP, GIF, SVG, AVIF, BMP), hasta **20 MB** por archivo y **8** por encargo. Las imágenes de más de 2.400 px se reducen (WebP, o JPEG si el WebView no codifica WebP).
 - **Miniatura en el evento**: el cartel pinta el «boceto» sin abrir el almacén, en sepia y a lápiz.
-- **Limpieza:** al quitar un adjunto o retirar un encargo, se borran los binarios que no usa nadie (`liveBlobIds`, `gearBlobIds` y `characterBlobIds`). Los de un encargo retirado se borran **pasada la ventana de deshacer** ([undo](../undo/README.md)).
+- **Limpieza:** al quitar un adjunto o retirar un encargo, se borran los binarios que no usa nadie (`blobsInUse`, en `src/domain/blobs.ts`). Los de un encargo retirado se borran **pasada la ventana de deshacer** ([undo](../undo/README.md)).
 - **Visor:** imágenes a pantalla completa (clic para tamaño real); PDF con el visor del WebView en un `iframe` (`blob:`). Botón de descarga.
 - La [sincronización](../sync/README.md) sube y baja los binarios en uso.
 
@@ -183,12 +185,22 @@ classDiagram
         thumb?: data URL 320 px
         addedAt: number
     }
+    class TemporalArt {
+        id: string
+        kind: TemporalKind
+        name: string
+        blobId: SHA-256
+        mime: string
+        size: number
+        thumb?: data URL 160 px
+        createdAt: number
+    }
     TemporalState --|> TemporalDef
     TemporalDef *-- AttachmentRef : 0..8
     TemporalDef o-- QuestState : questIds 0..12
 ```
 
-`GameState.temporals` es un `Map<id, TemporalState>`. `QuestState` lleva `lastCompletedAt`, `temporalId` y `reserved` (los dos últimos, calculados). Los contactos son de [contacts](../contacts/README.md).
+`GameState.temporals` es un `Map<id, TemporalState>` y `GameState.temporalArts`, un `Map<id, TemporalArt>` (las ilustraciones del jugador; `TemporalAcc` las guarda en `arts` y las quitadas en `artsDeleted`). `QuestState` lleva `lastCompletedAt`, `temporalId` y `reserved` (los dos últimos, calculados). Los contactos son de [contacts](../contacts/README.md).
 
 ## Eventos
 
@@ -204,6 +216,8 @@ classDiagram
 | `temporal_postponed` | `temporalId` | Quita `acceptedAt`: sus quests que no estén en curso vuelven a la reserva | Pendiente y aceptado |
 | `temporal_completed` | `temporalId`, `reward` (copia) | `done`, `completedAt`, `earned`; suma XP y oro | Pendiente, aceptado y con todas sus quests enlazadas terminadas (si dos equipos lo cumplen, cuenta el primero) |
 | `temporal_deleted` | `temporalId` | Lo quita; el id queda retirado | Si existe |
+| `temporal_art_added` | `art: TemporalArt` | Añade la ilustración a `GameState.temporalArts` (nombre recortado; vacío, «?») | Se ignora si el id existe o se quitó, el tipo no existe o no trae `blobId` |
+| `temporal_art_removed` | `artId` | La quita; el id queda retirado | Si existe |
 
 - `quest_accepted` se ignora si la quest está en reserva (`inReserve`).
 - Crear un encargo con quests nuevas emite un `quest_created` por cada quest y después `temporal_created` con todos los `questIds`. Al editarlo: `temporal_unlinked` por cada quitada, `quest_created` por cada nueva y `temporal_linked` por cada nueva o elegida.
@@ -286,11 +300,11 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 
 | Archivo | Contenido |
 |---|---|
-| `model.ts` | Tipos, ilustraciones por tipo (`heroesByKind`, `pickHero`), urgencia, orden, recompensas, recordatorios, aceptación (`isAccepted`, `matchesAccept`, `countAccept`, `inReserve`), quests enlazadas (`linkedQuestDone`, `pendingLinks`, `questOwners`, `linkCandidates`), quemados (`finishedAt`, `isBurned`), `liveBlobIds` y el acumulador (`applyTemporalEvent`). Puro |
+| `model.ts` | Tipos, ilustraciones (`TemporalArt`, `heroesByKind`, `pickHero`, `artsOf`, `artBlobIds`), urgencia, orden, recompensas, recordatorios, aceptación (`isAccepted`, `matchesAccept`, `countAccept`, `inReserve`), quests enlazadas (`linkedQuestDone`, `pendingLinks`, `questOwners`, `linkCandidates`), quemados (`finishedAt`, `isBurned`), `liveBlobIds` y el acumulador (`applyTemporalEvent`). Puro |
 | `links.ts` | Estado de cada quest enlazada para la interfaz. Usa la proyección (`effectiveStatus`), por eso no va en `model.ts` |
 | `events.ts` | `TemporalEventBody` |
 | `look.ts` | Aspecto estable de cada cartel: forma, inclinación, bordes y calaveras. Puro |
-| `heroes.ts` | Las ilustraciones de «Encargo cumplido» (`virtual:temporal-heroes`) y `heroFor`, que elige una al azar |
+| `heroes.ts` | Las ilustraciones de «Encargo cumplido»: las de serie (`virtual:temporal-heroes`) y las del jugador en una lista (`illustrationsOf`), y `heroFor`, que elige una al azar |
 | `actions.ts` | Crear (con sus quests), editar, adjuntar, quitar, aceptar, aplazar, cumplir y retirar; `copyDraft` (volver a clavar); borrado de binarios huérfanos; `goToQuest` / `goToTemporal` |
 | `files.ts` | Comprobación y preparación de archivos (reducción y miniatura con canvas) |
 | `format.ts` | Fechas y cuentas atrás en el idioma activo |
@@ -304,6 +318,7 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 | `components/AcceptFilter.tsx` | Filtro Todos · Aceptados · Sin aceptar |
 | `components/AttachmentViewer.tsx` | Visor de imágenes y PDF |
 | `components/PostedOverlay.tsx`, `ClearedOverlay.tsx` | Las dos animaciones grandes |
+| `components/IllustrationArt.tsx` | La ilustración impresa en sepia (la escena y la vista previa de la personalización) |
 | `components/TemporalWatcher.tsx`, `TemporalOverlays.tsx` | Recordatorios; monta ventanas, animaciones y recordatorios |
 | `temporal.css`, `i18n.ts` | Estilos (con su bloque de teléfono) y textos es + ja |
 | `model.test.ts` | Urgencias, guardas, aceptación, reserva, quests enlazadas, datos mal formados y antiguos, e ilustraciones por tipo |
@@ -318,22 +333,24 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 | Quests enlazadas: terminadas, dueño, pendientes y su estado en pantalla | [`linkedQuestDone`](model.ts), [`questOwners`](model.ts), [`pendingLinks`](model.ts); [`linkState`](links.ts) |
 | Crear y editar con sus quests | [`createTemporal`](actions.ts), [`updateTemporal`](actions.ts) y [`createDraftQuests`](actions.ts) |
 | Cumplir (con sus comprobaciones y avisos) | [`completeTemporal`](actions.ts) |
-| Binarios en uso (antes de borrar un adjunto) | [`liveBlobIds`](model.ts) |
+| Binarios en uso (antes de borrar un adjunto) | [`liveBlobIds`](model.ts) y [`artBlobIds`](model.ts), que junta `blobsInUse` (`src/domain/blobs.ts`) |
 | Saltar de un tablón a otro | [`goToQuest`](actions.ts) y [`goToTemporal`](actions.ts) |
 | Volver a clavar un cartel quemado | [`copyDraft`](actions.ts) |
 | Aspecto estable de cada cartel (bordes, inclinación, calaveras) | [`posterLook`](look.ts), [`tornEdge`](look.ts) y [`skullSpots`](look.ts) |
 | El tablón y moverse por posición en pantalla | [`TemporalBoard`](components/TemporalBoard.tsx) y [`neighbour`](components/TemporalBoard.tsx) |
 | «Cartel clavado»: la escena y la caída en el tablón | [`PostedOverlay`](components/PostedOverlay.tsx) (etiqueta `"finale"` de la línea de tiempo) y `land` de [`useTemporalUi`](ui.ts) |
 | «Encargo cumplido»: la escena y el estado final al saltar | [`ClearedOverlay`](components/ClearedOverlay.tsx) y su `settle` |
-| Ilustración de «Encargo cumplido» según el tipo | [`heroFor`](heroes.ts), [`heroesByKind`](model.ts) y [`pickHero`](model.ts); el plugin [`temporalHeroes`](../../../vite.config.ts); su aspecto, `.tco-art` en [`temporal.css`](temporal.css) |
+| Ilustración de «Encargo cumplido» según el tipo | [`heroFor`](heroes.ts), [`illustrationsOf`](heroes.ts), [`heroesByKind`](model.ts) y [`pickHero`](model.ts); el plugin [`temporalHeroes`](../../../vite.config.ts); su aspecto, [`IllustrationArt`](components/IllustrationArt.tsx) (`.t-art` y `.tco-art` en `temporal.css`) |
+| Añadir y quitar ilustraciones del jugador | [`addTemporalArt`](actions.ts) y [`removeTemporalArt`](actions.ts); las guardas, en [`applyTemporalEvent`](model.ts) |
 
 ## Integración
 
 | Fuera de la carpeta | Cambio |
 |---|---|
-| `src/domain/types.ts` | `GameState.temporals`; `QuestState.lastCompletedAt`, `temporalId` y `reserved` |
+| `src/domain/types.ts` | `GameState.temporals` y `GameState.temporalArts`; `QuestState.lastCompletedAt`, `temporalId` y `reserved` |
 | `src/domain/events.ts` | `TemporalEventBody` en la unión |
-| `src/domain/projection.ts` | `applyTemporalEvent` con `linkDone`; XP y oro de `temporal_completed`; `temporalId` y `reserved` al final; guarda `inReserve` en `quest_accepted` |
+| `src/domain/projection.ts` | `applyTemporalEvent` con `linkDone` (también las ilustraciones); XP y oro de `temporal_completed`; `temporalId` y `reserved` al final; guarda `inReserve` en `quest_accepted`; `GameState.temporalArts` |
+| `src/domain/blobs.ts` | `liveBlobIds` y `artBlobIds` en los binarios en uso (`blobsInUse`) |
 | `src/storage/eventStore.ts` | Conexión SQLite compartida (`sqliteDb()`) e `isTauri` exportado |
 | `src/storage/blobStore.ts` | Almacén de binarios (SQLite `blobs` / IndexedDB) |
 | `src/store/game.ts` | `section` y `setSection` |
@@ -347,7 +364,7 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 | `src/lib/sfx.ts` | `hiss`, `stab`, `celesta`, `chime`, ataque en `tone` y los sonidos de la tabla |
 | `src/styles/theme.css` | Tokens `--skull*`, `--parchment*`, `--oak*`, `--copper`, `--ink*` (con `--ink-blue`) |
 | `src/i18n/locales/{es,ja}.ts` | Montan `temporal` |
-| `src/test/streams.ts` | `temporalDef` y los eventos de encargos en `randomStream` |
+| `src/test/streams.ts` | `temporalDef`, `temporalArt` y los eventos de encargos e ilustraciones en `randomStream` |
 | `vite.config.ts`, `src/vite-env.d.ts` | Plugin `temporalHeroes` (con `publicList`, que comparte con los personajes del menú) y el tipo de `virtual:temporal-heroes` |
 | `public/temporal/` | Las ilustraciones de «Encargo cumplido», una carpeta por tipo |
 
@@ -359,15 +376,16 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 - **features/horizon** (`HorizonFilter`, `ui.ts`): el filtro de plazos del tablón y su vuelta a «Todo».
 - **features/failure** (`actions.ts`, `ui.ts`): «Volver a clavar» un cartel quemado.
 - **features/undo** (`actions.ts`, `model.ts`): «Deshacer» y el borrado diferido de adjuntos.
-- **features/merchant**, **features/menu** (`model.ts`: `gearBlobIds`, `characterBlobIds`): no borrar binarios que usan otros.
+- **features/menu** (`image.ts`, `characters.ts`: `prepareCharacter`, `nameFromFile`, `prettyName`): preparar la imagen de una ilustración como la de un personaje y nombrar las de serie.
+- **features/equipment** (`useBlobUrl`): la imagen de una ilustración del jugador, del almacén de binarios.
 - **features/calendar** (`CalendarIcon`): el calendario en el selector de la cabecera.
 - **features/mobile** (`KeyHint`, `isPhone`): pistas y toques en el teléfono.
-- **features/chronicle**, **features/editing**, **features/equipment**, **features/search** (sus `ui.ts`): solo para que el teclado del tablón espere con sus ventanas abiertas.
-- **La usan:** `calendar`, `failure`, `horizon`, `menu`, `mobile`, `notifications`, `rewards`, `search`, `sync` y `today`.
+- **features/chronicle**, **features/editing**, **features/equipment**, **features/merchant**, **features/search** (sus `ui.ts`): solo para que el teclado del tablón espere con sus ventanas abiertas.
+- **La usan:** `calendar`, `customize`, `failure`, `horizon`, `menu`, `mobile`, `notifications`, `rewards`, `search`, `sync` y `today`.
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-08, ilustraciones al cumplir: tests y navegador a 1.024 px y 402 × 874 (Kazuma en una cacería, Subaru en una citación, la silueta en una entrega; añadir un archivo a una carpeta con `pnpm dev`). Aceptados y sin aceptar, el 2026-10-03: tests (con prueba de mutación) y navegador a 800 × 600 y 402 × 874. El tablón, los adjuntos, las animaciones y las quests enlazadas, el 2026-10-02 (dominio en tres zonas horarias, datos antiguos idénticos, sonido grabado con `OfflineAudioContext`).
+- **Última verificación:** 2026-10-08, ilustraciones al cumplir: tests y navegador a 1.024 px y 402 × 874 (Kazuma en una cacería, Subaru en una citación, la silueta en una entrega; añadir un archivo a una carpeta con `pnpm dev`; una ilustración añadida desde la personalización sale al azar con la de serie y, al quitarla, se borra su imagen). Aceptados y sin aceptar, el 2026-10-03: tests (con prueba de mutación) y navegador a 800 × 600 y 402 × 874. El tablón, los adjuntos, las animaciones y las quests enlazadas, el 2026-10-02 (dominio en tres zonas horarias, datos antiguos idénticos, sonido grabado con `OfflineAudioContext`).
 - **Tests:** `model.test.ts`, `src/domain/projection.test.ts` y `src/store/game.test.ts`.
 - **Sin verificar:** las ilustraciones en la app nativa (WKWebView: `mask-composite` y el multiplicado) y en Windows; la app nativa con la tabla `blobs` de SQLite y archivos grandes en base64; el visor de PDF dentro del WebView de Tauri (en Chromium sin interfaz sale en blanco); la descarga de adjuntos en Tauri; Windows; escuchar los sonidos de verdad; el rendimiento de los textos gigantes con filtros en el WKWebView.
 - **Historial:** [docs/history/verificacion/temporal.md](../../../docs/history/verificacion/temporal.md).

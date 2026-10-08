@@ -14,6 +14,7 @@ import { openCalendarItem, setCalendarView } from "../../calendar/actions";
 import { itemColor } from "../../calendar/components/CalendarChip";
 import { minuteOf, type CalendarItem } from "../../calendar/model";
 import { liveStreak } from "../../streaks/model";
+import { CompanionBox } from "../../companion";
 import { isQuietDay, todayPlan } from "../model";
 import "../today.css";
 
@@ -37,6 +38,7 @@ export function TodayView({ now }: { now: number }) {
   return (
     <div className="td">
       <div className="td-main">
+        <CompanionBox plan={plan} now={now} />
         {quiet && (
           <p className="td-quiet">
             <span className="gem" />

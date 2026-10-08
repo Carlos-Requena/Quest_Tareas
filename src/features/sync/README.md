@@ -130,7 +130,7 @@ No añade eventos. Viajan los que existen, con su `v` (los de una versión futur
 
 ## Dependencias
 
-- **features/temporal**, **features/merchant**, **features/menu** (`model.ts`: `liveBlobIds`, `gearBlobIds`, `characterBlobIds`): qué binarios están en uso para subirlos o bajarlos. No hace falta leer sus README.
+- **`src/domain/blobs.ts`** (`blobsInUse`): qué binarios están en uso (adjuntos e ilustraciones de los encargos, mercader y personajes) para subirlos o bajarlos.
 - **La usan:** `menu` (el control en los ajustes).
 
 ## Estado actual

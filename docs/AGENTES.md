@@ -96,7 +96,7 @@ components ──▶ store ──▶ domain ◀── storage
 |---|---|
 | Todo lo que es del juego y debe verse igual en todos los equipos: quests y su progreso, encargos, agenda, objetos, compras, equipo puesto, personajes añadidos, deshacer y fallos | **Preferencias de cada equipo** en `localStorage` (idioma, silencio, música, vista del calendario, avisos…: lista generada en [INDEX.md](INDEX.md#preferencias-por-equipo)). **Lo que se calcula** (rachas, atributos, crónica, plazos, escaparate, rotación de personajes). **Lo que está en el código o en `public/`** (piezas y personajes de serie). La tabla `meta` guarda el snapshot, el `deviceId` y los cursores de la sincronización; el token de Google va al llavero |
 
-**Norma, archivos:** en un evento solo va la referencia (nombre, tipo, tamaño, una miniatura pequeña y el `blobId`); el contenido va al almacén de binarios (`src/storage/blobStore.ts`) con su SHA-256 como clave. Nunca metas un archivo grande en un evento. El almacén lo comparten los encargos, el mercader y los personajes: **antes de borrar un binario, comprueba que no lo use ninguno** (`liveBlobIds`, `gearBlobIds` y `characterBlobIds`).
+**Norma, archivos:** en un evento solo va la referencia (nombre, tipo, tamaño, una miniatura pequeña y el `blobId`); el contenido va al almacén de binarios (`src/storage/blobStore.ts`) con su SHA-256 como clave. Nunca metas un archivo grande en un evento. El almacén lo comparten los adjuntos y las ilustraciones de los encargos, el mercader y los personajes: **antes de borrar un binario, comprueba que no lo use ninguno** (`blobsInUse`, en `src/domain/blobs.ts`; un dato nuevo con binarios se suma ahí).
 
 ### 5.4 Clases o funciones
 
@@ -178,7 +178,7 @@ src/features/<nombre>/
 
 - **Solo lo vigente.** Los documentos dicen cómo es la app hoy. Nada de «antes…», «hasta que exista…» ni cifras que caducan (número de tests, líneas): lo que pasó va a `docs/history/` y las cifras actuales salen de los comandos. `pnpm docs:check` rechaza fuera del historial las cifras de tests y de líneas de código, y en toda la documentación los comandos que borrarían datos del propietario.
 - **Al cambiar una funcionalidad**, actualiza su README (y su «Estado actual»); lo verificado se apunta arriba en `docs/history/verificacion/<nombre>.md`. **Una decisión de arquitectura** nueva es una ADR nueva. **Un evento nuevo** va en el `eventos:` del README y en `randomStream`. Después, `pnpm docs:index`.
-- **Norma: el diagrama de clases se redibuja siempre** que cambie un tipo de `domain/types.ts`, un `model.ts`, `GameState`, `PlayerState` o la unión de eventos, en la misma tarea. Una nota del tipo «el diagrama aún no incluye X» no vale. Procedimiento: [runbooks/redibujar-diagramas.md](runbooks/redibujar-diagramas.md).
+- **Norma: el diagrama de clases se redibuja siempre** que cambie un tipo de `domain/types.ts`, un `model.ts`, `GameState`, `PlayerState` o la unión de eventos, en la misma tarea. Su actualización está reservada al agente Copilot asignado: Claude no modifica el widget del diagrama ni `docs/img/diagrama-clases.png`. Claude debe entregar el inventario estructurado de cambios con estado `PENDIENTE`; una nota genérica del tipo «el diagrama aún no incluye X» no vale. Procedimiento y plantilla: [runbooks/redibujar-diagramas.md](runbooks/redibujar-diagramas.md).
 
 ---
 
@@ -207,6 +207,8 @@ La lista vigente está en [INFORME-TECNICO.md](INFORME-TECNICO.md#deuda-técnica
 - **Fallar tiene consecuencia, pero solo constancia**: sin coste, queda en la crónica y se vuelve a clavar ([failure](../src/features/failure/README.md)).
 - **Contactos escritos a mano**, no elegidos de la agenda del sistema ([contacts](../src/features/contacts/README.md)).
 - **Una interfaz que no abrume**: la cabecera, con lo del día a día; lo demás, en el menú de opciones, con un personaje que rota cada día ([menu](../src/features/menu/README.md)).
+- **Lo personalizable se añade desde una sola ventana** (Customize, en el menú): personajes (imagen, GIF o vídeo) con sus frases por hora, sin límite, cómo se mueven y lo que dicen como compañero en Mi día, e ilustraciones por tipo de encargo ([customize](../src/features/customize/README.md)).
+- **Personajes vivos sin inventar arte**: se animan con código sobre su propia imagen (malla de WebGL y efectos) o con el vídeo que sube el propietario ([living](../src/features/living/README.md)).
 - **El vídeo de Hu Tao es público** y va en el repositorio sin crédito ([merchant](../src/features/merchant/README.md)).
 
 ---

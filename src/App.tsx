@@ -35,6 +35,7 @@ import { QuickAddForm, QuickAddSheet, quickBusy, useQuickUi } from "./features/q
 import { SearchModal, openSearch, searchBusy } from "./features/search";
 import { NotificationScheduler } from "./features/notifications";
 import { MenuScreen, menuBusy, openMenu } from "./features/menu";
+import { CustomizeWindow, customizeBusy } from "./features/customize";
 
 const ORDER: Record<Category, number> = { elite: 0, repeat: 1, request: 2 };
 const COLS = 2;
@@ -98,7 +99,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const s = useGame.getState();
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
-      const busy = s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || editingBusy() || failureBusy() || searchBusy() || quickBusy() || menuBusy();
+      const busy = s.creating || s.clear || s.collection || temporalBusy() || merchantBusy() || characterBusy() || chronicleBusy() || calendarBusy() || editingBusy() || failureBusy() || searchBusy() || quickBusy() || menuBusy() || customizeBusy();
       // ⌘Z / Ctrl+Z: deshacer lo último (features/undo). ⌘K / Ctrl+K: buscar (features/search).
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !typing && !busy) {
         const key = e.key.toLowerCase();
@@ -248,6 +249,7 @@ export default function App() {
       <MerchantModal />
       <CharacterModal />
       <ChronicleModal />
+      <CustomizeWindow />
       <PomodoroWatcher />
       <SyncWatcher />
       <TemporalOverlays />

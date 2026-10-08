@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../../../store/game";
@@ -10,7 +10,7 @@ import { BagIcon, ItemArt, rarityStyle } from "../../items";
 import { LanternIcon, openMerchant } from "../../merchant";
 import { collectibleOffer } from "../../collectibles/model";
 import { closeMenu, openOver } from "../actions";
-import { daypart, daysUntil } from "../model";
+import { daypart, daysUntil, voiceLine } from "../model";
 import { BackIcon, ClockIcon, SwapIcon } from "./MenuIcons";
 import { useMenuUi } from "../ui";
 
@@ -112,12 +112,18 @@ export function MenuPlayer() {
 
 /**
  * Lo que dice el personaje de hoy, según la hora: se escribe de izquierda a derecha al abrir
- * el menú. Junto a su nombre, el botón para cambiar de personaje (MenuCast).
+ * el menú: una de las frases que le ha escrito el jugador (features/customize) o la de serie.
+ * Junto a su nombre, el botón para cambiar de personaje (MenuCast).
  */
-export function MenuVoice({ speaker }: { speaker: string }) {
+export function MenuVoice({ speaker, characterId }: { speaker: string; characterId?: string }) {
   const now = useNow(60_000);
   const { t } = useTranslation();
   const part = daypart(new Date(now).getHours());
+  // Una de las frases que el jugador le ha escrito para esta hora (al azar cada vez que se
+  // abre el menú); sin ninguna, la de serie.
+  const lines = useGame((s) => s.state.voiceLines);
+  const [seed] = useState(Math.random);
+  const text = (characterId && voiceLine(lines.values(), characterId, part, seed)) || t(`menu.voice.${part}`);
   return (
     <motion.div className="mn-voice" {...enter(0.3)}>
       <span className="mn-voice-who">
@@ -137,12 +143,12 @@ export function MenuVoice({ speaker }: { speaker: string }) {
         </button>
       </span>
       <motion.p
-        key={`${part}-${speaker}`}
+        key={`${part}-${speaker}-${text}`}
         initial={{ clipPath: "inset(0 100% 0 0)" }}
         animate={{ clipPath: "inset(0 0% 0 0)" }}
         transition={{ delay: 0.55, duration: 1.1, ease: "linear" }}
       >
-        {t(`menu.voice.${part}`)}
+        {text}
       </motion.p>
     </motion.div>
   );

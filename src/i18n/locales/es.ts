@@ -28,6 +28,9 @@ import { quickaddEs } from "../../features/quickadd/i18n";
 import { searchEs } from "../../features/search/i18n";
 import { notificationsEs } from "../../features/notifications/i18n";
 import { menuEs } from "../../features/menu/i18n";
+import { customizeEs } from "../../features/customize/i18n";
+import { companionEs } from "../../features/companion/i18n";
+import { livingEs } from "../../features/living/i18n";
 
 export const es = {
   app: {
@@ -178,6 +181,9 @@ export const es = {
   search: searchEs,
   notifications: notificationsEs,
   menu: menuEs,
+  customize: customizeEs,
+  companion: companionEs,
+  living: livingEs,
   // Quests de ejemplo que se crean en el primer arranque, en el idioma activo.
   seed: {
     dragon: {

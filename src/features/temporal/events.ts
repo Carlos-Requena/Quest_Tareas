@@ -2,7 +2,7 @@
 // Los adjuntos y las quests enlazadas tienen sus propios eventos (deltas): si dos
 // dispositivos adjuntan archivos o enlazan quests a la vez, se suman en vez de pisarse.
 
-import type { AttachmentRef, TemporalDef, TemporalPatch, TemporalReward } from "./model";
+import type { AttachmentRef, TemporalArt, TemporalDef, TemporalPatch, TemporalReward } from "./model";
 
 export type TemporalEventBody =
   | { type: "temporal_created"; temporal: TemporalDef }
@@ -21,4 +21,7 @@ export type TemporalEventBody =
       /** Copia de la recompensa: editar el encargo después no cambia lo ganado. */
       reward: TemporalReward;
     }
-  | { type: "temporal_deleted"; temporalId: string };
+  | { type: "temporal_deleted"; temporalId: string }
+  // Ilustraciones de «Encargo cumplido» que añade el jugador (la imagen, en el almacén de binarios).
+  | { type: "temporal_art_added"; art: TemporalArt }
+  | { type: "temporal_art_removed"; artId: string };

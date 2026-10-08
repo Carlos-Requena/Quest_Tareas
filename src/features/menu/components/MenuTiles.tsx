@@ -13,6 +13,8 @@ import { DiaryIcon, openChronicle } from "../../chronicle";
 import { Skull, needsAttention } from "../../temporal";
 import { CalendarIcon } from "../../calendar";
 import { SearchIcon } from "../../search";
+import { openCustomize } from "../../customize/ui";
+import { BrushIcon } from "../../customize/components/CustomizeIcons";
 import { goTo, openOver, searchFromMenu } from "../actions";
 import { activeQuests, daysUntil } from "../model";
 import { AlmanacIcon, ClockIcon } from "./MenuIcons";
@@ -22,15 +24,21 @@ const HUTAO = `${import.meta.env.BASE_URL}merchant/hutao.webp`;
 /**
  * Celda de la rejilla en perspectiva: entra desde la derecha girando hacia el sitio, una tras
  * otra, detrás del barrido. Con «reducir movimiento», solo aparece.
+ *
+ * La opacidad se resuelve en una décima de segundo, al principio del giro: mientras es menor
+ * que 1, el navegador aplana el 3D de la celda y el logo y el rótulo se pintan pegados al
+ * fondo (más pequeños). Si durase todo el muelle, al llegar a 1 saltarían hacia delante
+ * (`translateZ`) y se verían crecer de golpe.
  */
 function Cell({ name, i, children }: { name: string; i: number; children: ReactNode }) {
   const still = calm();
+  const delay = 0.14 + i * 0.05;
   return (
     <motion.div
       className={`mn-cell is-${name}`}
       initial={still ? { opacity: 0 } : { opacity: 0, x: 110, rotateY: -32 }}
       animate={still ? { opacity: 1 } : { opacity: 1, x: 0, rotateY: 0 }}
-      transition={still ? { duration: 0.2 } : { type: "spring", stiffness: 230, damping: 24, delay: 0.14 + i * 0.05 }}
+      transition={still ? { duration: 0.2 } : { type: "spring", stiffness: 230, damping: 24, delay, opacity: { duration: 0.1, delay } }}
     >
       {children}
     </motion.div>
@@ -183,6 +191,9 @@ export function MenuTiles() {
         </Cell>
         <Cell name="search" i={7}>
           <Tile name="search" title="Search" sub={t("menu.tiles.search")} icon={<SearchIcon />} k="/" onClick={searchFromMenu} />
+        </Cell>
+        <Cell name="customize" i={8}>
+          <Tile name="customize" title="Customize" sub={t("menu.tiles.customize")} icon={<BrushIcon />} onClick={() => openOver(() => openCustomize())} />
         </Cell>
       </div>
     </nav>

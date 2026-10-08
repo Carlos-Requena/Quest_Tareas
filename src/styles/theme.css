@@ -39,6 +39,10 @@
   --paper-edge: #e8dcc0;
   /* Estrellas de rareza */
   --star: #ffe9a8;
+  /* Partículas de los personajes vivos (src/features/living): pétalos y nieve */
+  --petal: #f6bccd;
+  --petal-lo: #d9809f;
+  --frost: #eef3ff;
 
   /* Encargos temporales (src/features/temporal): calaveras, pergamino, tablón de roble y tinta */
   --skull: #c4161f;
