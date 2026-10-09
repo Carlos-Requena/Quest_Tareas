@@ -58,6 +58,22 @@ export function SwapIcon() {
   );
 }
 
+/** Rueda dentada: los ajustes (botón de la esquina en el teléfono). */
+export function GearIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+      <path
+        d="M9 1.8l1.2 1.9 2.2-.5.5 2.2 1.9 1.2-1.1 1.9 1.1 1.9-1.9 1.2-.5 2.2-2.2-.5L9 16.2l-1.2-1.9-2.2.5-.5-2.2-1.9-1.2L4.3 9 3.2 7.1l1.9-1.2.5-2.2 2.2.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+      <circle cx="9" cy="9" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  );
+}
+
 /** Flecha de volver. */
 export function BackIcon() {
   return (

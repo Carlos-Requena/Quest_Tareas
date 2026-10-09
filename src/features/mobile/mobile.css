@@ -5,14 +5,16 @@
 /* ───────────── Escritorio: nada de esto se ve ───────────── */
 
 :root {
-  --mnav-h: 58px;
+  /* Fila de la barra de abajo: la cápsula (60 px) y su margen. */
+  --mnav-h: 76px;
 }
 
 .mnav,
 .mfab,
 .m-toast,
 .mback,
-.m-sheet-x {
+.m-sheet-x,
+.m-grip {
   display: none;
 }
 /* El envoltorio del detalle no cuenta en la rejilla del escritorio. */
@@ -27,13 +29,33 @@
 
 /* ───────────── Barra de abajo ───────────── */
 
+/* Una cápsula de cristal que flota sobre lo que haya debajo (también sobre el menú). */
 .mnav {
   position: relative;
   z-index: 40;
   /* Tablón, encargos, calendario y el menú de opciones (features/menu). */
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--line);
-  background: linear-gradient(180deg, #16130f, #0c0a08);
+  align-self: end;
+  height: 60px;
+  margin: 0 14px 12px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--gold-hi) 22%, transparent);
+  border-radius: 30px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--text) 9%, transparent), transparent 55%),
+    color-mix(in srgb, var(--panel-solid) 62%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  /* El dedo arrastra la lente: la barra no se desplaza ni amplía. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Sin el menú de mantener pulsado de iOS (copiar, compartir…). */
+  -webkit-touch-callout: none;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text) 18%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--bg) 60%, transparent),
+    0 10px 30px rgba(0, 0, 0, 0.55);
 }
 .mnav-btn {
   position: relative;
@@ -49,14 +71,65 @@
 .mnav-btn.on {
   color: var(--gold-hi);
 }
-.mnav-btn.on::before {
-  content: "";
+/* La lente (MobileNav): una sola en la barra, del ancho de una pestaña. La capa de fuera se mueve
+   y crece al pulsar; la de dentro se estira con la velocidad (lo «líquido»). */
+.mnav-lens {
   position: absolute;
-  top: -1px;
-  left: 28%;
-  right: 28%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--gold-hi), transparent);
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  z-index: 0;
+  width: calc((100% - 8px) / 4);
+  pointer-events: none;
+}
+.mnav-lens-in {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--gold-hi) 38%, transparent);
+  border-radius: 26px;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in srgb, var(--text) 20%, transparent), transparent 70%),
+    color-mix(in srgb, var(--gold) 14%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text) 30%, transparent),
+    inset 0 -6px 12px color-mix(in srgb, var(--gold) 10%, transparent),
+    0 2px 10px rgba(0, 0, 0, 0.35);
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+/* Pulsada: la lente se aclara como un cristal levantado, con más brillo en el filo. */
+.mnav.is-pressed .mnav-lens-in {
+  border-color: color-mix(in srgb, var(--gold-hi) 60%, transparent);
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 0%, color-mix(in srgb, var(--text) 32%, transparent), transparent 75%),
+    color-mix(in srgb, var(--text) 10%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text) 45%, transparent),
+    inset 0 -8px 16px color-mix(in srgb, var(--gold) 16%, transparent),
+    0 8px 22px rgba(0, 0, 0, 0.45);
+}
+/* Lo que la lente tiene debajo se ve más grande, como a través de una lupa. */
+.mnav-btn .mnav-ico,
+.mnav-btn .mnav-lbl {
+  transition: transform 0.18s var(--ease-out);
+}
+.mnav-btn.is-under .mnav-ico {
+  transform: scale(1.18);
+}
+.mnav-btn.is-under .mnav-lbl {
+  transform: scale(1.08);
+}
+.mnav.is-pressed .mnav-btn.on:not(.is-under) {
+  color: var(--muted);
+}
+.mnav.is-pressed .mnav-btn.is-under {
+  color: var(--gold-hi);
+}
+.mnav-ico,
+.mnav-lbl {
+  z-index: 1;
 }
 .mnav-ico {
   position: relative;
@@ -77,6 +150,7 @@
   box-shadow: 0 0 8px currentColor;
 }
 .mnav-lbl {
+  position: relative;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -187,14 +261,58 @@
   body {
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
-    touch-action: manipulation;
+    /* Desplazar sí; ampliar con dos dedos o con doble toque, no: es una app, no una página. */
+    touch-action: pan-x pan-y;
   }
-  /* Sin barras de desplazamiento: en una pantalla táctil sobran y roban ancho. */
+  /* Sin barras de desplazamiento: en una pantalla táctil sobran y roban ancho. `!important`
+     porque algunas funcionalidades piden `scrollbar-width: thin` con un selector de clase. */
   * {
-    scrollbar-width: none;
+    scrollbar-width: none !important;
   }
   *::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Asa de las hojas que suben desde abajo (SheetGrip): arrastrarla hacia abajo las cierra (drag.ts). */
+  .m-grip {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 26px;
+    margin: 0 -16px 2px;
+    touch-action: none;
+  }
+  .m-grip span {
+    width: 38px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--faint);
+  }
+  [data-drag-handle] {
+    touch-action: none;
+  }
+
+  /* Deslizar una tarjeta hacia la derecha (QuestCard, drag.ts): una franja dorada que se llena
+     con lo que hará al soltar. La tarjeta no se mueve: la animan Motion y GSAP. */
+  .card[data-swipe] {
+    touch-action: pan-y;
+  }
+  .card[data-swipe]::after {
+    content: attr(data-swipe) "  →";
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 20px;
+    font-family: var(--f-tag);
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    color: var(--bg);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--gold-lo) 85%, transparent), var(--gold-hi));
+    clip-path: inset(0 calc(100% - var(--swipe, 0) * 100%) 0 0);
+    pointer-events: none;
   }
 
   /* ✕ de la ficha que sube desde abajo (SheetClose: mercader e inventario). */
@@ -358,6 +476,8 @@
     right: 0;
     bottom: var(--mnav-h);
     z-index: 30;
+    /* Deja al navegador el desplazamiento vertical; el horizontal es nuestro (volver desde el borde). */
+    touch-action: pan-y;
     display: flex;
     flex-direction: column;
     background: var(--bg);

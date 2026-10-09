@@ -4,6 +4,14 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · Menú del teléfono al estilo gacha
+
+- **Primero llevó una barra en arco** (la parte de abajo de un anillo enorme, con los botones girados sobre la curva) que tapaba la de abajo. El propietario prefirió no perder alto de pantalla: el mismo día se quitó y la barra de abajo pasó a ser una cápsula de cristal con selector, la misma en todas las pantallas ([mobile](mobile.md)).
+- **Navegador a 402 × 874**, en japonés y en español: con el arco, sus cinco botones; después, la barra flotante sobre el menú con el selector en «Menú». «Quests» vuelve al tablón, la crónica se abre encima, la hoja de ajustes se abre y se cierra con ✕ y cambia el idioma. Sin errores en la consola.
+- **Escritorio a 1.024 px:** la pantalla de siempre, con las tarjetas.
+- **Simulador de iOS** (iPhone 17, compilación de depuración).
+- **No verificado:** un iPhone real, pantallas más estrechas que 402 px y el sonido.
+
 ## 2026-10-08 · Frases por hora y tarjeta Customize
 
 Con `pnpm dev` en el navegador del panel (Chromium), con datos de prueba.

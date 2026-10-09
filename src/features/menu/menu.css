@@ -1614,118 +1614,38 @@ button.mn-tile:hover .mn-logo {
     display: none;
   }
 
-  /* Deja ver la barra de abajo (z 40) y tapa el rombo de crear (35). */
+  /* A pantalla completa, debajo de la barra de abajo (z 40), que flota encima de cristal; tapa el rombo de crear (35). */
   .mn {
-    --tiles-w: 100%;
-    bottom: var(--mnav-h);
     z-index: 39;
   }
-  .mn-ui {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: none;
-    grid-template-areas:
-      "back cur"
-      "player player"
-      "voice voice"
-      "tiles tiles"
-      "news news"
-      "set set";
-    align-content: start;
-    row-gap: 0;
-    padding: 0 14px 30px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-  .mn-top {
-    display: contents;
-  }
-  .mn-back {
-    grid-area: back;
-    justify-self: start;
-    height: 40px;
-    margin: 10px 0 0 4px;
-  }
-  .mn-back kbd,
-  .mn-clock,
-  .mn-key {
-    display: none;
-  }
-  .mn-cur {
-    grid-area: cur;
-    margin: 10px 0 0;
-    gap: 6px;
-  }
-  .mn-coin {
-    height: 40px;
-    padding: 0 2px 0 10px;
-    gap: 6px;
-  }
-  .mn-coin b {
-    font-size: 19px;
-  }
-  .mn-coin:last-child {
+  .mn-toast {
     display: none;
   }
 
-  .mn-player {
-    margin-top: 14px;
-    gap: 12px;
-  }
-  .mn-ring {
-    width: 84px;
-    height: 84px;
-  }
-  .mn-ring-lv {
-    margin-top: -8px;
-    font-size: 38px;
-  }
-  .mn-ring-lbl {
-    bottom: 14px;
-    font-size: 9px;
-  }
-  .mn-id-rank {
-    font-size: 19px;
-  }
-  .mn-voice {
-    max-width: 62%;
-    margin-top: 14px;
-    padding: 10px 14px 11px 12px;
-  }
-  .mn-voice p {
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  /* El personaje, arriba a la derecha y quieto: las tarjetas pasan por encima al bajar. */
+  /* El personaje, en el centro y grande; lo de abajo (la voz, «Quests», el arco) pasa por delante. */
   .mn-hero {
-    left: auto;
-    right: -6%;
-    top: 46px;
-    bottom: auto;
-    width: 64%;
-    height: 54%;
+    inset: 64px 0 0;
+    width: auto;
+    height: auto;
     padding: 0;
-    justify-content: flex-end;
-    align-items: flex-start;
+    justify-content: center;
+    align-items: flex-end;
     transform: none;
   }
   .mn-hero-in {
-    height: 100%;
-    margin: 0;
+    height: min(76vh, 700px);
+    margin: 0 0 calc(var(--mnav-h) + 20px);
   }
   .mn-sigil {
-    left: auto;
-    right: -24vw;
-    top: 4vh;
-    width: 90vw;
-    height: 90vw;
+    left: -8vw;
+    right: auto;
+    top: 12vh;
+    width: 116vw;
+    height: 116vw;
   }
   .mn-words {
     left: -2vw;
-    top: 38vh;
+    top: 22vh;
     bottom: auto;
     font-size: 24vw;
   }
@@ -1734,111 +1654,385 @@ button.mn-tile:hover .mn-logo {
   }
   .mn-shade {
     background:
-      radial-gradient(ellipse 60% 35% at 70% 22%, color-mix(in srgb, var(--gold) 16%, transparent), transparent 70%),
-      linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent), color-mix(in srgb, var(--bg) 25%, transparent) 30%, color-mix(in srgb, var(--bg) 85%, transparent) 60%);
+      radial-gradient(ellipse 70% 40% at 50% 40%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 70%),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg) 80%, transparent),
+        transparent 16%,
+        transparent 58%,
+        color-mix(in srgb, var(--bg) 88%, transparent) 92%
+      );
   }
 
-  /* Las tarjetas, a lo ancho y un poco giradas: sin ratón no hay paralaje. */
-  .mn-tiles {
-    margin-top: 22px;
-    perspective: 1100px;
+  /* ───────────── MenuPhone: botones alrededor del personaje ───────────── */
+
+  .mnp {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
   }
-  .mn-tilt {
-    gap: 9px 8px;
-    transform: rotateY(-5deg) rotateX(2deg);
+  .mnp > * {
+    pointer-events: auto;
   }
-  .mn-cell,
-  .mn-cell.is-chronicle,
-  .mn-cell.is-calendar,
-  .mn-cell.is-search,
-  .mn-cell.is-customize {
-    margin: 0;
-    height: 106px;
-  }
-  .mn-cell.is-board {
-    height: 136px;
-    margin: 0 0 8px;
-  }
-  .mn-cell.is-character,
-  .mn-cell.is-temporal,
-  .mn-cell.is-chronicle,
-  .mn-cell.is-calendar {
-    grid-column: span 6;
-  }
-  .mn-cell.is-merchant,
-  .mn-cell.is-collection,
-  .mn-cell.is-search,
-  .mn-cell.is-customize {
-    grid-column: span 12;
-  }
-  .mn-cell.is-merchant {
-    height: 104px;
-  }
-  .mn-cell.is-collection {
-    height: 134px;
-  }
-  .mn-cell.is-search,
-  .mn-cell.is-customize {
-    height: 82px;
-  }
-  /* A lo ancho y baja: el logo, a la derecha. */
-  .mn-cell.is-search .mn-logo,
-  .mn-cell.is-customize .mn-logo {
-    left: auto;
-    right: 16px;
-    top: 50%;
-    margin-top: -17px;
-  }
-  .mn-title,
-  .mn-cell.is-chronicle .mn-title,
-  .mn-cell.is-calendar .mn-title {
-    font-size: 6.6cqi;
-  }
-  .mn-cell.is-merchant .mn-title,
-  .mn-cell.is-search .mn-title,
-  .mn-cell.is-customize .mn-title {
-    font-size: 8cqi;
-  }
-  .mn-tile.is-board .mn-title {
-    font-size: 14cqi;
-  }
-  .mn-hero-n {
-    font-size: 12cqi;
-  }
-  .mn-hero-box {
-    width: 27%;
-  }
-  .mn-tile.is-board .mn-tile-txt {
-    left: calc(27% + 26px);
+
+  /* Arriba: nivel, rango y XP; el oro y los objetos. */
+  .mnp-top {
+    position: absolute;
+    top: 10px;
+    left: 12px;
     right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
-  .mn-hero-cur {
-    flex-wrap: wrap;
-    row-gap: 4px;
+  .mnp-lv {
+    flex: none;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    width: 54px;
+    height: 54px;
+    border: 1px solid var(--gold);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 35%, var(--panel-hi), var(--bg));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg) 70%, transparent), 0 0 18px color-mix(in srgb, var(--gold) 25%, transparent);
   }
-  .mn-hero-q {
+  .mnp-lv-lbl {
+    font-family: var(--f-tag);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .mnp-lv b {
+    font-size: 24px;
+    line-height: 1;
+    color: var(--text);
+  }
+  .mnp-id {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .mnp-rank {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .mnp-rank .mn-rank-gem {
+    width: 20px;
+    height: 20px;
+  }
+  .mnp-rank .mn-rank-gem b {
+    font-size: 12px;
+  }
+  .mnp-xp {
+    display: block;
+    width: 92px;
+    height: 4px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    box-shadow: inset 0 0 0 1px var(--line);
+    overflow: hidden;
+  }
+  .mnp-xp i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-lo), var(--gold-hi));
+  }
+  .mnp-xp-n {
+    font-size: 10px;
+    color: var(--text-2);
+  }
+  .mnp-cur {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .mnp-coin {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 30px;
+    padding: 0 3px 0 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: 15px;
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    color: var(--gold-hi);
+  }
+  .mnp-coin b {
     font-size: 14px;
+    color: var(--text);
   }
-  .mn-col-h .mn-title {
-    font-size: 6cqi;
-  }
-  .mn-col-in .mn-title {
-    font-size: 6cqi;
-  }
-  .mn-tile-mark {
-    width: 40%;
+  .mnp-plus {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--gold);
+    color: var(--bg);
+    font-size: 15px;
+    line-height: 1;
   }
 
-  .mn-news {
+  /* Columnas de botones redondos a los lados. */
+  .mnp-col {
+    position: absolute;
+    top: 92px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .mnp-col.is-left {
+    left: 8px;
+  }
+  .mnp-col.is-right {
+    right: 8px;
+  }
+  .mnp-round {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    width: 64px;
+  }
+  .mnp-round-ico {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--panel-hi) 92%, transparent), color-mix(in srgb, var(--bg) 88%, transparent));
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    color: var(--gold-hi);
+  }
+  .mnp-round-ico svg {
+    width: 20px;
+    height: 20px;
+  }
+  .mnp-round-lbl {
+    font-size: 11px;
+    color: var(--text);
+    text-shadow: 0 1px 3px var(--bg), 0 0 6px var(--bg);
+    white-space: nowrap;
+  }
+  .mnp-round:active .mnp-round-ico {
+    transform: scale(0.94);
+    border-color: var(--gold);
+  }
+
+  /* Encima del arco: la voz, «Quests» y, a los lados, la rareza y la tienda. */
+  .mnp-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--mnav-h) + 14px);
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    padding: 0 10px;
+    pointer-events: none;
+  }
+  .mnp-bottom > * {
+    pointer-events: auto;
+  }
+  .mnp-voice {
+    position: relative;
+    max-width: 300px;
+    padding: 8px 14px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  }
+  /* El piquito del bocadillo, hacia el personaje. */
+  .mnp-voice::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -6px;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    border-left: 1px solid var(--line-strong);
+    border-top: 1px solid var(--line-strong);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    transform: rotate(45deg);
+  }
+  .mnp-voice-who {
+    display: inline-block;
+    margin-bottom: 2px;
+    padding: 1px 8px;
+    border-radius: 8px;
+    background: var(--gold);
+    color: var(--bg);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+  .mnp-voice p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  .mnp-act {
+    display: grid;
+    grid-template-columns: 66px minmax(0, 1fr) 66px;
+    align-items: end;
+    gap: 8px;
     width: 100%;
-    margin-top: 26px;
   }
-  .mn-set.is-rows {
-    grid-area: set;
-    margin-top: 26px;
+  .mnp-quests {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 58px;
+    padding: 0 18px 0 7px;
+    border: 1px solid var(--gold-hi);
+    border-radius: 29px;
+    background: linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-lo));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg) 60%, transparent), 0 8px 24px color-mix(in srgb, var(--gold) 35%, transparent);
+    color: var(--bg);
+    text-align: left;
+    min-width: 0;
   }
-  .mn-toast {
-    display: none;
+  .mnp-quests:active {
+    transform: scale(0.97);
+  }
+  .mnp-quests-n {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg);
+    color: var(--gold-hi);
+    font-size: 22px;
+  }
+  .mnp-quests-txt {
+    display: grid;
+    min-width: 0;
+  }
+  .mnp-quests-title {
+    font-family: var(--f-tag);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .mnp-quests-cur {
+    overflow: hidden;
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: color-mix(in srgb, var(--bg) 75%, transparent);
+  }
+  .mnp-side {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+  }
+  .mnp-side-art {
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    overflow: hidden;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 35%, var(--panel-hi), var(--bg));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    color: var(--gold-hi);
+  }
+  .mnp-side.is-weekly .mnp-side-art {
+    border-color: var(--rc, var(--gold));
+  }
+  .mnp-side.is-weekly .mnp-side-art > * {
+    width: 80%;
+    height: 80%;
+  }
+  .mnp-side.is-shop .mnp-side-art {
+    border-color: var(--elite);
+    background: radial-gradient(circle at 50% 30%, var(--parchment-hi), var(--parchment-lo));
+  }
+  .mnp-side.is-shop img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 8%;
+    transform: scale(1.5) translateY(14%);
+  }
+  .mnp-side-tag {
+    position: absolute;
+    top: -10px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 7px;
+    border-radius: 8px;
+    background: var(--elite);
+    color: var(--text);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .mnp-side.is-weekly .mnp-side-tag {
+    background: var(--rc, var(--gold));
+    color: var(--bg);
+  }
+  .mnp-side-lbl {
+    font-size: 11px;
+    color: var(--text);
+    text-shadow: 0 1px 3px var(--bg), 0 0 6px var(--bg);
+    white-space: nowrap;
+  }
+
+  /* Los ajustes, en una hoja que sube desde abajo. */
+  .mnp-sheet-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: rgba(0, 0, 0, 0.55);
+  }
+  /* La capa de fuera coloca la hoja y es la que se arrastra; la de dentro (Motion) entra y sale. */
+  .mnp-sheet-pos {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+  .mnp-sheet {
+    position: relative;
+    max-height: 82vh;
+    overflow-y: auto;
+    /* La barra de abajo flota encima: lo último de la hoja termina por encima de ella. */
+    padding: 4px 16px calc(var(--mnav-h) + 16px);
+    border-top: 2px solid var(--gold);
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(180deg, var(--panel-hi), var(--panel-solid));
+  }
+  .mnp-sheet-x {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    color: var(--muted);
+    font-size: 16px;
+  }
+  .mnp-sheet .mn-set.is-rows {
+    margin: 0;
   }
 
   /* El selector, a pantalla completa (encima de la barra de abajo). */

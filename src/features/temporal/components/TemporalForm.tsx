@@ -160,7 +160,7 @@ function Modal({ editId, date, from }: { editId?: string; date?: string; from?: 
         <div className="modal-body">
           <label className="field field-title">
             <span className="lbl">{t("temporal.form.title")}</span>
-            <input ref={titleRef} value={d.title} maxLength={TEMPORAL_LIMITS.title} onChange={(e) => set({ title: e.target.value })} placeholder={t("temporal.form.titlePh")} />
+            <input enterKeyHint="done" ref={titleRef} value={d.title} maxLength={TEMPORAL_LIMITS.title} onChange={(e) => set({ title: e.target.value })} placeholder={t("temporal.form.titlePh")} />
           </label>
 
           <div className="field">
@@ -223,7 +223,7 @@ function Modal({ editId, date, from }: { editId?: string; date?: string; from?: 
             </div>
             <label className="field">
               <span className="lbl">{t("temporal.form.place")}</span>
-              <input value={d.place} maxLength={TEMPORAL_LIMITS.place} onChange={(e) => set({ place: e.target.value })} placeholder={t("temporal.form.placePh")} />
+              <input enterKeyHint="done" value={d.place} maxLength={TEMPORAL_LIMITS.place} onChange={(e) => set({ place: e.target.value })} placeholder={t("temporal.form.placePh")} />
             </label>
           </div>
 

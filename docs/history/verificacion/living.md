@@ -4,6 +4,14 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · El barrido del menú ya no salta
+
+- **Reproducción:** en el simulador de iOS, grabando la pantalla al abrir el menú (`simctl io recordVideo`, fotograma a fotograma con `ffmpeg`), el primer fotograma del barrido ya iba por la mitad de la pantalla. En el navegador, dos tareas largas al abrirlo: unos 50 ms al montar y unos 90 ms al montar la malla.
+- **Causas:** la malla (contexto, shaders y textura) se montaba en mitad del barrido, y `usePublicImageUrl` creaba una URL `blob:` nueva en cada apertura, así que la imagen grande se descargaba y decodificaba otra vez.
+- **Corrección:** `hold` en `LivingCharacter` (el menú suelta la malla a los 0,95 s, o 2,1 s con la entrada «gacha»), URL `blob:` guardada por asset, precarga del personaje del día y `decoding="async"`.
+- **Resultado:** en el navegador, ninguna tarea larga al abrir el menú; en el simulador, el barrido entra desde el borde y se ve entero, la primera vez y las siguientes. La malla se monta después (comprobado el lienzo `.lv-canvas`).
+- **No verificado:** un iPhone real (la CPU es más lenta que la del Mac que ejecuta el simulador) y la memoria con muchos personajes de serie abiertos en una sesión larga.
+
 ## 2026-10-08 · Carga uniforme de personajes de serie y añadidos
 
 - **Reproducción:** en la app nativa de macOS, alternar Azusa → Kazuma → Azusa podía dejar el personaje de serie ampliado y desplazado hacia abajo a la derecha. El brillo CSS mantenía la silueta correcta. Los personajes añadidos desde la aplicación no reproducían el fallo.

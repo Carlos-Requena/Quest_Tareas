@@ -63,6 +63,7 @@ Una decisión por archivo: qué se decidió, qué se descartó, por qué y qué 
 | [ADR-50](ADR-50-personajes-del-menu.md) | Personajes del menú: de serie en public/ y añadidos con eventos | aceptada | menu | 2026-10-07 |
 | [ADR-51](ADR-51-personalizacion.md) | Personalización: una ventana que solo presenta; cada dato, en su funcionalidad | aceptada | customize, menu, temporal | 2026-10-08 |
 | [ADR-52](ADR-52-personajes-vivos-y-companero.md) | Personajes vivos con una malla de WebGL y un compañero en Mi día, con su estilo y sus frases como eventos | aceptada | living, companion, menu, customize, today | 2026-10-08 |
+| [ADR-53](ADR-53-gestos-y-vibracion-en-el-telefono.md) | Gestos de iOS hechos en la web y vibración con el plugin haptics de Tauri | aceptada | mobile, quickadd, menu, merchant, items | 2026-10-09 |
 <!-- /generado:adr -->
 
 ## Añadir una ADR

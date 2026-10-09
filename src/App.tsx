@@ -25,7 +25,7 @@ import { blockers } from "./features/complex";
 import { MerchantModal, merchantBusy, openMerchant } from "./features/merchant";
 import { Backdrop, CharacterModal, characterBusy, openCharacter } from "./features/equipment";
 import { ChronicleModal, chronicleBusy, openChronicle } from "./features/chronicle";
-import { DetailBack, MobileCreate, MobileNav, isPhone, useMobileUi } from "./features/mobile";
+import { DetailBack, MobileCreate, MobileNav, isPhone, useDragDismiss, useMobileUi } from "./features/mobile";
 import { CalendarView, calendarBusy, toggleCalendar } from "./features/calendar";
 import { AgendaFormModal } from "./features/agenda";
 import { EditQuestModal, editingBusy, openEdit } from "./features/editing";
@@ -65,6 +65,8 @@ export default function App() {
   const section = useGame((s) => s.section);
   const now = useNow();
   const { t } = useTranslation();
+  // En el teléfono, el detalle se cierra deslizando desde el borde izquierdo, como en iOS.
+  const backSwipe = useDragDismiss<HTMLDivElement>({ axis: "x", edge: 28, onDismiss: () => useMobileUi.getState().closeDetail() });
 
   useEffect(() => {
     init();
@@ -229,7 +231,7 @@ export default function App() {
           <div className="divider" />
 
           {/* En el escritorio, m-sheet no cuenta (display: contents); en el teléfono es la hoja a pantalla completa. */}
-          <div className="m-sheet">
+          <div className="m-sheet" {...backSwipe}>
             <DetailBack />
             <QuestDetail quest={selected} status={selected && effectiveStatus(selected, now)} now={now} />
           </div>

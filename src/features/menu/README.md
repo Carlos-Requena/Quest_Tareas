@@ -27,7 +27,7 @@ La pantalla es solo presentación: lee el estado y llama a las acciones de cada 
 | R7 | Rota cada día, al azar pero sin repetir hasta que salgan todos | `characterOfDay`: vueltas barajadas con su número como semilla (el mismo orden en todos los equipos) |
 | R8 | Elegir otro para hoy sin cambiar la rotación | `pickCharacter`: se guarda en este equipo con el día; mañana sale el que tocaba |
 | R9 | Añadir personajes desde el menú, que lleguen a todos los equipos | «Añadir personaje»: la imagen va al almacén de binarios y `character_added`, a todos los equipos |
-| R10 | También en el iPhone | La barra de abajo pasa a Tablón · Encargos · Calendario · Menú; el menú ocupa la pantalla encima de la barra |
+| R10 | También en el iPhone, como la pantalla de inicio de un gacha (referencia del propietario) | `MenuPhone`: el personaje a toda pantalla, botones redondos a los lados y «Quests» grande abajo; la barra de abajo flota encima, con su selector en «Menú» |
 | R11 | Frases del personaje según la hora, sin límite | `VoiceLine` por personaje y parte del día; con alguna, dice una al azar en lugar de la de serie. Se escriben en la [personalización](../customize/README.md) |
 
 ## Reglas y decisiones
@@ -52,6 +52,22 @@ La pantalla es solo presentación: lee el estado y llama a las acciones de cada 
 
 Los **rótulos grandes van en inglés**, como ELITE o QUEST CLEAR: son decorativos; debajo va su nombre traducido. Su tamaño sigue al ancho de la rejilla (`cqi`), para que quepan de 1.024 a 1.440 px; en la fila de cuatro, el nombre puede ocupar dos líneas.
 
+### En el teléfono
+
+Otra distribución (`MenuPhone`, que `Screen` monta en lugar de los paneles y las tarjetas cuando `useIsPhone()`), al estilo de la pantalla de inicio de un gacha. El fondo, el sello, el personaje vivo, el barrido y el selector son los mismos.
+
+| Zona | Qué hay |
+|---|---|
+| Arriba | El nivel en un círculo, el rango y la barra de XP; a la derecha, el oro y los objetos con su «+» |
+| Izquierda | Cambiar de personaje (abre el selector) · Buscar · Ajustes (una hoja que sube desde abajo con las filas de `MenuSettings`; se cierra con ✕, tocando fuera o arrastrando su asa) |
+| Derecha | Personaje · Inventario · Almanaque · Crónica · Personalizar |
+| Centro | El personaje del día, grande; lo de abajo pasa por delante |
+| Abajo | Lo que dice el personaje, en un bocadillo; **Quests** (las que hay en curso y la actual; vuelve al tablón) y, a los lados, la rareza de la semana y la tienda de Hu Tao, con los días que faltan para el cambio |
+
+- **La barra de abajo flota encima** (el menú, capa 39; la barra, 40), con su selector en «Menú»: es la misma en todas las pantallas ([mobile](../mobile/README.md#el-armazón)).
+- **Sin «Volver»**: se sale con la barra de abajo o con «Quests».
+- Las tarjetas Bounties y Calendar no están: van en la barra.
+
 ### Las ventanas se abren encima del menú
 
 El mercader, el personaje, los objetos, la crónica y la personalización se abren **encima** (capa 50 sobre 47) y, al cerrarlas, se vuelve al menú. Las tres secciones (Quests, Bounties, Calendar) **cierran** el menú y llevan a la sección; la **búsqueda** también lo cierra antes, porque lleva a otro sitio. Si algo cambia de sección por debajo, el menú se aparta solo (`MenuScreen` escucha `section`). Por qué una pantalla y no un desplegable u otra ventana: [ADR-49](../../../docs/decisions/ADR-49-menu-de-opciones.md).
@@ -74,7 +90,7 @@ El mercader, el personaje, los objetos, la crónica y la personalización se abr
 
 ### Los ajustes
 
-Son los componentes de cada funcionalidad (`LangSwitch`, `MusicControl`, `SyncControl`, `NotifyButton` / `NotifyMenuToggle`) y el silencio general. En el escritorio, iconos en la barra de arriba con su desplegable al pasar el ratón; en el teléfono, filas con su nombre y los desplegables abiertos. Como `MusicControl` solo se monta con el menú abierto, `MenuScreen` (siempre montado) llama a `music.armAutoplay()` al arrancar. El aviso (toast) del escritorio vive en el detalle de la quest, que el menú tapa: el menú pinta otro abajo, en el centro.
+Son los componentes de cada funcionalidad (`LangSwitch`, `MusicControl`, `SyncControl`, `NotifyButton` / `NotifyMenuToggle`) y el silencio general; en el teléfono, también la **vibración** (`src/lib/haptics.ts`, solo donde puede vibrar; [mobile](../mobile/README.md#vibración)). En el escritorio, iconos en la barra de arriba con su desplegable al pasar el ratón; en el teléfono, filas con su nombre y los desplegables abiertos. Como `MusicControl` solo se monta con el menú abierto, `MenuScreen` (siempre montado) llama a `music.armAutoplay()` al arrancar. El aviso (toast) del escritorio vive en el detalle de la quest, que el menú tapa: el menú pinta otro abajo, en el centro.
 
 ## Modelo
 
@@ -120,6 +136,7 @@ Los acumuladores ganaron las frases, así que `PROJECTION_VERSION` pasó a 12. U
 | `components/MenuButton.tsx` | Pestaña «MENU» de la cabecera y botón del pie |
 | `components/MenuScreen.tsx` | La pantalla: barrido, personaje, decoración, teclado y paralaje |
 | `components/MenuTiles.tsx` | Las tarjetas en perspectiva |
+| `components/MenuPhone.tsx` | El menú del teléfono: botones redondos, «Quests», la voz y la hoja de ajustes |
 | `components/MenuPanels.tsx` | Volver, monedas, aventurero, lo que dice el personaje (sus frases o la de serie) y el coleccionable |
 | `components/MenuCast.tsx` | Selector de personajes, `useCast`, `CharacterImage` (imagen o vídeo), `CHARACTER_ACCEPT` |
 | `components/MenuSettings.tsx` | Idioma, música, sonido, avisos y Google Drive |
@@ -145,6 +162,7 @@ Los acumuladores ganaron las frases, así que `PROJECTION_VERSION` pasó a 12. U
 | Tarjetas en 3D | [`MenuTiles`](components/MenuTiles.tsx), [`Tile`](components/MenuTiles.tsx) y [`Cell`](components/MenuTiles.tsx) |
 | Paneles (volver, monedas, aventurero, lo que dice el personaje, coleccionable) | [`MenuBack`](components/MenuPanels.tsx), [`MenuCurrency`](components/MenuPanels.tsx), [`MenuPlayer`](components/MenuPanels.tsx), [`MenuVoice`](components/MenuPanels.tsx), [`WeeklyNews`](components/MenuPanels.tsx) |
 | Ajustes | [`MenuSettings`](components/MenuSettings.tsx) |
+| Menú del teléfono | [`MenuPhone`](components/MenuPhone.tsx), con [`PhoneTop`](components/MenuPhone.tsx) y [`PhoneBottom`](components/MenuPhone.tsx) |
 | Selector de personajes | [`MenuCast`](components/MenuCast.tsx) y [`CharacterImage`](components/MenuCast.tsx) |
 | Rotación diaria y elección del día | [`characterOfDay`](model.ts), [`shownCharacter`](model.ts) y [`pickCharacter`](actions.ts) |
 | Imagen animada o vídeo al añadir | [`prepareCharacter`](image.ts) e [`isAnimatedImage`](media.ts) |
@@ -190,7 +208,7 @@ El menú abre las ventanas de otras funcionalidades y lee su estado, pero **para
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-08, el personaje vivo y un personaje en vídeo (WebM generado en el navegador) a 1.280 × 800, 1.024 × 700 y 402 × 874. Antes, el mismo día, frases y la tarjeta Customize: tests y navegador a 1.280 × 800 y 402 × 874 (la fila de cuatro tarjetas cabe; con Kazuma elegido, dice su frase de mañana). El resto, el 2026-10-07: tests y navegador a 1.280 × 800, 1.024 × 680 y 402 × 874, en español y japonés (barrido, paralaje, ventanas encima y Escape, secciones, búsqueda, los personajes de `public/menu/`, elegir, añadir un PNG y quitarlo).
+- **Última verificación:** 2026-10-09, el menú del teléfono (`MenuPhone`) en el navegador a 402 × 874, en español y japonés: la barra flotante encima, «Quests» al tablón, la crónica se abre encima y los ajustes en su hoja; el escritorio, igual que antes. Y en el simulador de iOS (iPhone 17). El 2026-10-08, el personaje vivo y un personaje en vídeo (WebM generado en el navegador) a 1.280 × 800, 1.024 × 700 y 402 × 874. Antes, el mismo día, frases y la tarjeta Customize: tests y navegador a 1.280 × 800 y 402 × 874 (la fila de cuatro tarjetas cabe; con Kazuma elegido, dice su frase de mañana). El resto, el 2026-10-07: tests y navegador a 1.280 × 800, 1.024 × 680 y 402 × 874, en español y japonés (barrido, paralaje, ventanas encima y Escape, secciones, búsqueda, los personajes de `public/menu/`, elegir, añadir un PNG y quitarlo).
 - **Tests:** `model.test.ts`.
-- **Sin verificar:** un GIF o APNG real y un vídeo con transparencia en Safari; un personaje añadido o sus frases llegando a otro equipo por Drive; el sonido del barrido; la app nativa de macOS y Windows, el simulador de iOS y un iPhone; el rendimiento del 3D en un equipo lento.
+- **Sin verificar:** un GIF o APNG real y un vídeo con transparencia en Safari; un personaje añadido o sus frases llegando a otro equipo por Drive; el sonido del barrido; la app nativa de macOS y Windows y un iPhone real; teléfonos más estrechos que 402 px; el rendimiento del 3D en un equipo lento.
 - **Historial:** [docs/history/verificacion/menu.md](../../../docs/history/verificacion/menu.md).

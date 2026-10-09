@@ -10,7 +10,7 @@ adr: [ADR-48]
 
 # Alta rápida
 
-Una línea encima del tablón para apuntar una quest al vuelo: «Llamar al banco mañana #Hogar !». `Enter` la publica; `Mayús+Enter` (o ⤢) abre el formulario completo con lo escrito. Mientras se escribe, debajo se ve lo que se ha entendido. En el teléfono, el rombo de crear abre una hoja con la misma línea.
+Una línea encima del tablón para apuntar una quest al vuelo: «Llamar al banco mañana #Hogar !». `Enter` la publica; `Mayús+Enter` (o ⤢) abre el formulario completo con lo escrito. Mientras se escribe, debajo se ve lo que se ha entendido. En el teléfono, el rombo de crear abre una hoja con la misma línea, que se cierra tocando fuera o arrastrando su asa hacia abajo ([mobile](../mobile/README.md#gestos-de-ios)).
 
 ## Qué hace
 
@@ -71,6 +71,7 @@ No tiene eventos propios: publica `quest_created`. Se puede deshacer unos minuto
 - **features/rewards** (`model.ts`): la recompensa que se ve antes de publicar.
 - **features/horizon** (`ui.ts`): al publicar, el filtro de plazo vuelve a «Todo».
 - **features/undo** (`actions.ts`): el aviso con «Deshacer».
+- **features/mobile** (`index`): el asa (`SheetGrip`) y bajar para cerrar (`useDragDismiss`).
 - **La usan:** `mobile` (el rombo) y `menu` (`windowOpen` mira su hoja).
 
 ## Estado actual

@@ -24,7 +24,7 @@ export function ChecklistInputs({ items, onChange }: { items: ChecklistItem[]; o
       {items.map((it, i) => (
         <div key={it.id} className="clist-in">
           <span className="clist-box" aria-hidden />
-          <input
+          <input enterKeyHint="done"
             value={it.text}
             maxLength={CHECKLIST_LIMITS.text}
             placeholder={t("checklist.itemPh", { n: i + 1 })}

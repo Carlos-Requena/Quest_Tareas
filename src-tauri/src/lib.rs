@@ -10,6 +10,8 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         // Hoja de inicio de sesión de Google en iOS (sync/oauth.rs).
         .plugin(tauri_plugin_web_auth::init())
+        // Vibración del iPhone (src/lib/haptics.ts); en el escritorio no hace nada.
+        .plugin(tauri_plugin_haptics::init())
         // Sincronización con Google Drive (src/sync y src/features/sync).
         .manage(sync::SyncState::default())
         .invoke_handler(tauri::generate_handler![

@@ -240,7 +240,7 @@ El garantizado y los drops salen juntos de un cofre (`LootChest`), con técnicas
 
 - **features/merchant** (`model.ts`, `ui.ts`, `GearArt`, `SlotGlyph`): el equipo de los almanaques de armaduras, fondos y emblemas, y «Ir a la tienda». Para tocar el catálogo, lee su README.
 - **features/armory** (`model.ts`, `labels.ts`): arte y nombres de las piezas de serie.
-- **features/mobile** (`index`): deslizar para pasar página, «Toca el cofre…» y, en el inventario y el almanaque, cerrar la ficha con su ✕ (`SheetClose`) o volviendo a tocar el objeto.
+- **features/mobile** (`index`): deslizar para pasar página, «Toca el cofre…» y, en el inventario y el almanaque, cerrar la ficha con su ✕ (`SheetClose`), arrastrando su asa (`SheetGrip`, `useDragDismiss`) o volviendo a tocar el objeto.
 - **La usan:** casi todo lo que habla de rarezas o del almanaque: `armory`, `chronicle`, `collectibles`, `equipment`, `merchant`, `menu` y `search`.
 
 ## Estado actual

@@ -84,7 +84,7 @@ export function GearForm({ gear, slot, onDone }: { gear?: GearDef; slot?: GearSl
         <div className="gform-fields">
           <label className="field">
             <span className="lbl">{t("merchant.form.name")}</span>
-            <input
+            <input enterKeyHint="done"
               ref={nameRef}
               value={d.name}
               maxLength={GEAR_LIMITS.name}

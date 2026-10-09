@@ -108,7 +108,7 @@ export function TemporalQuestsField({ d, set, editId }: { d: TemporalDraft; set(
             >
               <span className="tq-i num">{linked.length + d.fullQuests.length + j + 1}</span>
               <span className="tq-new">{t("temporal.quests.isNew")}</span>
-              <input
+              <input enterKeyHint="done"
                 autoFocus={!s.title}
                 value={s.title}
                 maxLength={TEMPORAL_LIMITS.title}
@@ -116,7 +116,7 @@ export function TemporalQuestsField({ d, set, editId }: { d: TemporalDraft; set(
                 onChange={(e) => setSeed(s.key, { title: e.target.value })}
               />
               <span className="muted">×</span>
-              <input
+              <input enterKeyHint="done" inputMode="numeric"
                 type="number"
                 min={1}
                 className="num-in"

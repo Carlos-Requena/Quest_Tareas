@@ -98,7 +98,7 @@ export function ItemForm({ item, onDone }: { item?: ItemDef; onDone(id?: string)
 
       <label className="field">
         <span className="lbl">{t("items.form.name")}</span>
-        <input
+        <input enterKeyHint="done"
           ref={nameRef}
           value={d.name}
           maxLength={ITEM_LIMITS.name}

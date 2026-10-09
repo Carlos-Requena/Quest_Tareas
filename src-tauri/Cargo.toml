@@ -37,6 +37,8 @@ reqwest = { version = "0.13.5", default-features = false, features = ["json", "n
 keyring = { version = "3", features = ["apple-native", "windows-native"] }
 # Inicio de sesión de Google en iOS (ASWebAuthenticationSession). En el escritorio no hace nada.
 tauri-plugin-web-auth = { path = "plugins/web-auth" }
+# Vibración del iPhone (src/lib/haptics.ts): toques, éxitos y celebraciones. En el escritorio no hace nada.
+tauri-plugin-haptics = "2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

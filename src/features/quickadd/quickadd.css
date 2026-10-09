@@ -99,13 +99,17 @@
   z-index: 70;
   background: rgba(0, 0, 0, 0.55);
 }
-.qa-sheet {
+/* La capa de fuera coloca la hoja y es la que se arrastra; la de dentro (Motion) entra y sale. */
+.qa-sheet-pos {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 71;
-  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+}
+.qa-sheet {
+  position: relative;
+  padding: 6px 16px calc(18px + env(safe-area-inset-bottom));
   background: var(--panel-solid);
   border-top: 1px solid var(--line-strong);
   box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.5);

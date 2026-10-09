@@ -14,6 +14,8 @@ import { ContactIcon } from "../features/contacts";
 import { LockIcon, recurs } from "../features/complex";
 import { Skull, type TemporalState } from "../features/temporal";
 import { StreakBadge } from "../features/streaks";
+import { swipeAction, useDragDismiss } from "../features/mobile";
+import { primaryAction } from "../store/actions";
 
 interface Props {
   quest: QuestState;
@@ -74,6 +76,12 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
   const cracksRef = useRef<SVGSVGElement>(null);
   const flashRef = useRef<HTMLDivElement>(null);
   const prevStatus = useRef(status);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const setRefs = (node: HTMLButtonElement | null) => {
+    buttonRef.current = node;
+    if (typeof outerRef === "function") outerRef(node);
+    else if (outerRef) outerRef.current = node;
+  };
 
   useLayoutEffect(() => {
     const was = prevStatus.current;
@@ -130,9 +138,27 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
   const hasPomo = isActive && quest.conditions.some(isPomodoroCondition);
   const hasCount = quest.completions > 0 && !isCooldown && !isActive;
 
+  // En el teléfono, deslizar la tarjeta a la derecha hace su acción principal sin abrir el detalle
+  // (features/mobile). La tarjeta no se mueve (Motion y GSAP ya la animan): se llena una franja.
+  const swipe = swipeAction(quest, status, isLocked, now);
+  const drag = useDragDismiss<HTMLButtonElement>(
+    {
+      axis: "x",
+      stay: true,
+      move: false,
+      at: 0.45,
+      disabled: !swipe,
+      onProgress: (p) => buttonRef.current?.style.setProperty("--swipe", String(p)),
+      onDismiss: () => void primaryAction(quest.id),
+    },
+    buttonRef,
+  );
+
   return (
     <motion.button
-      ref={outerRef}
+      {...drag}
+      ref={setRefs}
+      data-swipe={swipe ? t(`mobile.swipe.${swipe}`) : undefined}
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}

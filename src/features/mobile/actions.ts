@@ -3,8 +3,21 @@
 
 import { useGame } from "../../store/game";
 import { primaryAction } from "../../store/actions";
+import { conditionsMet } from "../../domain/projection";
+import type { QuestState, QuestStatus } from "../../domain/types";
 import { isPhone } from "./phone";
 import { useMobileUi } from "./ui";
+
+/**
+ * Qué hace deslizar una tarjeta del tablón hacia la derecha: lo mismo que su botón principal,
+ * solo cuando se puede hacer ya (aceptar una disponible y sin requisitos pendientes; reportar una
+ * en curso con los objetivos cumplidos). Si no, la tarjeta no se desliza.
+ */
+export function swipeAction(q: QuestState, status: QuestStatus, locked: boolean, now: number): "accept" | "report" | undefined {
+  if (status === "available" && !locked) return "accept";
+  if (status === "active" && conditionsMet(q, now)) return "report";
+  return undefined;
+}
 
 /** Lo que tarda la hoja del detalle en salir (transition de .m-sheet en mobile.css). */
 export const SHEET_MS = 320;

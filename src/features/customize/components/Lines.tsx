@@ -76,7 +76,7 @@ export function LineList({ items, icon, badge, defaults, placeholder, hint, onAd
           <span className="cz-plus" />
         </span>
         <span className="cz-line-body">
-          <input ref={input} value={draft} maxLength={VOICE_LIMITS.text} onChange={(e) => setDraft(e.target.value)} onKeyDown={onDraftKey} placeholder={placeholder} aria-label={placeholder} />
+          <input enterKeyHint="done" ref={input} value={draft} maxLength={VOICE_LIMITS.text} onChange={(e) => setDraft(e.target.value)} onKeyDown={onDraftKey} placeholder={placeholder} aria-label={placeholder} />
         </span>
         <span className="cz-line-act">
           <button className="btn btn-primary cz-line-add" disabled={!draft.trim()}>
@@ -119,7 +119,7 @@ function LineRow({ line, n, icon, badge, onUpdate, onRemove }: { line: LineItem;
         {edit === undefined ? (
           <span className="cz-line-text">{line.text}</span>
         ) : (
-          <input autoFocus value={edit} maxLength={VOICE_LIMITS.text} onChange={(e) => setEdit(e.target.value)} onKeyDown={onKey} aria-label={t("customize.voice.edit")} />
+          <input enterKeyHint="done" autoFocus value={edit} maxLength={VOICE_LIMITS.text} onChange={(e) => setEdit(e.target.value)} onKeyDown={onKey} aria-label={t("customize.voice.edit")} />
         )}
       </span>
       <span className="cz-line-act">

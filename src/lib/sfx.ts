@@ -1,4 +1,5 @@
 // Efectos de sonido sintetizados con WebAudio: sin archivos de audio que empaquetar.
+import { haptic } from "./haptics";
 
 let ctx: AudioContext | undefined;
 let bus: AudioNode | undefined;
@@ -152,35 +153,43 @@ function chime(freq: number, start: number, dur: number, gain: number) {
 
 export const sfx = {
   move() {
+    haptic.selection();
     if (muted) return;
     tone(1400, 0, 0.04, "sine", 0.03);
   },
   stamp() {
+    haptic.impact("heavy");
     if (muted) return;
     noise(0.18, 0.5, 1800);
     tone(85, 0, 0.22, "sine", 0.5);
     tone(170, 0, 0.08, "triangle", 0.15);
   },
   tick() {
+    haptic.impact("light");
     if (muted) return;
     tone(880, 0, 0.06, "triangle", 0.08);
     tone(1320, 0.03, 0.08, "sine", 0.05);
   },
   cancel() {
+    haptic.impact("soft");
     if (muted) return;
     tone(330, 0, 0.12, "triangle", 0.1);
     tone(220, 0.07, 0.16, "triangle", 0.1);
   },
   shatter() {
+    haptic.outcome("error");
     if (muted) return;
     noise(0.5, 0.35, 6000);
     [2400, 3100, 2800, 3600].forEach((f, i) => tone(f, i * 0.04, 0.25, "sine", 0.03));
   },
   clear() {
+    haptic.outcome("success");
     if (muted) return;
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.08 * i, 0.6, "triangle", 0.12));
   },
   levelUp() {
+    haptic.outcome("success");
+    haptic.pattern([["heavy", 220], ["rigid", 420]]);
     if (muted) return;
     [392, 523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) =>
       tone(f, 0.07 * i, 0.9, "triangle", 0.11),
@@ -188,6 +197,7 @@ export const sfx = {
   },
   /** Revelado de un drop: más notas cuanto mayor es la rareza (0 común … 5 legendario). */
   reveal(tier: number) {
+    haptic.impact(tier >= 3 ? "heavy" : tier >= 1 ? "medium" : "light");
     if (muted) return;
     const notes = [659.25, 783.99, 987.77, 1174.66, 1318.5, 1567.98];
     for (let i = 0; i <= tier; i++) tone(notes[i], i * 0.055, 0.5 + tier * 0.08, "triangle", 0.06 + tier * 0.012);
@@ -195,6 +205,7 @@ export const sfx = {
   },
   /** Lluvia de monedas: tintineos agudos a destiempo. */
   coins(n = 8) {
+    haptic.impact("light");
     if (muted) return;
     for (let i = 0; i < n; i++) {
       const t = i * 0.045 + Math.random() * 0.03;
@@ -205,6 +216,7 @@ export const sfx = {
   },
   /** El cofre cae sobre la mesa. */
   chestLand() {
+    haptic.impact("heavy");
     if (muted) return;
     noise(0.12, 0.35, 700);
     tone(70, 0, 0.25, "sine", 0.4);
@@ -219,6 +231,7 @@ export const sfx = {
   },
   /** La luz del cofre sube de rareza (paso 0, 1, 2…): campanada cada vez más aguda. */
   chestUpgrade(step: number) {
+    haptic.impact("rigid");
     if (muted) return;
     const f = [987.77, 1318.5, 1760, 2349.3][Math.min(step, 3)];
     tone(f, 0, 0.4, "triangle", 0.11);
@@ -228,6 +241,8 @@ export const sfx = {
   },
   /** El cofre estalla: golpe grave, caída de tono, acorde y brillo que crecen con la rareza (0 … 5). */
   chestOpen(tier: number) {
+    haptic.outcome("success");
+    haptic.impact("heavy");
     if (muted) return;
     noise(0.9, 0.42, 1400 + tier * 500);
     sweep(190, 36, 0, 0.6, "sine", 0.5);
@@ -238,6 +253,7 @@ export const sfx = {
   },
   /** Fanfarria al revelar un objeto épico o mejor (3 épico, 4 mítico, 5 legendario). */
   fanfare(tier: number) {
+    haptic.pattern([["heavy", 0], ["heavy", 160], ["rigid", 320]]);
     if (muted) return;
     const notes =
       tier >= 5
@@ -252,12 +268,14 @@ export const sfx = {
   },
   /** Pasar página del almanaque. */
   page() {
+    haptic.selection();
     if (muted) return;
     noise(0.22, 0.12, 2600);
     noise(0.08, 0.06, 5000);
   },
   /** Campana de fin de concentración: dos golpes con armónicos. */
   bell() {
+    haptic.outcome("warning");
     if (muted) return;
     [0, 0.45].forEach((t) => {
       tone(880, t, 1.6, "sine", 0.16);
@@ -281,6 +299,7 @@ export const sfx = {
   },
   /** El texto golpea el pergamino: bombo, palmada de papel y acorde de orquesta (do mayor). */
   posterSlam() {
+    haptic.impact("heavy");
     if (muted) return;
     sweep(120, 40, 0, 0.38, "sine", 0.55);
     hiss(0, 0.14, 0.5, "bandpass", 1500, 700, 0.003, 0.7);
@@ -296,6 +315,7 @@ export const sfx = {
   },
   /** Una calavera se estampa: golpe húmedo de sello y nota sombría que sube con cada una (0, 1, 2…). */
   skullStamp(i = 0) {
+    haptic.impact("medium");
     if (muted) return;
     sweep(105, 44, 0, 0.2, "sine", 0.5);
     hiss(0, 0.11, 0.38, "bandpass", 900, 260, 0.003, 1.4);
@@ -306,6 +326,7 @@ export const sfx = {
   },
   /** Chincheta que se clava en la madera. */
   pin() {
+    haptic.impact("rigid");
     if (muted) return;
     hiss(0, 0.035, 0.18, "highpass", 3200, 2600, 0.002);
     sweep(560, 300, 0, 0.07, "triangle", 0.2);
@@ -313,6 +334,7 @@ export const sfx = {
   },
   /** Papel que se rasga (0–1: un trozo o el cartel entero). */
   paperRip(amount = 1) {
+    haptic.impact("medium");
     if (muted) return;
     const n = Math.round(6 + amount * 12);
     for (let i = 0; i < n; i++) {
@@ -350,12 +372,14 @@ export const sfx = {
   },
   /** Un dígito se detiene. */
   slotStop() {
+    haptic.impact("medium");
     if (muted) return;
     tone(1800, 0, 0.05, "square", 0.03);
     tone(900, 0, 0.08, "triangle", 0.06);
   },
   /** El contador se fija: campanilla en do7 con brillo. */
   slotDing() {
+    haptic.outcome("success");
     if (muted) return;
     chime(2093, 0, 1.4, 0.12);
     chime(1046.5, 0, 1.6, 0.06);
@@ -375,6 +399,7 @@ export const sfx = {
    * que cae. `stage` 0 es la primera grieta; 1, cuando se rompe en pedazos.
    */
   fracture(stage: 0 | 1 = 1) {
+    haptic.impact(stage ? "heavy" : "medium");
     if (muted) return;
     if (stage === 0) {
       hiss(0, 0.09, 0.22, "highpass", 3200, 1800, 0.002, 2);
@@ -390,6 +415,7 @@ export const sfx = {
   },
   /** Un cartel prende y arde (features/failure): soplo del fuego, chasquidos y un acorde grave. */
   burn(dur = 2.4) {
+    haptic.outcome("warning");
     if (muted) return;
     hiss(0, 0.5, 0.18, "lowpass", 300, 1600, 0.25);
     hiss(0.2, dur, 0.1, "bandpass", 900, 500, 0.6, 0.7);
@@ -401,6 +427,7 @@ export const sfx = {
 
   /** El menú barre la pantalla: silbido rápido que sube y un destello metálico al llegar. */
   menuOpen() {
+    haptic.impact("light");
     if (muted) return;
     hiss(0, 0.3, 0.2, "bandpass", 420, 4200, 0.2, 0.8);
     hiss(0.02, 0.28, 0.06, "highpass", 3000, 8000, 0.2);
@@ -409,6 +436,7 @@ export const sfx = {
   },
   /** El menú se retira: el silbido al revés, que baja. */
   menuClose() {
+    haptic.impact("light");
     if (muted) return;
     hiss(0, 0.24, 0.15, "bandpass", 3600, 420, 0.05, 0.8);
     sweep(160, 80, 0, 0.2, "sine", 0.06);

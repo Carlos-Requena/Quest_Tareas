@@ -234,7 +234,7 @@ export function QuestFormModal({
         <div className="modal-body">
           <label className="field field-title">
             <span className="lbl">{t("modal.title")}</span>
-            <input ref={titleRef} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("modal.titlePh")} />
+            <input enterKeyHint="done" ref={titleRef} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("modal.titlePh")} />
           </label>
 
           <div className="field">
@@ -259,11 +259,11 @@ export function QuestFormModal({
           <div className="row3">
             <label className="field">
               <span className="lbl">{t("modal.client")}</span>
-              <input value={client} onChange={(e) => setClient(e.target.value)} placeholder={t("modal.clientPh")} />
+              <input enterKeyHint="done" value={client} onChange={(e) => setClient(e.target.value)} placeholder={t("modal.clientPh")} />
             </label>
             <label className="field">
               <span className="lbl">{t("modal.area")}</span>
-              <input value={area} onChange={(e) => setArea(e.target.value)} placeholder={t("modal.areaPh")} list="quest-areas" />
+              <input enterKeyHint="done" value={area} onChange={(e) => setArea(e.target.value)} placeholder={t("modal.areaPh")} list="quest-areas" />
               <datalist id="quest-areas">
                 {areaSuggestions(attrs, t).map((a) => (
                   <option key={a} value={a} />
@@ -272,7 +272,7 @@ export function QuestFormModal({
             </label>
             <label className="field">
               <span className="lbl">{t("modal.kind")}</span>
-              <input value={kind} onChange={(e) => setKind(e.target.value)} placeholder={t("modal.kindPh")} />
+              <input enterKeyHint="done" value={kind} onChange={(e) => setKind(e.target.value)} placeholder={t("modal.kindPh")} />
             </label>
           </div>
 
@@ -302,7 +302,7 @@ export function QuestFormModal({
                     <div key={c.id} className="cond-edit-pomo">
                       <div className="cond-edit-row is-pomo">
                         <span className="cond-edit-kind">☰ {t("checklist.kind")}</span>
-                        <input
+                        <input enterKeyHint="done"
                           value={c.label}
                           placeholder={t("checklist.labelPh")}
                           onChange={(e) => updateCond(c.id, { label: e.target.value })}
@@ -318,7 +318,7 @@ export function QuestFormModal({
                     <div key={c.id} className="cond-edit-pomo">
                       <div className="cond-edit-row is-pomo">
                         <span className="cond-edit-kind">◷ {t("pomodoro.kind")}</span>
-                        <input
+                        <input enterKeyHint="done"
                           value={c.label}
                           placeholder={t("pomodoro.form.labelPh")}
                           onChange={(e) => updateCond(c.id, { label: e.target.value })}
@@ -331,13 +331,13 @@ export function QuestFormModal({
                 }
                 return (
                   <div key={c.id} className="cond-edit-row">
-                    <input
+                    <input enterKeyHint="done"
                       value={c.label}
                       placeholder={i === 0 ? t("modal.conditionPh") : t("modal.conditionPhOther")}
                       onChange={(e) => updateCond(c.id, { label: e.target.value })}
                     />
                     <span className="muted">×</span>
-                    <input
+                    <input enterKeyHint="done" inputMode="numeric"
                       type="number"
                       min={1}
                       className="num-in"

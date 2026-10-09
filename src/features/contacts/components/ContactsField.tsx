@@ -57,14 +57,14 @@ export function ContactsField({ value, onChange }: { value: ContactRef[]; onChan
                   <ContactIcon kind={c.kind} />
                   <span>{t(`contacts.kinds.${c.kind}`)}</span>
                 </span>
-                <input
+                <input enterKeyHint="done"
                   className="ct-name"
                   value={c.name}
                   maxLength={CONTACT_LIMITS.name}
                   placeholder={t("contacts.namePh")}
                   onChange={(e) => set(c.id, { name: e.target.value })}
                 />
-                <input
+                <input enterKeyHint="done"
                   className="ct-value"
                   {...INPUT[c.kind]}
                   autoCapitalize="off"

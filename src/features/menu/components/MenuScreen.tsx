@@ -15,8 +15,10 @@ import { MenuTiles } from "./MenuTiles";
 import { MenuSettings } from "./MenuSettings";
 import { MenuBack, MenuCurrency, MenuPlayer, MenuVoice, WeeklyNews } from "./MenuPanels";
 import { Sigil } from "./MenuIcons";
-import { LivingCharacter, useCharacterStyle } from "../../living";
+import { LivingCharacter, preloadPublicImage, useCharacterStyle } from "../../living";
 import { MenuCast, characterName, useCast } from "./MenuCast";
+import { MenuPhone } from "./MenuPhone";
+import { useIsPhone } from "../../mobile/phone";
 import "../menu.css";
 
 // ───────────── Barrido ─────────────
@@ -49,6 +51,21 @@ const STREAKS: [number, number, number][] = [
  */
 export function MenuScreen() {
   const open = useMenuUi((s) => s.open);
+  const today = useCast().current;
+
+  // La imagen del personaje de hoy, convertida y decodificada cuando la app está libre: abrir el
+  // menú por primera vez no tiene que esperar a descargarla y decodificarla en mitad del barrido.
+  useEffect(() => {
+    if (!today?.builtin || !today.src) return;
+    const src = today.src;
+    const run = () => preloadPublicImage(src);
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(run, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = setTimeout(run, 1500);
+    return () => clearTimeout(id);
+  }, [today?.builtin, today?.src]);
 
   // Con la preferencia activada, la música arranca con la primera interacción (lo hacía la cabecera).
   useEffect(() => music.armAutoplay(), []);
@@ -113,6 +130,17 @@ function Screen() {
   // Con la entrada «gacha» el personaje no se desliza: se revela en su sitio (features/living).
   const slide = !still && style.entrance === "slide";
   const [wiped, setWiped] = useState(false);
+  // La malla del personaje se monta cuando han terminado el barrido y su entrada (deslizarse, ~0,9 s;
+  // la revelación «gacha», ~2 s): montarla a la vez bloqueaba el hilo principal y el barrido
+  // saltaba a medio camino (features/living, `hold`).
+  const [settled, setSettled] = useState(still);
+  useEffect(() => {
+    if (still) return;
+    const id = setTimeout(() => setSettled(true), style.entrance === "gacha" ? 2100 : 950);
+    return () => clearTimeout(id);
+  }, [still, style.entrance]);
+  // En el teléfono, otra distribución: el personaje a toda pantalla y botones alrededor (MenuPhone).
+  const phone = useIsPhone();
 
   useEffect(() => {
     root.current?.focus({ preventScroll: true });
@@ -188,25 +216,29 @@ function Screen() {
                 exit={still ? { opacity: 0 } : { opacity: 0, x: 60, transition: { duration: 0.25 } }}
                 transition={{ delay: slide ? 0.12 : 0, duration: slide ? 0.75 : 0.2, ease: [0.16, 1, 0.3, 1] }}
               >
-                <LivingCharacter c={hero} style={style} entrance={0} delay={0.3} className="mn-char" />
+                <LivingCharacter c={hero} style={style} entrance={0} delay={0.3} hold={!settled} className="mn-char" />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <div className="mn-ui">
-          <div className="mn-top">
-            <MenuBack />
-            <MenuSettings />
-            <MenuCurrency />
+        {phone ? (
+          <MenuPhone speaker={characterName(hero, t)} characterId={hero?.id} />
+        ) : (
+          <div className="mn-ui">
+            <div className="mn-top">
+              <MenuBack />
+              <MenuSettings />
+              <MenuCurrency />
+            </div>
+            <div className="mn-left">
+              <MenuPlayer />
+              <MenuVoice speaker={characterName(hero, t)} characterId={hero?.id} />
+              <WeeklyNews />
+            </div>
+            <MenuTiles />
           </div>
-          <div className="mn-left">
-            <MenuPlayer />
-            <MenuVoice speaker={characterName(hero, t)} characterId={hero?.id} />
-            <WeeklyNews />
-          </div>
-          <MenuTiles />
-        </div>
+        )}
 
         <MenuCast />
 

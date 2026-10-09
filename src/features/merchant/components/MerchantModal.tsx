@@ -33,7 +33,7 @@ import { GearForm } from "./GearForm";
 import { SoldSeal, type Sale } from "./SoldSeal";
 import "../merchant.css";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
-import { SheetClose, isPhone } from "../../mobile";
+import { SheetClose, SheetGrip, isPhone, useDragDismiss } from "../../mobile";
 
 const TABS: MerchantTab[] = ["showcase", "collectible", "catalog"];
 type Group = "all" | "armor" | "decor";
@@ -136,6 +136,9 @@ function Modal() {
     setArmed(undefined);
     setSay(greeting(tab));
   };
+
+  // En el teléfono, la ficha también se cierra arrastrando su asa hacia abajo.
+  const sheetDrag = useDragDismiss<HTMLDivElement>({ axis: "y", handle: true, onDismiss: deselect });
 
   const goTab = (next: MerchantTab) => {
     if (next === tab) return;
@@ -341,7 +344,8 @@ function Modal() {
                   )}
                 </div>
 
-                <div className={`mshop-detail ${selected ? "" : "is-empty"}`}>
+                <div className={`mshop-detail ${selected ? "" : "is-empty"}`} {...sheetDrag}>
+                  {selected && <SheetGrip />}
                   {selected && <SheetClose onClose={deselect} />}
                   {selected ? (
                     <GearDetail

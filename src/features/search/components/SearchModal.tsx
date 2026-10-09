@@ -61,6 +61,9 @@ function Panel() {
             type="search"
             value={query}
             enterKeyHint="go"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             placeholder={t("search.placeholder")}
             aria-label={t("search.title")}
             onChange={(e) => setQuery(e.target.value)}

@@ -97,7 +97,7 @@ function Modal({ form }: { form: FormState }) {
         <div className="modal-body">
           <label className="field field-title">
             <span className="lbl">{t("agenda.form.title")}</span>
-            <input ref={titleRef} value={d.title} maxLength={AGENDA_LIMITS.title} onChange={(e) => set({ title: e.target.value })} placeholder={t("agenda.form.titlePh")} />
+            <input enterKeyHint="done" ref={titleRef} value={d.title} maxLength={AGENDA_LIMITS.title} onChange={(e) => set({ title: e.target.value })} placeholder={t("agenda.form.titlePh")} />
           </label>
 
           <div className="row3">

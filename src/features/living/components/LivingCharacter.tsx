@@ -39,6 +39,12 @@ interface Props {
   delay?: number;
   /** Sin sonido en la entrada (la vista previa de la personalización lo pide aparte). */
   quiet?: boolean;
+  /**
+   * Espera para montar la malla: mientras, se ve la imagen tal cual. Montarla (contexto, shaders y
+   * subir la imagen entera como textura) bloquea el hilo principal decenas de milisegundos, y el
+   * menú la deja para cuando han terminado su barrido y la entrada del personaje.
+   */
+  hold?: boolean;
   className?: string;
 }
 
@@ -49,7 +55,7 @@ interface Props {
  * navegador no sabe WebGL o si se pide «reducir movimiento», la imagen se mueve con CSS (o
  * nada) y el resto sigue igual.
  */
-export function LivingCharacter({ c, style, entrance, delay = 0, quiet, className = "" }: Props) {
+export function LivingCharacter({ c, style, entrance, delay = 0, quiet, hold, className = "" }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -69,7 +75,7 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, classNam
   const [media, setMedia] = useState<MediaSize>();
   const [gl, setGl] = useState(false);
   const [loaded, setLoaded] = useState<string>();
-  const wantGl = !still && !!full && loaded === full && !video && !c.animated && glSupported();
+  const wantGl = !still && !hold && !!full && loaded === full && !video && !c.animated && glSupported();
 
   // Tamaño de la caja.
   useLayoutEffect(() => {
@@ -192,6 +198,8 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, classNam
                     src={src}
                     alt=""
                     draggable={false}
+                    // Fuera del hilo principal: decodificar la imagen grande no frena el barrido del menú.
+                    decoding="async"
                     onLoad={(e) => {
                       setMedia({ key: mediaKey, w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 });
                       setLoaded(e.currentTarget.getAttribute("src") ?? undefined);

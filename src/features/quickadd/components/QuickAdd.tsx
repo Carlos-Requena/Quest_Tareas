@@ -7,6 +7,7 @@ import { LANGS, currentLang } from "../../../i18n";
 import { parseQuick, type QuickToken } from "../model";
 import { quickCreate, quickDetails } from "../actions";
 import { useQuickUi } from "../ui";
+import { SheetGrip, useDragDismiss } from "../../mobile";
 import "../quickadd.css";
 
 /**
@@ -106,24 +107,29 @@ export function QuickAddSheet() {
   const open = useQuickUi((s) => s.sheet);
   const { t } = useTranslation();
   const close = () => useQuickUi.getState().setSheet(false);
+  // Se cierra también arrastrando el asa hacia abajo. El arrastre mueve la capa de fuera; Motion
+  // anima la de dentro, y así no se pisan (features/mobile, drag.ts).
+  const drag = useDragDismiss<HTMLDivElement>({ axis: "y", handle: true, onDismiss: close });
   return (
     <AnimatePresence>
       {open && (
         <>
           <motion.div key="bg" className="qa-sheet-bg" onClick={close} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={BACKDROP_EXIT} />
-          <motion.div
-            key="sheet"
-            className="qa-sheet"
-            role="dialog"
-            aria-label={t("quickadd.label")}
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 420, damping: 40 }}
-          >
-            <QuickAddForm autoFocus onDone={close} />
-            <p className="qa-help muted">{t("quickadd.help")}</p>
-          </motion.div>
+          <div key="sheet" className="qa-sheet-pos" {...drag}>
+            <motion.div
+              className="qa-sheet"
+              role="dialog"
+              aria-label={t("quickadd.label")}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 420, damping: 40 }}
+            >
+              <SheetGrip />
+              <QuickAddForm autoFocus onDone={close} />
+              <p className="qa-help muted">{t("quickadd.help")}</p>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

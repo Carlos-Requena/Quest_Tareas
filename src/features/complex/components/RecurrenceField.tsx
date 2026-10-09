@@ -83,7 +83,7 @@ export function RecurrenceField({
         {custom && !weekly && (
           <>
             <span className="muted rc-every">{t("complex.recurrence.every")}</span>
-            <input
+            <input enterKeyHint="done" inputMode="numeric"
               type="number"
               min={1}
               className="num-in rc-n"

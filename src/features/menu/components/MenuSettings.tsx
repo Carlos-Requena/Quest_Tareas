@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { setMuted } from "../../../lib/sfx";
+import { haptic, hapticsAvailable, isHapticsOn, setHapticsOn } from "../../../lib/haptics";
 import { useMuted } from "../../../lib/useMuted";
 import { LangSwitch } from "../../../components/Header";
 import { MusicControl } from "../../music";
@@ -17,6 +18,7 @@ import { useIsPhone } from "../../mobile/phone";
 export function MenuSettings() {
   const phone = useIsPhone();
   const muted = useMuted();
+  const [buzz, setBuzz] = useState(isHapticsOn);
   const { t } = useTranslation();
 
   if (!phone) {
@@ -52,6 +54,21 @@ export function MenuSettings() {
           {muted ? t("menu.settings.soundOff") : t("menu.settings.soundOn")}
         </button>
       </Row>
+      {hapticsAvailable() && (
+        <Row label={t("menu.settings.haptics")}>
+          <button
+            className={`mmenu-toggle ${buzz ? "on" : ""}`}
+            aria-pressed={buzz}
+            onClick={() => {
+              setHapticsOn(!buzz);
+              setBuzz(!buzz);
+              haptic.impact("medium");
+            }}
+          >
+            {buzz ? t("menu.settings.hapticsOn") : t("menu.settings.hapticsOff")}
+          </button>
+        </Row>
+      )}
       <Row label={t("notifications.menu")}>
         <NotifyMenuToggle />
       </Row>

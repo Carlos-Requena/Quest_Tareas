@@ -9,6 +9,11 @@ export const mobileEs = {
   },
   back: "Volver al tablón",
   closeSheet: "Cerrar la ficha",
+  dragToClose: "Desliza hacia abajo para cerrar",
+  swipe: {
+    accept: "Aceptar",
+    report: "Reportar",
+  },
   touch: {
     continue: "Toca para continuar",
     skip: "Toca para saltar",
@@ -25,6 +30,11 @@ export const mobileJa: typeof mobileEs = {
   },
   back: "掲示板に戻る",
   closeSheet: "詳細を閉じる",
+  dragToClose: "下にスワイプして閉じる",
+  swipe: {
+    accept: "受注する",
+    report: "報告する",
+  },
   touch: {
     continue: "タップして続ける",
     skip: "タップでスキップ",

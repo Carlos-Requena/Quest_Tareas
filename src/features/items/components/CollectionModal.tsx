@@ -13,7 +13,7 @@ import { AlmanacBook } from "./AlmanacBook";
 import { GearAlmanacDetail } from "./GearAlmanacDetail";
 import { itemKey } from "../almanac";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
-import { SheetClose, isPhone } from "../../mobile";
+import { SheetClose, SheetGrip, isPhone, useDragDismiss } from "../../mobile";
 
 const TABS: CollectionTab[] = ["inventory", "almanac", "rates"];
 
@@ -80,6 +80,9 @@ function Modal({ tab }: { tab: CollectionTab }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  // En el teléfono, la ficha también se cierra arrastrando su asa hacia abajo.
+  const sheetDrag = useDragDismiss<HTMLDivElement>({ axis: "y", handle: true, onDismiss: () => setSelectedKey(undefined) });
 
   const select = (key: string) => {
     // En el teléfono la ficha tapa media pantalla: volver a tocar la pieza la cierra (como el ✕).
@@ -205,7 +208,8 @@ function Modal({ tab }: { tab: CollectionTab }) {
               </div>
             </div>
 
-            <div className={`coll-side ${side ? "" : "is-empty"}`}>
+            <div className={`coll-side ${side ? "" : "is-empty"}`} {...sheetDrag}>
+              {side && mode.kind === "view" && <SheetGrip />}
               {side && mode.kind === "view" && <SheetClose onClose={() => setSelectedKey(undefined)} />}
               {side ?? <p className="coll-hint muted">{t("items.pickHint")}</p>}
             </div>

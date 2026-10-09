@@ -26,7 +26,7 @@ export function PomodoroConditionInputs({
     <div className="pomo-inputs">
       <label className="field">
         <span className="lbl">{t("pomodoro.form.rounds")}</span>
-        <input
+        <input enterKeyHint="done" inputMode="numeric"
           type="number"
           min={POMODORO_LIMITS.rounds.min}
           max={POMODORO_LIMITS.rounds.max}
@@ -36,7 +36,7 @@ export function PomodoroConditionInputs({
       </label>
       <label className="field">
         <span className="lbl">{t("pomodoro.form.focus")}</span>
-        <input
+        <input enterKeyHint="done" inputMode="numeric"
           type="number"
           min={POMODORO_LIMITS.focus.min}
           max={POMODORO_LIMITS.focus.max}
@@ -46,7 +46,7 @@ export function PomodoroConditionInputs({
       </label>
       <label className="field">
         <span className="lbl">{t("pomodoro.form.break")}</span>
-        <input
+        <input enterKeyHint="done" inputMode="numeric"
           type="number"
           min={POMODORO_LIMITS.break.min}
           max={POMODORO_LIMITS.break.max}
