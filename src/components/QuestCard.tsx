@@ -1,4 +1,4 @@
-import { forwardRef, useLayoutEffect, useMemo, useRef } from "react";
+import { forwardRef, memo, useLayoutEffect, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import gsap from "gsap";
@@ -26,7 +26,28 @@ interface Props {
   due?: Due & { temporal?: TemporalState };
   /** Requisitos que aún la bloquean (features/complex). */
   lock?: QuestState[];
-  onSelect(): void;
+  /** Estable entre pintados (recibe el id): si no, `memo` no serviría. */
+  onSelect(id: string): void;
+}
+
+/**
+ * La tarjeta solo se vuelve a pintar si cambia lo suyo. `due` y `lock` llegan recién
+ * calculados en cada pintado del tablón: se comparan por contenido. Las vecinas se siguen
+ * animando al moverse: el LayoutGroup del tablón las mide aunque no se pinten.
+ */
+function sameCard(a: Props, b: Props): boolean {
+  return (
+    a.quest === b.quest &&
+    a.status === b.status &&
+    a.selected === b.selected &&
+    a.now === b.now &&
+    a.onSelect === b.onSelect &&
+    a.due?.dueAt === b.due?.dueAt &&
+    a.due?.allDay === b.due?.allDay &&
+    a.due?.temporal === b.due?.temporal &&
+    (a.lock ?? []).length === (b.lock ?? []).length &&
+    (a.lock ?? []).every((q, i) => q === b.lock?.[i])
+  );
 }
 
 /** Líneas tipo mapa/grieta, estables por quest, que aparecen al aceptarla. */
@@ -62,7 +83,7 @@ const BURST = Array.from({ length: 16 }, (_, i) => {
   return [Math.cos(a) * r1, Math.sin(a) * r1, Math.cos(a) * r2, Math.sin(a) * r2];
 });
 
-export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard(
+export const QuestCard = memo(forwardRef<HTMLButtonElement, Props>(function QuestCard(
   { quest, status, selected, now, due, lock = [], onSelect },
   outerRef,
 ) {
@@ -166,7 +187,7 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
       transition={{ type: "spring", stiffness: 420, damping: 34 }}
       className={`card ${selected ? "is-selected" : ""} ${isActive ? "is-active" : ""} ${isCooldown ? "is-cooldown" : ""} ${isLocked ? "is-locked" : ""} ${hasPomo ? "has-pomo" : ""} ${hasCount ? "has-count" : ""}`}
       style={{ "--cat": meta.color } as React.CSSProperties}
-      onClick={onSelect}
+      onClick={() => onSelect(quest.id)}
     >
       <div className="card-inner" ref={cardRef}>
         <svg
@@ -239,4 +260,4 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
       </div>
     </motion.button>
   );
-});
+}), sameCard);

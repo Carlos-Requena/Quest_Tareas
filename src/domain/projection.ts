@@ -1,5 +1,5 @@
 import type { GameEvent } from "./events";
-import type { ConditionDef, GameState, QuestState } from "./types";
+import type { ConditionDef, GameState, PlayerState, QuestState } from "./types";
 import { isCountCondition, isPomodoroCondition } from "./types";
 import { isFromFuture, upcastEvent } from "./upcast";
 import { levelFromXp, rankFor } from "./leveling";
@@ -7,7 +7,7 @@ import { applyPomodoroEvent, newPomodoro, planOf, viewPomodoro } from "../featur
 import { upcastQuestDef } from "../features/pomodoro/legacy";
 import { applyItemEvent, newItemsAcc, receiveItems, registerItem, type ItemsAcc } from "../features/items/model";
 import { upcastReward } from "../features/items/legacy";
-import { applyTemporalEvent, inReserve, isAccepted, linkedQuestDone, newTemporalAcc, questOwners, type TemporalAcc } from "../features/temporal/model";
+import { applyTemporalEvent, inReserve, isAccepted, linkedQuestDone, newTemporalAcc, questOwners, type TemporalAcc, type TemporalState } from "../features/temporal/model";
 import { cleanRepeatDays, cleanRequires, prerequisitesMet, recurs, returnsAt, streakUntil } from "../features/complex/model";
 import { applyMerchantEvent, fullCatalog, gearOf, newMerchantAcc, type MerchantAcc } from "../features/merchant/model";
 import { applyEquipmentEvent, newEquipmentAcc, pruneEquipment, type EquipmentAcc } from "../features/equipment/model";
@@ -15,7 +15,7 @@ import { gainAttribute, listAttributes, newAttributesAcc, type AttributesAcc } f
 import { applyCheck, checklistProgress, cleanChecklist, isChecklistCondition } from "../features/checklist/model";
 import { nextStreak } from "../features/streaks/model";
 import { newChronicleAcc, noteStart, record, type ChronicleAcc, type ChronicleFind } from "../features/chronicle/model";
-import { questReward, temporalValue } from "../features/rewards/model";
+import { questReward, temporalValue, type Reward } from "../features/rewards/model";
 import { applyCollectibleEvent } from "../features/collectibles/model";
 import { cleanContacts } from "../features/contacts/model";
 import { applyAgendaEvent, newAgendaAcc, type AgendaAcc } from "../features/agenda/model";
@@ -33,7 +33,7 @@ import { undoneIn } from "../features/undo/model";
  * NORMA: súbela si cambias el resultado de project() para eventos ya guardados:
  * un `case`, una guarda, un upcaster (legacy.ts) o un apply*Event de una funcionalidad.
  */
-export const PROJECTION_VERSION = 13;
+export const PROJECTION_VERSION = 14;
 
 /**
  * Acumulador de la proyección: lo que se va calculando al reproducir los eventos.
@@ -265,6 +265,7 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
 
     case "temporal_failed": {
       // El cartel se quema al acabar su día sin cumplirlo; sus quests sin terminar fallan con él.
+      fixValue(acc, e.temporalId);
       const t = temporals.board.get(e.temporalId);
       if (!t || !temporalFailsBy(t, e.ts)) break;
       let lost = 0;
@@ -320,6 +321,7 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
     case "temporal_art_removed": {
       // Cumplir un encargo temporal también da XP y oro (copiados en el evento).
       // Solo se puede si sus quests enlazadas están terminadas.
+      if (e.type === "temporal_completed") fixValue(acc, e.temporalId);
       const earned = applyTemporalEvent(temporals, e, e.ts, linkDone);
       if (earned) {
         acc.xp += earned.xp;
@@ -403,62 +405,142 @@ export function applyEvent(acc: ProjectionAcc, raw: GameEvent): void {
   }
 }
 
+/** Lo que vale ahora un encargo pendiente: depende de sus quests enlazadas (features/rewards). */
+const pendingValue = (t: TemporalState, quests: Map<string, QuestState>) =>
+  temporalValue(t.difficulty, t.questIds.flatMap((id) => quests.get(id)?.reward ?? []));
+
+/**
+ * Antes de cerrar un encargo pendiente (cumplirlo o quemarlo), su valor se fija al calculado
+ * en ese momento. Así queda igual al reproducir todo que evento a evento, donde
+ * settleProjection ya lo había puesto al día tras el evento anterior.
+ */
+function fixValue(acc: ProjectionAcc, temporalId: string) {
+  const t = acc.temporals.board.get(temporalId);
+  if (t?.status !== "pending") return;
+  const reward = pendingValue(t, acc.quests);
+  if (!sameShallow(t.reward, reward)) t.reward = reward;
+}
+
 /** Un personaje existe: los de serie siempre (están en public/menu/); los añadidos, mientras no se quiten. */
 const characterExists = (c: CharactersAcc, id: string) => id.startsWith(BUILTIN_PREFIX) || c.list.has(id);
 
 /**
  * Cierra la proyección: lo que se deriva del acumulador entero (nivel, rango, huecos,
  * el encargo de cada quest y si está en reserva). Se puede llamar después de cada evento.
+ * Modifica `acc` (ver settleProjection).
  */
 export function finishProjection(acc: ProjectionAcc): GameState {
-  const { quests, items, temporals, merchant, equipment, attributes, chronicle, agenda, characters, styles, companion, xp, gold, completedCount } = acc;
+  settleProjection(acc);
+  return viewProjection(acc);
+}
+
+/** Lo que settleProjection tiene que cambiar: por quest, su encargo y su reserva; por encargo, su valor. */
+export interface Settle {
+  quests: Map<string, { temporalId?: string; reserved: boolean }>;
+  rewards: Map<string, Reward>;
+}
+
+/**
+ * Lo que se deriva entre entidades y aún no está al día en `acc`, sin modificarlo
+ * (undefined si ya lo está). Separarlo de applySettle deja al store copiar solo las
+ * quests y los encargos que cambian (features/snapshot).
+ */
+export function pendingSettle(acc: ProjectionAcc): Settle | undefined {
+  const { quests, temporals } = acc;
+  const out: Settle = { quests: new Map(), rewards: new Map() };
   // Cada quest sabe a qué encargo pendiente pertenece (para su fecha y su enlace).
   // Se recalcula entero: tras desenlazar o cumplir un encargo, la quest ya no lo tiene.
   // Las de un encargo sin aceptar quedan en reserva, salvo las que ya estén en curso.
   const owners = questOwners(temporals.board.values());
   for (const q of quests.values()) {
     const temporalId = owners.get(q.id);
-    if (temporalId) q.temporalId = temporalId;
-    else delete q.temporalId;
     const owner = temporalId ? temporals.board.get(temporalId) : undefined;
-    if (owner && !isAccepted(owner) && q.status !== "active" && q.status !== "done") q.reserved = true;
-    else delete q.reserved;
+    const reserved = !!owner && !isAccepted(owner) && q.status !== "active" && q.status !== "done";
+    const sameOwner = temporalId ? q.temporalId === temporalId : !("temporalId" in q);
+    const sameReserve = reserved ? q.reserved === true : !("reserved" in q);
+    if (!sameOwner || !sameReserve) out.quests.set(q.id, { temporalId, reserved });
   }
   // Lo que vale un encargo pendiente depende de sus quests enlazadas (features/rewards).
   for (const t of temporals.board.values()) {
     if (t.status !== "pending") continue;
-    const linked = t.questIds.flatMap((id) => quests.get(id)?.reward ?? []);
-    t.reward = temporalValue(t.difficulty, linked);
+    const reward = pendingValue(t, quests);
+    if (!sameShallow(t.reward, reward)) out.rewards.set(t.id, reward);
   }
+  return out.quests.size || out.rewards.size ? out : undefined;
+}
 
+/** Aplica lo que calculó pendingSettle (modifica `acc`). */
+export function applySettle(acc: ProjectionAcc, s: Settle): void {
+  for (const [id, { temporalId, reserved }] of s.quests) {
+    const q = acc.quests.get(id);
+    if (!q) continue;
+    if (temporalId) q.temporalId = temporalId;
+    else delete q.temporalId;
+    if (reserved) q.reserved = true;
+    else delete q.reserved;
+  }
+  for (const [id, reward] of s.rewards) {
+    const t = acc.temporals.board.get(id);
+    if (t) t.reward = reward;
+  }
+}
+
+/** Deja al día lo que se deriva entre entidades (encargo de cada quest, reserva y valor de los encargos). Modifica `acc`. */
+export function settleProjection(acc: ProjectionAcc): void {
+  const s = pendingSettle(acc);
+  if (s) applySettle(acc, s);
+}
+
+/**
+ * El GameState de un acumulador ya asentado, sin modificarlo. Con `prev` (el acumulador y
+ * el estado anteriores) reutiliza lo que no ha cambiado: si nada cambia, devuelve el mismo
+ * objeto, y React no vuelve a pintar lo que depende de él (features/snapshot).
+ */
+export function viewProjection(acc: ProjectionAcc, prev?: { acc: ProjectionAcc; state: GameState }): GameState {
+  const { quests, items, temporals, merchant, equipment, attributes, chronicle, agenda, characters, styles, companion, xp, gold, completedCount } = acc;
+  const old = prev?.state;
+  const was = prev?.acc;
   const lv = levelFromXp(xp);
-  return {
+  const player: PlayerState = {
+    xp,
+    gold,
+    ...lv,
+    rank: rankFor(lv.level),
+    inventory: items.inventory,
+    discovered: items.discovered,
+    pity: items.pity,
+    collectiblesBought: items.bought,
+    completedCount,
+    owned: merchant.owned,
+    equipped: equipment.equipped,
+    attributes: old && was?.attributes === attributes ? old.player.attributes : listAttributes(attributes),
+  };
+  const next: GameState = {
     quests,
     items: items.catalog,
     temporals: temporals.board,
     temporalArts: temporals.arts,
-    gear: fullCatalog(merchant),
+    gear: old && was?.merchant.catalog === merchant.catalog ? old.gear : fullCatalog(merchant),
     chronicle,
     agenda: agenda.entries,
     characters: characters.list,
     voiceLines: characters.lines,
     characterStyles: styles,
-    companion: { chosen: companion.chosen, lines: companion.lines },
-    player: {
-      xp,
-      gold,
-      ...lv,
-      rank: rankFor(lv.level),
-      inventory: items.inventory,
-      discovered: items.discovered,
-      pity: items.pity,
-      collectiblesBought: items.bought,
-      completedCount,
-      owned: merchant.owned,
-      equipped: equipment.equipped,
-      attributes: listAttributes(attributes),
-    },
+    companion:
+      old && old.companion.chosen === companion.chosen && old.companion.lines === companion.lines
+        ? old.companion
+        : { chosen: companion.chosen, lines: companion.lines },
+    player: old && sameShallow(old.player, player) ? old.player : player,
   };
+  return old && sameShallow(old, next) ? old : next;
+}
+
+/** Mismas claves y los mismos valores (por identidad) en el primer nivel. */
+function sameShallow(a: object | undefined, b: object): boolean {
+  if (!a) return false;
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  return ka.every((k) => k in b && Object.is((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
 }
 
 /** El estado "cooldown" caduca con el paso del tiempo, sin necesidad de eventos. */

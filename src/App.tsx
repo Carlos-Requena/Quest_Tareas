@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo } from "react";
 import { AnimatePresence, LayoutGroup } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { toggleLang } from "./i18n";
@@ -85,6 +85,13 @@ export default function App() {
   const visible = useMemo(() => inTab.filter((q) => matchesHorizon(horizon, questDue(q, temporals), now)), [inTab, horizon, temporals, now]);
 
   const selected = visible.find((q) => q.id === selectedId) ?? visible[0];
+
+  // Estable: las tarjetas van con memo (QuestCard) y un manejador nuevo en cada pintado las repintaría todas.
+  const selectCard = useCallback((id: string) => {
+    if (id !== useGame.getState().selectedId || isPhone()) sfx.move();
+    useGame.getState().select(id);
+    if (isPhone()) useMobileUi.getState().openDetail(id);
+  }, []);
 
   useEffect(() => {
     if (selected && selected.id !== selectedId) select(selected.id);
@@ -179,16 +186,15 @@ export default function App() {
 
   return (
     <div className={`app ${detailOpen ? "m-detail" : ""}`}>
-      <Backdrop />
-      <Header />
+      <Top />
 
       {section === "temporal" ? (
         <main className="main main-temporal">
-          <TemporalBoard />
+          <TemporalSection />
         </main>
       ) : section === "calendar" ? (
         <main className="main main-calendar">
-          <CalendarView />
+          <CalendarSection />
         </main>
       ) : (
         <main className="main">
@@ -216,11 +222,7 @@ export default function App() {
                         due={questDue(q, temporals)}
                         lock={blockers(q, quests)}
                         selected={q.id === selected?.id}
-                        onSelect={() => {
-                          if (q.id !== selected?.id || isPhone()) sfx.move();
-                          select(q.id);
-                          if (isPhone()) useMobileUi.getState().openDetail(q.id);
-                        }}
+                        onSelect={selectCard}
                       />
                     ))}
                 </AnimatePresence>
@@ -238,12 +240,45 @@ export default function App() {
         </main>
       )}
 
+      <Bottom />
+      <Windows />
+    </div>
+  );
+}
+
+// Lo que no depende del tablón va en piezas con memo y sin props: así, cuando cambia una
+// quest y App se vuelve a pintar, React no las repinta (cada una sigue a su parte del
+// store por su cuenta).
+
+const Top = memo(function Top() {
+  return (
+    <>
+      <Backdrop />
+      <Header />
+    </>
+  );
+});
+
+const TemporalSection = memo(TemporalBoard);
+const CalendarSection = memo(CalendarView);
+
+const Bottom = memo(function Bottom() {
+  return (
+    <>
       <Footer />
       <MobileNav />
       <MobileCreate />
       <div className="m-toast">
         <Toast />
       </div>
+    </>
+  );
+});
+
+/** Ventanas, capas y vigilantes: cada uno se abre o actúa según su propio estado. */
+const Windows = memo(function Windows() {
+  return (
+    <>
       <MenuScreen />
       <CreateQuestModal />
       <ClearOverlay />
@@ -262,6 +297,6 @@ export default function App() {
       <FailureOverlay />
       <FailureWatcher />
       <NotificationScheduler />
-    </div>
+    </>
   );
-}
+});

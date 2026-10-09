@@ -43,8 +43,8 @@ sequenceDiagram
     Act->>Act: ¿disponible? ¿requisitos? ¿en reserva?
     Act->>Store: dispatch({type: "quest_accepted", questId})
     Store->>Store: añade id, deviceId, ts (nextTs) y v
-    Store->>Dom: applyEvent(copia del acumulador, evento)
-    Dom-->>Store: nuevo GameState (finishProjection)
+    Store->>Dom: applyNext(acumulador, evento): copia solo lo que cambia
+    Dom-->>Store: nuevo GameState (viewProjection, reutiliza lo demás)
     Store-->>Card: React vuelve a pintar (status = "active")
     Card->>Card: GSAP: sello + temblor + grietas + sonido
     Store->>DB: append(evento) (asíncrono)
@@ -376,8 +376,9 @@ async dispatch(body) {   // simplificado
   const e = newEvent(store, body, projected.last); // id, deviceId, ts = nextTs(Date.now(), último) y v
   // Reloj atrasado o deshacer: cambia el pasado, se recalcula todo.
   if (!goesAfter(projected, e) || e.type === "event_undone") { await store.append(e); await rebuild(); return e; }
-  const next = applyAll({ ...projected, acc: cloneAcc(projected.acc) }, [e]);
-  set({ projected: next, state: finishProjection(next.acc) }); // 1. la UI se actualiza ya
+  const next = applyNext(projected, e);                          // copia solo lo que cambia (Immer)
+  const state = next.acc === projected.acc ? estadoActual : viewProjection(next.acc, anterior);
+  set({ projected: next, state });                               // 1. la UI se actualiza ya
   await store.append(e);                                        // 2. se guarda después
   maybeSnapshot(next);                                          // 3. cada 100 eventos
   return e;                                                     // 4. para ofrecer «Deshacer»
@@ -385,7 +386,7 @@ async dispatch(body) {   // simplificado
 ```
 
 - **Optimista:** primero la memoria, después el disco. La animación arranca sin esperar a SQLite.
-- **Solo el evento nuevo**, sobre una copia del acumulador (`structuredClone`): el estado anterior no cambia y React ve objetos nuevos. Si el evento cae en medio del historial (reloj atrasado), se recalcula todo (`rebuild()`).
+- **Solo el evento nuevo, y solo se copia lo que toca** (`applyNext`, con Immer, [ADR-54](decisions/ADR-54-copia-selectiva-en-dispatch.md)): el estado anterior no cambia, lo que no cambia conserva su identidad y React solo vuelve a pintar lo que depende de lo cambiado (las listas grandes van con `memo`). Un evento que no cambia nada deja el estado igual. Si el evento cae en medio del historial (reloj atrasado), se recalcula todo (`rebuild()`).
 - **Deshacer** no borra nada: es otro evento, `event_undone`, y como cambia el pasado siempre recalcula todo ([undo](../src/features/undo/README.md)). `dispatch` devuelve el evento guardado y `say(texto, acción?)` pinta el aviso con su botón.
 
 ### Snapshot: arrancar sin reproducirlo todo

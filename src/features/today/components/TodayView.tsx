@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../../../store/game";
 import { CATEGORY_META, type QuestState } from "../../../domain/types";
@@ -180,7 +180,8 @@ function Block({ tag, label, hint, tone, children }: { tag: string; label: strin
   );
 }
 
-function QuestRow({ q, now, meta, accept }: { q: QuestState; now: number; meta?: string; accept?: boolean }) {
+// Las filas van con memo: al cambiar una quest, solo se vuelve a pintar la suya.
+const QuestRow = memo(function QuestRow({ q, now, meta, accept }: { q: QuestState; now: number; meta?: string; accept?: boolean }) {
   const { t } = useTranslation();
   const total = q.conditions.length;
   const met = q.status === "active" ? q.conditions.filter((c) => conditionProgress(q, c, now) >= c.target).length : 0;
@@ -198,9 +199,9 @@ function QuestRow({ q, now, meta, accept }: { q: QuestState; now: number; meta?:
       )}
     </div>
   );
-}
+});
 
-function TemporalRow({ t: x }: { t: TemporalState }) {
+const TemporalRow = memo(function TemporalRow({ t: x }: { t: TemporalState }) {
   const { t } = useTranslation();
   const time = x.allDay ? t("today.allDay") : formatClock(minuteOf(x.dueAt));
   return (
@@ -212,4 +213,4 @@ function TemporalRow({ t: x }: { t: TemporalState }) {
       </button>
     </div>
   );
-}
+});

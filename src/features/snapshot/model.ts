@@ -3,7 +3,8 @@
 
 import type { EventPos, GameEvent } from "../../domain/events";
 import { comparePos } from "../../domain/events";
-import { applyEvent, newProjectionAcc, PROJECTION_VERSION, type ProjectionAcc } from "../../domain/projection";
+import { Immer, enableMapSet } from "immer";
+import { applyEvent, applySettle, newProjectionAcc, pendingSettle, PROJECTION_VERSION, type ProjectionAcc } from "../../domain/projection";
 import { undoneIn } from "../undo/model";
 
 /** Versión del formato guardado (la forma de este objeto y de su JSON). */
@@ -49,11 +50,26 @@ export function applyAll(p: Projected, events: GameEvent[]): Projected {
 /** ¿Va `e` detrás de todo lo aplicado? Si no (reloj atrasado, evento remoto antiguo), hay que recalcular. */
 export const goesAfter = (p: Pick<Projected, "last">, e: EventPos) => !p.last || comparePos(e, p.last) > 0;
 
+// Copia selectiva (Immer): applyEvent escribe sobre un borrador y solo se copia lo que toca;
+// lo demás se comparte con el acumulador anterior. Sin congelar el resultado: congelarlo
+// recorre el árbol entero y nadie escribe en él fuera de un borrador (snapshot.test.ts lo
+// comprueba congelándolo a propósito).
+enableMapSet();
+const immer = new Immer({ autoFreeze: false });
+
 /**
- * Copia profunda del acumulador. El store aplica cada evento nuevo sobre una copia:
- * el estado anterior no cambia y React ve objetos nuevos, como con project().
+ * Aplica UN evento nuevo, posterior a `p.last`, sin modificar `p`: el store lo usa en cada
+ * dispatch (ADR-54). Copia solo las quests, encargos, objetos… que cambian, y lo que no
+ * cambia conserva su identidad; si el evento no cambia nada, devuelve el mismo acumulador.
+ * Un deshacer no se aplica así: quien llama tiene que reproducirlo todo.
  */
-export const cloneAcc = (acc: ProjectionAcc): ProjectionAcc => structuredClone(acc);
+export function applyNext(p: Projected, e: GameEvent): Projected {
+  let acc = immer.produce(p.acc, (draft) => applyEvent(draft as ProjectionAcc, e));
+  // Lo que se deriva entre entidades se calcula leyendo, sin borrador, y solo se escribe lo que difiere.
+  const settle = pendingSettle(acc);
+  if (settle) acc = immer.produce(acc, (draft) => applySettle(draft as ProjectionAcc, settle));
+  return { acc, last: { ts: e.ts, id: e.id }, count: p.count + 1 };
+}
 
 export function makeSnapshot(p: Projected, now: number): Snapshot | undefined {
   if (!p.last) return;

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { CATEGORY_META } from "../../../domain/types";
 import { formatClock } from "../../agenda/model";
@@ -13,8 +14,17 @@ export function itemColor(item: CalendarItem): string {
   return "var(--skull)";
 }
 
-/** Una cosa de un día en la vista de semana: bloque de agenda, encargo o quest con fecha límite. */
-export function CalendarChip({ item, date }: { item: CalendarItem; date: string }) {
+/** Mismos campos con los mismos valores: los CalendarItem son planos y se recalculan en cada pintado. */
+const sameItem = (a: CalendarItem, b: CalendarItem) => {
+  const ka = Object.keys(a) as (keyof CalendarItem)[];
+  return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
+};
+
+/**
+ * Una cosa de un día en la vista de semana: bloque de agenda, encargo o quest con fecha límite.
+ * Con memo: al cambiar una quest, la semana no vuelve a pintar todas sus fichas.
+ */
+export const CalendarChip = memo(function CalendarChip({ item, date }: { item: CalendarItem; date: string }) {
   const { t } = useTranslation();
   const state =
     item.kind === "temporal"
@@ -78,4 +88,4 @@ export function CalendarChip({ item, date }: { item: CalendarItem; date: string 
       {item.kind === "temporal" && (item.done || !item.accepted) && <span className="cal-state">{state}</span>}
     </button>
   );
-}
+}, (a, b) => a.date === b.date && sameItem(a.item, b.item));

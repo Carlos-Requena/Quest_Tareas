@@ -1,14 +1,13 @@
 import { create } from "zustand";
 import { EVENT_VERSION, nextTs, type EventBody, type EventPos, type GameEvent } from "../domain/events";
-import { finishProjection, project } from "../domain/projection";
+import { finishProjection, project, viewProjection } from "../domain/projection";
 import type { Category, GameState } from "../domain/types";
 import { seedEvents } from "../domain/seed";
 import { openEventStore, type EventStore } from "../storage/eventStore";
 import { uid } from "../lib/id";
 import type { Drop } from "../features/items/model";
 import {
-  applyAll,
-  cloneAcc,
+  applyNext,
   emptyProjected,
   goesAfter,
   rebuild as rebuildProjection,
@@ -88,7 +87,7 @@ let rebuilding: Promise<void> | undefined;
 function maybeSnapshot(p: Projected, force = false) {
   if (!force && p.count - snapCount < SNAPSHOT_EVERY) return;
   snapCount = p.count;
-  // `p.acc` no se vuelve a modificar: cada dispatch trabaja sobre una copia.
+  // `p.acc` no se vuelve a modificar: cada dispatch copia lo que cambia (applyNext).
   saving = saving.then(() => saveSnapshot(p));
 }
 
@@ -149,9 +148,12 @@ export const useGame = create<GameStore>((set, get) => {
         await get().rebuild();
         return e;
       }
-      // Solo el evento nuevo, sobre una copia: el estado anterior no cambia.
-      const next = applyAll({ ...projected, acc: cloneAcc(projected.acc) }, [e]);
-      set({ projected: next, state: finishProjection(next.acc) });
+      // Solo el evento nuevo, copiando solo lo que cambia: el estado anterior no se toca y lo
+      // que no cambia conserva su identidad, así que React solo vuelve a pintar lo que depende
+      // de lo cambiado. Si el evento no cambia nada, el estado es el mismo objeto.
+      const next = applyNext(projected, e);
+      const state = next.acc === projected.acc ? get().state : viewProjection(next.acc, { acc: projected.acc, state: get().state });
+      set({ projected: next, state });
       await store.append(e);
       maybeSnapshot(next);
       return e;

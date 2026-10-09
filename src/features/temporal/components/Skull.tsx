@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from "react";
+import { memo, useId, type CSSProperties } from "react";
 
 // Calavera roja y brillante, como las de la imagen de referencia. Los colores salen
 // de variables CSS (--sk-hi, --sk-mid, --sk-lo, --sk-deep): la clase `.skull-gold`
@@ -18,7 +18,8 @@ const BUMPS: [number, number, number][] = [
   [33, 9, 2.4],
 ];
 
-export function Skull({ className = "", style }: { className?: string; style?: CSSProperties }) {
+/** Con memo: sale en cada cartel, ficha y tarjeta, y su dibujo solo depende de sus props. */
+export const Skull = memo(function Skull({ className = "", style }: { className?: string; style?: CSSProperties }) {
   const id = `sk${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   return (
     <svg viewBox="0 0 64 64" className={`skull ${className}`} style={style} aria-hidden>
@@ -40,7 +41,7 @@ export function Skull({ className = "", style }: { className?: string; style?: C
       <circle cx="44" cy="16" r="1.6" fill="#fff" opacity="0.45" />
     </svg>
   );
-}
+});
 
 /** Mancha de tinta que deja una calavera al estamparse (animación de «cartel clavado»). */
 export function InkSplat({ className = "", seed = 0 }: { className?: string; seed?: number }) {

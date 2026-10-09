@@ -130,7 +130,7 @@ Todos siguen el mismo patrón: una acción valida, emite un evento, el store apl
 **Aceptar una quest** (`Enter` o «Aceptar»):
 
 1. `acceptQuest(id)` comprueba que esté disponible, que no le falten requisitos y que no esté en reserva.
-2. `dispatch({type: "quest_accepted"})` completa el evento (`id`, `deviceId`, `ts`, `v`), lo aplica sobre una copia del acumulador (`applyEvent` + `finishProjection`) y React vuelve a pintar.
+2. `dispatch({type: "quest_accepted"})` completa el evento (`id`, `deviceId`, `ts`, `v`), lo aplica copiando solo lo que cambia (`applyNext`, con Immer) y React vuelve a pintar solo lo que depende de lo cambiado.
 3. `QuestCard` detecta el paso a `active` y lanza la línea de tiempo GSAP: sello, sonido, temblor, destello y grietas.
 4. El evento se escribe en SQLite de forma asíncrona y el aviso ofrece «Deshacer».
 
