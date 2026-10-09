@@ -144,7 +144,15 @@ export function createStage(img: HTMLImageElement, params: StageParams, onLost: 
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   try {
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    const source = document.createElement("canvas");
+    source.width = img.naturalWidth;
+    source.height = img.naturalHeight;
+    const context = source.getContext("2d");
+    if (!context) return undefined;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(img, 0, 0);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
   } catch {
     return undefined;
   }
@@ -190,10 +198,14 @@ export function createStage(img: HTMLImageElement, params: StageParams, onLost: 
   return {
     canvas,
     resize(width, height, dpr) {
-      // Con un tope de píxeles: una pantalla 4K a 2x no necesita un lienzo de 30 millones.
+      // Con un tope de píxeles: conserva nitidez en personajes altos sin disparar la memoria.
       const w = width * (1 + 2 * PAD.x);
       const h = height * (1 + PAD.top);
-      const scale = Math.min(dpr, Math.sqrt(3_000_000 / Math.max(1, w * h)));
+      const scale = Math.min(dpr, Math.sqrt(12_000_000 / Math.max(1, w * h)));
+      // WebKit puede usar temporalmente el tamaño interno del lienzo como tamaño CSS después
+      // de cambiar de personaje. Fijar ambos tamaños evita que la capa WebGL se vea ampliada.
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
       canvas.width = Math.max(1, Math.round(w * scale));
       canvas.height = Math.max(1, Math.round(h * scale));
       gl.uniform1f(u.aspect, width / Math.max(1, height));
@@ -212,7 +224,8 @@ export function createStage(img: HTMLImageElement, params: StageParams, onLost: 
       gl.deleteProgram(prog);
       gl.deleteShader(vs);
       gl.deleteShader(fs);
-      // Devuelve el contexto ya: los navegadores solo dejan unos pocos a la vez.
+      // Libera el contexto para que los cambios de personaje no acumulen contextos WebGL.
+      // El listener ya está retirado, así que esta pérdida intencionada no avisa al componente.
       gl.getExtension("WEBGL_lose_context")?.loseContext();
       canvas.remove();
     },

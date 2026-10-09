@@ -8,6 +8,7 @@ export const mobileEs = {
     temporal: "Encargos",
   },
   back: "Volver al tablón",
+  closeSheet: "Cerrar la ficha",
   touch: {
     continue: "Toca para continuar",
     skip: "Toca para saltar",
@@ -23,6 +24,7 @@ export const mobileJa: typeof mobileEs = {
     temporal: "依頼",
   },
   back: "掲示板に戻る",
+  closeSheet: "詳細を閉じる",
   touch: {
     continue: "タップして続ける",
     skip: "タップでスキップ",

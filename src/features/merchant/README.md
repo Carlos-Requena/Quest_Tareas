@@ -116,7 +116,7 @@ Cada semana (de lunes a lunes, hora local; con cambio de hora dura 167 o 169 hor
 | Armar la compra | El botón se vuelve rojo y late: «¿Seguro? Pagar 8000 G» |
 | Comprar | Un sello rojo «SOLD» (`SoldSeal`, GSAP con `power4.in`) cae sobre el escaparate con `mix-blend-mode: multiply`, golpe, lluvia de monedas y sacudida; desde épico, fanfarria y estrellas del color de la rareza |
 
-En el teléfono: Hu Tao arriba, la mercancía debajo y la ficha de la pieza elegida **pegada abajo** (`position: sticky`).
+En el teléfono: Hu Tao arriba, la mercancía debajo y la ficha de la pieza elegida **pegada abajo** (`position: sticky`), que se cierra con su ✕ o volviendo a tocar la fila; sin pieza elegida, no ocupa sitio ([mobile](../mobile/README.md#fichas-pegadas-abajo)).
 
 ## Archivos
 
@@ -172,6 +172,7 @@ En el teléfono: Hu Tao arriba, la mercancía debajo y la ficha de la pieza eleg
 - **features/armory** (`model.ts`, `labels.ts`): las piezas de serie y sus nombres traducidos. Para añadir o cambiar una pieza de serie, lee su README.
 - **features/collectibles** (`OfferPanel`, `model`, `actions`): la pestaña «Coleccionable». Para cambiar la oferta, lee su README.
 - **features/equipment** (`actions.ts`): «Ponérmelo» desde la ficha.
+- **features/mobile** (`index`): el ✕ de la ficha (`SheetClose`) e `isPhone()` para cerrarla volviendo a tocar la fila.
 - **La usan:** `armory`, `collectibles`, `equipment`, `items` (almanaques de equipo), `menu`, `sync`, `calendar` y `temporal` (su teclado espera con la tienda abierta).
 
 ## Estado actual

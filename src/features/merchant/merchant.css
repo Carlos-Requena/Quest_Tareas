@@ -719,17 +719,25 @@
   .grow {
     min-height: 58px;
   }
+  /* Sin pieza elegida, la ficha no ocupa sitio; con una, se cierra con ✕ o tocando otra vez la fila. */
+  .mshop-detail.is-empty {
+    display: none;
+  }
   .mshop-detail {
     position: sticky;
     bottom: 0;
     z-index: 3;
     height: auto;
     max-height: 48vh;
+    overflow-y: auto;
     margin: 0 -16px;
     padding: 14px 16px 16px;
     background: linear-gradient(180deg, #1d1a15, #13110e);
     border-top: 1px solid var(--line-strong);
     box-shadow: 0 -14px 28px rgba(0, 0, 0, 0.5);
+  }
+  .gdet-id {
+    padding-right: 32px;
   }
   .gdet-actions {
     flex-wrap: wrap;

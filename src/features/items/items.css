@@ -1385,11 +1385,16 @@
     gap: 14px 10px;
     padding: 4px 0 16px;
   }
+  /* Sin objeto elegido, la ficha no ocupa sitio; con uno, se cierra con ✕ o tocando otra vez el objeto. */
+  .coll-side.is-empty {
+    display: none;
+  }
   .coll-side {
     position: sticky;
     bottom: 0;
     z-index: 3;
     max-height: 52vh;
+    overflow-y: auto;
     margin: 0 -16px;
     padding: 14px 16px 16px;
     background: linear-gradient(180deg, #1d1a15, #13110e);

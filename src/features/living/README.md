@@ -54,7 +54,8 @@ Quitar un personaje (`character_removed`) se lleva su estilo. El acumulador gan�
 ## Interfaz
 
 - **Capas** (`LivingCharacter`): `.lv` llena su caja; `.lv-place` es el rectángulo exacto de la imagen (cabe entera, de pie sobre el borde de abajo); dentro, el aura (detrás), `.lv-in` (la entrada), `.lv-frame` (sombra, filo del color del aura y bordes suaves), `.lv-body` (el movimiento de CSS cuando no hay malla), la imagen o el vídeo, el lienzo de la malla (con margen a los lados y arriba para lo que mueve el viento), el barrido, las partículas y el destello de la entrada.
-- **La malla** es un recurso imperativo por personaje en pantalla: `createStage` crea un lienzo nuevo, sube la imagen ya cargada como textura (con alfa premultiplicado, sin halo) y pinta en cada fotograma; `destroy` devuelve el contexto al momento (los navegadores solo dejan unos pocos). Si el navegador retira el contexto, se vuelve a la imagen. Tope de 3 millones de píxeles en el lienzo y densidad máxima de 2.
+- **La malla** es un recurso imperativo por personaje en pantalla: `createStage` crea un lienzo nuevo, sube la imagen ya cargada como textura (con alfa premultiplicado, sin halo) y pinta en cada fotograma; `destroy` detiene el renderizado, libera los recursos y retira el lienzo. Si el navegador retira el contexto, se vuelve a la imagen. Tope de 12 millones de píxeles en el lienzo y densidad máxima de 2.
+- **Fuentes de imagen:** los assets de serie se convierten en una URL `blob:` antes de pintarse, igual que los binarios añadidos por el jugador, para que WebKit siga la misma ruta en ambos casos.
 - **Entrada gacha** (GSAP, patrón de `QuestCard`): silueta en negro que aparece, destello con `sfx.glint`, dos anillos y rayos, y el personaje se revela; GSAP controla la visibilidad de `.lv-in` y del destello y, al limpiar, `tl.kill()` y `gsap.set` al estado final. En el menú empieza tras el barrido (0,3 s) y sustituye al deslizamiento.
 - **Partículas** solo con CSS, con posiciones y tiempos que salen del índice (sin azar): polvo dorado y ascuas suben, pétalos y nieve caen, destellos se encienden en su sitio.
 - **Teléfono:** la mitad de partículas.
@@ -70,6 +71,7 @@ Quitar un personaje (`character_removed`) se lleva su estilo. El acumulador gan�
 | `gl.ts` | La malla: shaders, `createStage`, `glSupported` y el margen del lienzo (`PAD`) |
 | `components/LivingCharacter.tsx` | El personaje vivo: capas, malla, movimiento de CSS y entrada |
 | `components/Particles.tsx` | Las partículas |
+| `usePublicImageUrl.ts` | Convierte los assets de serie en URLs `blob:` para compartir la ruta de carga con los binarios del jugador |
 | `living.css`, `i18n.ts` | Capas, barrido, aura, entrada y partículas (con su bloque de teléfono); textos es + ja de la pestaña Movimiento |
 | `model.test.ts` | Parches, restablecer, guardas y estilos de personajes quitados |
 

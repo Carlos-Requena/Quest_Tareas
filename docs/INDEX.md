@@ -55,7 +55,7 @@ Resumen, tipo y eventos salen del frontmatter de cada README; «Verificada» es 
 | [Personajes vivos](../src/features/living/README.md) | presentación | Los personajes del menú respiran, se mecen y les da el viento (una malla de WebGL sobre su imagen), con aura, brillo, partículas y entrada gacha, a elegir para cada uno. | `character_style_set`, `character_style_reset` | 2026-10-08 |
 | [Menú de opciones](../src/features/menu/README.md) | presentación | Pantalla de opciones (tecla O) al estilo del menú principal de un gacha, con el personaje del día, las tarjetas de cada sección en 3D y los ajustes. | `character_added`, `character_removed`, `voice_line_added`, `voice_line_updated`, `voice_line_removed` | 2026-10-08 |
 | [Mercader](../src/features/merchant/README.md) | dominio | Hu Tao vende equipo para el muñeco y decoración del menú, con precio por rareza y ranura, rango mínimo y un escaparate semanal. | `gear_created`, `gear_updated`, `gear_deleted`, `gear_purchased` | 2026-10-02 |
-| [Interfaz de teléfono](../src/features/mobile/README.md) | presentación | La misma app compilada para iPhone con interfaz de teléfono: barra de abajo, detalle y ventanas a pantalla completa y deslizar para pasar página. | — | 2026-10-07 |
+| [Interfaz de teléfono](../src/features/mobile/README.md) | presentación | La misma app compilada para iPhone con interfaz de teléfono: barra de abajo, detalle y ventanas a pantalla completa y deslizar para pasar página. | — | 2026-10-09 |
 | [Música de fondo](../src/features/music/README.md) | servicio | Música en bucle con fundidos y volumen, en los ajustes del menú y con la tecla M; preferencia de cada equipo, sin eventos. | — | 2026-10-07 |
 | [Avisos del sistema](../src/features/notifications/README.md) | servicio | Avisos fuera de la app para pomodoros, encargos, agenda, fechas límite y rachas; programados en iOS y con un temporizador en el escritorio. | — | 2026-10-06 |
 | [Pomodoro](../src/features/pomodoro/README.md) | dominio | Tipo de objetivo con rondas de concentración y descanso (la última sin descanso), calculado sobre una línea de tiempo que sobrevive a cerrar la app. | `pomodoro_started`, `pomodoro_paused`, `pomodoro_resumed`, `pomodoro_stopped`, `pomodoro_break_skipped` | 2026-10-02 |
@@ -128,8 +128,8 @@ Sale de los imports. Cada README explica en «Dependencias» para qué usa cada 
 | [items](../src/features/items/README.md) | armory, merchant, mobile | armory, chronicle, collectibles, equipment, menu, merchant, search |
 | [living](../src/features/living/README.md) | equipment, menu | companion, customize, menu |
 | [menu](../src/features/menu/README.md) | calendar, chronicle, collectibles, customize, editing, equipment, failure, items, living, merchant, mobile, music, notifications, quickadd, search, sync, temporal | companion, customize, living, mobile, temporal |
-| [merchant](../src/features/merchant/README.md) | armory, collectibles, equipment, items | armory, calendar, collectibles, equipment, items, menu, temporal |
-| [mobile](../src/features/mobile/README.md) | calendar, menu, quickadd, temporal | calendar, chronicle, customize, failure, items, menu, temporal |
+| [merchant](../src/features/merchant/README.md) | armory, collectibles, equipment, items, mobile | armory, calendar, collectibles, equipment, items, menu, temporal |
+| [mobile](../src/features/mobile/README.md) | calendar, menu, quickadd, temporal | calendar, chronicle, customize, failure, items, menu, merchant, temporal |
 | [music](../src/features/music/README.md) | — | menu |
 | [notifications](../src/features/notifications/README.md) | agenda, complex, failure, pomodoro, streaks, temporal | menu |
 | [pomodoro](../src/features/pomodoro/README.md) | — | editing, notifications |

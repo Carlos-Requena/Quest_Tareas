@@ -4,5 +4,6 @@ export { useMobileUi } from "./ui";
 export { detailPrimaryAction, SHEET_MS } from "./actions";
 export { MobileNav, MobileCreate } from "./components/MobileNav";
 export { DetailBack } from "./components/DetailBack";
+export { SheetClose } from "./components/SheetClose";
 export { useSwipe } from "./swipe";
 export { KeyHint, type TouchHint } from "./components/KeyHint";

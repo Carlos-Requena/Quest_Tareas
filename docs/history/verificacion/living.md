@@ -4,6 +4,14 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-08 · Carga uniforme de personajes de serie y añadidos
+
+- **Reproducción:** en la app nativa de macOS, alternar Azusa → Kazuma → Azusa podía dejar el personaje de serie ampliado y desplazado hacia abajo a la derecha. El brillo CSS mantenía la silueta correcta. Los personajes añadidos desde la aplicación no reproducían el fallo.
+- **Corrección:** los assets de serie, que antes llegaban directamente desde `public/menu/*.webp`, pasan por [`usePublicImageUrl`](../../../src/features/living/usePublicImageUrl.ts) y se convierten en una URL `blob:` antes de pintarse. Así comparten la misma ruta que los binarios del jugador. La textura WebGL se normaliza además mediante un canvas 2D antes de subirla.
+- **Resultado:** la secuencia de cambio deja de producir el descuadre. Se mantiene la deformación WebGL y se aumenta el límite del lienzo interno a 12 millones de píxeles para conservar nitidez en personajes altos.
+- **Verificado:** `npx tsc --noEmit`, `pnpm test -- --run src/features/living/model.test.ts` (496 tests), `pnpm docs:check` y `git diff --check`.
+- **No verificado:** Windows, iPhone, la app empaquetada en otra máquina y el rendimiento de memoria con varios personajes WebGL simultáneos.
+
 ## 2026-10-08 · Primera versión: malla, efectos, entrada gacha y vídeo
 
 En el navegador del panel (Chromium) con datos de prueba, primero contra el servidor de la app abierta del propietario y, cuando se paró, con un `pnpm dev` propio (parado al terminar).

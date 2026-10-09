@@ -13,6 +13,7 @@ import { AlmanacBook } from "./AlmanacBook";
 import { GearAlmanacDetail } from "./GearAlmanacDetail";
 import { itemKey } from "../almanac";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
+import { SheetClose, isPhone } from "../../mobile";
 
 const TABS: CollectionTab[] = ["inventory", "almanac", "rates"];
 
@@ -81,6 +82,12 @@ function Modal({ tab }: { tab: CollectionTab }) {
   });
 
   const select = (key: string) => {
+    // En el teléfono la ficha tapa media pantalla: volver a tocar la pieza la cierra (como el ✕).
+    if (key === selectedKey && mode.kind === "view" && isPhone()) {
+      sfx.move();
+      setSelectedKey(undefined);
+      return;
+    }
     if (key !== selectedKey) sfx.move();
     setSelectedKey(key);
     setMode({ kind: "view" });
@@ -198,7 +205,10 @@ function Modal({ tab }: { tab: CollectionTab }) {
               </div>
             </div>
 
-            <div className="coll-side">{side ?? <p className="coll-hint muted">{t("items.pickHint")}</p>}</div>
+            <div className={`coll-side ${side ? "" : "is-empty"}`}>
+              {side && mode.kind === "view" && <SheetClose onClose={() => setSelectedKey(undefined)} />}
+              {side ?? <p className="coll-hint muted">{t("items.pickHint")}</p>}
+            </div>
           </div>
         )}
 

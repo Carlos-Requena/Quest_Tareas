@@ -33,6 +33,7 @@ import { GearForm } from "./GearForm";
 import { SoldSeal, type Sale } from "./SoldSeal";
 import "../merchant.css";
 import { BACKDROP_EXIT, MODAL_EXIT } from "../../../lib/motion";
+import { SheetClose, isPhone } from "../../mobile";
 
 const TABS: MerchantTab[] = ["showcase", "collectible", "catalog"];
 type Group = "all" | "armor" | "decor";
@@ -127,6 +128,13 @@ function Modal() {
     setArmed(undefined);
     setMode({ kind: "view" });
     setSay(lineFor(g, buyBlocker(g, player, sc.ids.has(id))));
+  };
+
+  /** Cierra la ficha (en el teléfono tapa media pantalla): ✕ o volver a tocar la fila. */
+  const deselect = () => {
+    setSelectedId(undefined);
+    setArmed(undefined);
+    setSay(greeting(tab));
   };
 
   const goTab = (next: MerchantTab) => {
@@ -323,7 +331,7 @@ function Modal() {
                       fresh={sc.fresh.has(g.id)}
                       onSale={sc.ids.has(g.id)}
                       catalog={tab === "catalog"}
-                      onClick={() => select(g.id)}
+                      onClick={() => (isPhone() && g.id === selectedId ? (sfx.move(), deselect()) : select(g.id))}
                     />
                   ))}
                   {visible.length === 0 && (
@@ -333,7 +341,8 @@ function Modal() {
                   )}
                 </div>
 
-                <div className="mshop-detail">
+                <div className={`mshop-detail ${selected ? "" : "is-empty"}`}>
+                  {selected && <SheetClose onClose={deselect} />}
                   {selected ? (
                     <GearDetail
                       key={selected.id}

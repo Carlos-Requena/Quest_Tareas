@@ -7,12 +7,17 @@ import type { MenuCharacter } from "../../menu/characters";
 import { isVideoMime } from "../../menu/media";
 import { createStage, glSupported, PAD, type Stage, type StageParams } from "../gl";
 import { AURA_TOKEN, LEVEL_AMOUNT, type CharacterStyle } from "../model";
+import { usePublicImageUrl } from "../usePublicImageUrl";
 import { Particles } from "./Particles";
 import "../living.css";
 
 interface Size {
   w: number;
   h: number;
+}
+
+interface MediaSize extends Size {
+  key: string;
 }
 
 /** Dónde cabe la imagen en el hueco: entera, centrada y de pie sobre el borde de abajo. */
@@ -53,15 +58,17 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, classNam
   const stage = useRef<Stage | undefined>(undefined);
 
   const blob = useBlobUrl(c.builtin ? undefined : c.blobId);
-  const full = c.src ?? blob;
+  const publicUrl = usePublicImageUrl(c.builtin ? c.src : undefined);
+  const full = publicUrl ?? (c.builtin ? c.src : blob);
   const src = full ?? c.thumb;
+  const mediaKey = `${c.id}:${src ?? ""}`;
   const video = !!blob && isVideoMime(c.mime);
   const still = calm();
 
   const [box, setBox] = useState<Size>();
-  const [media, setMedia] = useState<Size>();
-  const [loaded, setLoaded] = useState<string>();
+  const [media, setMedia] = useState<MediaSize>();
   const [gl, setGl] = useState(false);
+  const [loaded, setLoaded] = useState<string>();
   const wantGl = !still && !!full && loaded === full && !video && !c.animated && glSupported();
 
   // Tamaño de la caja.
@@ -75,28 +82,32 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, classNam
     return () => ro.disconnect();
   }, []);
 
-  const rect = box && media && box.w > 0 && box.h > 0 ? fit(box, media) : undefined;
+  const rect = box && media?.key === mediaKey && box.w > 0 && box.h > 0 ? fit(box, media) : undefined;
 
   // La malla: se monta cuando la imagen grande ya está cargada (se sube tal cual como textura).
   useEffect(() => {
     const img = imgRef.current;
     if (!wantGl || !img) return;
+    let createdStage: Stage | undefined;
     const s = createStage(img, amounts(style), () => {
+      if (stage.current !== createdStage) return;
       stage.current = undefined;
       setGl(false);
     });
     if (!s) return;
+    createdStage = s;
     s.canvas.className = "lv-canvas";
-    host.current?.appendChild(s.canvas);
+    host.current?.replaceChildren(s.canvas);
+    if (rect) s.resize(rect.width, rect.height, Math.min(2, window.devicePixelRatio || 1));
     stage.current = s;
     setGl(true);
     return () => {
       s.destroy();
-      stage.current = undefined;
+      if (stage.current === createdStage) stage.current = undefined;
       setGl(false);
     };
     // El estilo entra por setParams; aquí solo importa si hay malla y con qué imagen.
-  }, [wantGl, full]);
+  }, [wantGl, mediaKey, rect?.width, rect?.height]);
 
   useEffect(() => {
     if (gl && rect) stage.current?.resize(rect.width, rect.height, Math.min(2, window.devicePixelRatio || 1));
@@ -169,7 +180,9 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, classNam
                   loop
                   playsInline
                   disablePictureInPicture
-                  onLoadedMetadata={(e) => setMedia({ w: e.currentTarget.videoWidth || 1, h: e.currentTarget.videoHeight || 1 })}
+                  onLoadedMetadata={(e) =>
+                    setMedia({ key: mediaKey, w: e.currentTarget.videoWidth || 1, h: e.currentTarget.videoHeight || 1 })
+                  }
                 />
               ) : (
                 src && (
@@ -180,7 +193,7 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, classNam
                     alt=""
                     draggable={false}
                     onLoad={(e) => {
-                      setMedia({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 });
+                      setMedia({ key: mediaKey, w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 });
                       setLoaded(e.currentTarget.getAttribute("src") ?? undefined);
                     }}
                   />

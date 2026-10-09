@@ -4,6 +4,12 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · Desplazamiento y fichas del mercader e inventario
+
+- **«Mi día»** (`.td`): tenía 2 px de desbordamiento horizontal (`scrollWidth` 376 frente a 374), así que en el iPhone se arrastraba de lado al bajar, con la barra a la derecha. Con `overflow-x: hidden` y las barras ocultas en el teléfono, ningún contenedor que solo baja se desplaza de lado (recorrido con un script por todos los elementos con `overflow: auto`).
+- **Mercader:** elegir una pieza, ✕ y volver a tocar la fila cierran la ficha; Hu Tao vuelve al saludo. **Almanaque:** volver a tocar el cromo vuelve a la portadilla.
+- **No verificado:** el inventario con objetos (la partida de pruebas estaba vacía; es el mismo código que el almanaque) y el iPhone real.
+
 ## La barra de abajo
 
 La barra del teléfono tuvo seis botones (Tablón, Encargos, Calendario, Mercader, Personaje y «Más», con un menú «Más» propio) hasta que el menú de opciones (ADR-49) la dejó en cuatro: Tablón · Encargos · Calendario · Menú.

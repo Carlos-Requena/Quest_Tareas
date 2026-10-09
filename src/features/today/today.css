@@ -227,9 +227,11 @@
 
 /* Teléfono (features/mobile): filas de 44 px y «Aceptar» que se puede tocar. */
 @media (max-width: 760px) {
+  /* Solo se desplaza en vertical: sin esto, el dedo también arrastraba la página de lado. */
   .td {
     gap: 16px;
     padding-bottom: 24px;
+    overflow-x: hidden;
   }
   .td-row-main,
   .td-slot,

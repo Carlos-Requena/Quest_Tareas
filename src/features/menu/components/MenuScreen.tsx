@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../../../store/game";
@@ -112,6 +112,7 @@ function Screen() {
   const style = useCharacterStyle(hero?.id);
   // Con la entrada «gacha» el personaje no se desliza: se revela en su sitio (features/living).
   const slide = !still && style.entrance === "slide";
+  const [wiped, setWiped] = useState(false);
 
   useEffect(() => {
     root.current?.focus({ preventScroll: true });
@@ -150,9 +151,15 @@ function Screen() {
         aria-label={t("menu.label")}
         tabIndex={-1}
         initial={still ? { opacity: 0 } : { clipPath: clip(HIDDEN) }}
-        animate={still ? { opacity: 1 } : { clipPath: clip(SHOWN) }}
-        exit={still ? { opacity: 0, transition: { duration: 0.15 } } : { clipPath: clip(HIDDEN), transition: WIPE_OUT }}
+        // Terminado el barrido, fuera el recorte (`wiped`): WebKit (la app de macOS) puede quedarse
+        // con un clip-path a medio animar sobre la capa del lienzo de WebGL del personaje y enseñar
+        // solo una franja diagonal. La salida parte del recorte abierto, así que barre igual.
+        animate={still ? { opacity: 1 } : wiped ? { clipPath: "none", transition: { duration: 0 } } : { clipPath: clip(SHOWN) }}
+        exit={still ? { opacity: 0, transition: { duration: 0.15 } } : { clipPath: [clip(SHOWN), clip(HIDDEN)], transition: WIPE_OUT }}
         transition={still ? { duration: 0.2 } : WIPE_IN}
+        onAnimationComplete={(done) => {
+          if ((done as { clipPath?: unknown }).clipPath === clip(SHOWN)) setWiped(true);
+        }}
       >
         <Backdrop />
         <div className="mn-shade" aria-hidden />

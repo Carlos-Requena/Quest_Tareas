@@ -11,7 +11,8 @@
 .mnav,
 .mfab,
 .m-toast,
-.mback {
+.mback,
+.m-sheet-x {
   display: none;
 }
 /* El envoltorio del detalle no cuenta en la rejilla del escritorio. */
@@ -187,6 +188,30 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
     touch-action: manipulation;
+  }
+  /* Sin barras de desplazamiento: en una pantalla táctil sobran y roban ancho. */
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ✕ de la ficha que sube desde abajo (SheetClose: mercader e inventario). */
+  .m-sheet-x {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    color: var(--muted);
+    font-size: 16px;
+  }
+  .m-sheet-x:active {
+    color: var(--gold-hi);
   }
 
   .app {

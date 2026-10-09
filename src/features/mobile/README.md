@@ -62,10 +62,15 @@ Todas las ventanas usan `.modal`, y una regla de `mobile.css` las pone a pantall
 
 `useSwipe` (`swipe.ts`): 50 px como mínimo y más horizontal que vertical. Usa eventos de puntero (también vale arrastrando con el ratón). La zona lleva `.m-swipe` (`touch-action: pan-y`). Lo usan la crónica, el almanaque y el calendario.
 
+### Fichas pegadas abajo
+
+En el mercader y en el inventario, la ficha de lo elegido sube **pegada abajo** y tapa media pantalla. Se cierra con su ✕ (`SheetClose`) o **volviendo a tocar** la fila o el objeto; sin nada elegido, no ocupa sitio (no se ve el «Elige…» del escritorio).
+
 ### Detalles de iOS
 
 - Campos de **16 px** como mínimo: con menos, iOS amplía la página al tocarlos. Botones de 40 px o más.
 - `touch-action: manipulation` (sin la espera del doble toque), sin el resaltado gris al tocar y sin el rebote de la página.
+- **Sin barras de desplazamiento** (`scrollbar-width: none` y `::-webkit-scrollbar`) y, en las zonas que solo bajan, `overflow-x: hidden`: un desbordamiento de 2 px bastaba para que el dedo arrastrara la página de lado («Mi día»).
 - El WebView de Tauri ya deja libres la isla dinámica y la barra de inicio: no hace falta `env(safe-area-inset-*)`.
 
 ## Eventos
@@ -82,6 +87,7 @@ No tiene eventos: es presentación. No cambia `project()`, el modelo ni el snaps
 | `swipe.ts` | `useSwipe` |
 | `components/MobileNav.tsx` | Barra de abajo y rombo de crear (`MobileCreate`) |
 | `components/DetailBack.tsx` | «‹ Volver al tablón» |
+| `components/SheetClose.tsx` | ✕ de la ficha que sube desde abajo en el mercader y el inventario |
 | `components/KeyHint.tsx` | «Pulsa Enter…» o «Toca…» según la pantalla |
 | `mobile.css`, `i18n.ts` | Armazón y ajustes de `app.css` en el teléfono; textos es + ja |
 | `actions.test.ts` | Aceptar en el teléfono espera a que salga la hoja; en el escritorio, no |
@@ -112,7 +118,7 @@ No tiene eventos: es presentación. No cambia `project()`, el modelo ni el snaps
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-07, el menú y la barra de cuatro botones en el navegador a 402 × 874. El propietario abrió la app en su iPhone y sincronizó con ella el 2026-10-06.
+- **Última verificación:** 2026-10-09, en el navegador a 402 × 874: «Mi día» sin barra ni arrastre lateral; la ficha del mercader y la del almanaque se cierran con ✕ y volviendo a tocar. La del inventario no se probó con objetos (la partida de pruebas no tenía). El propietario abrió la app en su iPhone y sincronizó con ella el 2026-10-06.
 - **Tests:** `actions.test.ts`.
 - **Sin verificar:** el sonido y la música en iOS (el interruptor de silencio puede callar los efectos); los PDF adjuntos (iOS puede enseñar solo la primera página); el teclado de iOS encima de los formularios; el giro a horizontal; el iPad.
 - **Historial:** [docs/history/verificacion/mobile.md](../../../docs/history/verificacion/mobile.md).
