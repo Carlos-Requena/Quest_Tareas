@@ -4,6 +4,14 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+
+## 2026-10-09 · El personaje ya no da un tirón al montarse la malla
+
+- **Reproducción:** grabando el simulador de iOS al abrir el menú y midiendo la diferencia entre fotogramas en la zona del personaje, al montarse la malla un solo fotograma cambiaba de golpe (5,3 frente a ~0,2 de los vecinos): en iOS el filo dorado y el halo del marco solo se pintan en la imagen, no en el lienzo de WebGL, y el movimiento de CSS se cortaba.
+- **Corrección:** fundido en dos pasos (la malla aparece sobre la imagen y luego la imagen se desvanece debajo, 450 ms cada uno) y el movimiento de CSS solo en la imagen mientras llega la malla.
+- **Resultado:** en la misma grabación, ningún fotograma suelto en el cambio. Se probó antes hornear el filtro en la textura y se descartó por complejo (más shaders que compilar la primera vez).
+- **Sin verificar:** el iPhone de verdad; la congelación de ~0,5 s del simulador al compilar los shaders de la malla la primera vez (ya existía).
+
 ## 2026-10-09 · El barrido del menú ya no salta
 
 - **Reproducción:** en el simulador de iOS, grabando la pantalla al abrir el menú (`simctl io recordVideo`, fotograma a fotograma con `ffmpeg`), el primer fotograma del barrido ya iba por la mitad de la pantalla. En el navegador, dos tareas largas al abrirlo: unos 50 ms al montar y unos 90 ms al montar la malla.

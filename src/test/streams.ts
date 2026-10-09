@@ -276,8 +276,18 @@ export function randomStream(seed: string, n: number): GameEvent[] {
       // Sin conditionId en algunos: eventos de la versión anterior del pomodoro.
       return rnd() < 0.3 ? { type, questId: q } : { type, questId: q, conditionId: `${q}-p` };
     }
-    if (r < 0.75) return { type: "item_created", item: itemDef(pick(I), { rarity: pick(RARITIES) }) };
-    if (r < 0.77) return { type: "item_updated", itemId: pick(I), patch: { name: "Renombrado", rarity: pick(RARITIES) } };
+    // Imagen nítida (features/items): i1 nace con ella; al editar, i1 trae otra e i2 cambia de icono sin ella (se pierde).
+    // Sin tiradas nuevas: depende del objeto elegido, para no mover el resto del historial.
+    const art = (id: string) => ({ image: `data:image/png;base64,${id}`, art: { blobId: `blob-${id}`, mime: "image/webp", size: 10 } });
+    if (r < 0.75) {
+      const id = pick(I);
+      return { type: "item_created", item: itemDef(id, { rarity: pick(RARITIES), ...(id === "i1" ? art(id) : {}) }) };
+    }
+    if (r < 0.77) {
+      const id = pick(I);
+      const extra = id === "i1" ? art(`${id}b`) : id === "i2" ? { image: "data:image/png;base64,otro" } : {};
+      return { type: "item_updated", itemId: id, patch: { name: "Renombrado", rarity: pick(RARITIES), ...extra } };
+    }
     if (r < 0.775) return { type: "item_deleted", itemId: pick(I) };
     // Coleccionables (features/collectibles): unas compras llegan y otras no, según el oro y lo que ya tengas.
     if (r < 0.78) return { type: "collectible_purchased", itemId: pick(I), price: Math.floor(rnd() * 80) };

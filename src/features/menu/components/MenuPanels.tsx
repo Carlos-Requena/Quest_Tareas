@@ -179,7 +179,7 @@ export function WeeklyNews() {
       <span className="mn-news-tag">Weekly Rarity</span>
       <span className="mn-news-art">
         {item ? (
-          <ItemArt item={item} />
+          <ItemArt item={item} sharp />
         ) : (
           <span className="mn-news-lantern">
             <LanternIcon />

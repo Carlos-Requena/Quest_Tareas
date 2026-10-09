@@ -214,7 +214,7 @@ function PhoneBottom({ speaker, characterId }: { speaker: string; characterId?: 
         >
           <span className="mnp-side-tag">{offer.sold ? t("menu.phone.sold") : "Weekly"}</span>
           <span className="mnp-side-art" aria-hidden>
-            {offer.item ? <ItemArt item={offer.item} /> : <LanternIcon />}
+            {offer.item ? <ItemArt item={offer.item} sharp /> : <LanternIcon />}
           </span>
           <span className="mnp-side-lbl" aria-hidden>
             {t("menu.phone.weekly")}

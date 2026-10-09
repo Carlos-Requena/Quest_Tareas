@@ -14,6 +14,10 @@ import {
   rollRarity,
   type Pity,
   type Rarity,
+  applyItemEvent,
+  itemBlobIds,
+  newItemsAcc,
+  type ItemDef,
 } from "./model";
 import { upcastReward, legacyItemId } from "./legacy";
 import { project } from "../../domain/projection";
@@ -232,5 +236,35 @@ describe("recompensa v1 → v2 (upcasting)", () => {
     );
     expect(st.player.inventory).toEqual({ "legacy:Poción": 1 });
     expect(st.items.get("legacy:Poción")?.droppable).toBe(false);
+  });
+});
+
+describe("imagen nítida (art)", () => {
+  const art = { blobId: "b1", mime: "image/webp", size: 9 };
+  const created = (extra: Partial<ItemDef>) => {
+    const acc = newItemsAcc();
+    applyItemEvent(acc, { type: "item_created", item: { id: "x", name: "X", rarity: "rare", kind: "other", description: "", droppable: true, createdAt: 0, ...extra } });
+    return acc;
+  };
+
+  it("se guarda con el objeto y cuenta como binario en uso", () => {
+    const acc = created({ image: "data:a", art });
+    expect(acc.catalog.get("x")?.art).toEqual(art);
+    expect(itemBlobIds(acc.catalog.values())).toEqual(new Set(["b1"]));
+  });
+
+  it("una referencia mal formada se ignora", () => {
+    const acc = created({ image: "data:a", art: { blobId: 3 } as unknown as ItemDef["art"] });
+    expect(acc.catalog.get("x")).not.toHaveProperty("art");
+  });
+
+  it("cambiar o quitar la imagen sin traer otra nítida la quita; editar otro campo la conserva", () => {
+    const acc = created({ image: "data:a", art });
+    applyItemEvent(acc, { type: "item_updated", itemId: "x", patch: { name: "Y" } });
+    expect(acc.catalog.get("x")?.art).toEqual(art);
+    applyItemEvent(acc, { type: "item_updated", itemId: "x", patch: { image: "data:b", art: { ...art, blobId: "b2" } } });
+    expect(acc.catalog.get("x")?.art?.blobId).toBe("b2");
+    applyItemEvent(acc, { type: "item_updated", itemId: "x", patch: { image: "" } });
+    expect(acc.catalog.get("x")).not.toHaveProperty("art");
   });
 });

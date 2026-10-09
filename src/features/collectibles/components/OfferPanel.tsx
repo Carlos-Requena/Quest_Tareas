@@ -49,7 +49,7 @@ export function OfferPanel({ offer, armed, onBuy }: Props) {
           >
             <span className="offer-glow" aria-hidden />
             <div className="offer-art">
-              <ItemArt item={item} />
+              <ItemArt item={item} sharp />
               {offer.sold && <span className="offer-seal">{t("collectibles.sold")}</span>}
             </div>
             <div className="offer-info">

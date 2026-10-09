@@ -80,6 +80,11 @@ export interface ItemDef {
   /** Imagen reducida como data URL (ver image.ts). Sin imagen se pinta un monograma. */
   image?: string;
   /**
+   * La misma imagen, nítida, en el almacén de binarios (ver image.ts): la usan las vistas
+   * grandes (la oferta de Hu Tao, el detalle). Va con `image`; los objetos antiguos no la tienen.
+   */
+  art?: ItemArtRef;
+  /**
    * Si puede salir en los cofres. Los que salen son **coleccionables**: se tienen o no
    * se tienen (un repetido se quema). Los que no, solo como recompensa fija de una quest.
    */
@@ -89,6 +94,28 @@ export interface ItemDef {
 
 /** Campos editables de un objeto. */
 export type ItemPatch = Partial<Omit<ItemDef, "id" | "createdAt">>;
+
+/** Referencia a la imagen nítida de un objeto en el almacén de binarios (src/storage/blobStore.ts). */
+export interface ItemArtRef {
+  blobId: string;
+  mime: string;
+  size: number;
+}
+
+/** La referencia, si está bien formada (un evento mal formado no rompe el almanaque). */
+const cleanArt = (a: unknown): ItemArtRef | undefined => {
+  const r = a as Partial<ItemArtRef> | undefined;
+  return r && typeof r.blobId === "string" && r.blobId && typeof r.mime === "string" && typeof r.size === "number"
+    ? { blobId: r.blobId, mime: r.mime, size: r.size }
+    : undefined;
+};
+
+/** Binarios que usan las imágenes nítidas de los objetos (para no borrarlos y para sincronizarlos). */
+export function itemBlobIds(items: Iterable<ItemDef>): Set<string> {
+  const ids = new Set<string>();
+  for (const i of items) if (i.art?.blobId) ids.add(i.art.blobId);
+  return ids;
+}
 
 export const ITEM_LIMITS = { name: 40, description: 240 } as const;
 
@@ -236,7 +263,10 @@ export const newItemsAcc = (): ItemsAcc => ({
 
 /** Añade un objeto al almanaque si no existe ni fue retirado. El tipo se pasa a uno fijo. */
 export function registerItem(acc: ItemsAcc, def: ItemDef) {
-  if (!acc.catalog.has(def.id) && !acc.deleted.has(def.id)) acc.catalog.set(def.id, { ...def, kind: itemKindOf(def.kind) });
+  if (acc.catalog.has(def.id) || acc.deleted.has(def.id)) return;
+  const { art, ...rest } = def;
+  const clean = cleanArt(art);
+  acc.catalog.set(def.id, { ...rest, kind: itemKindOf(def.kind), ...(clean ? { art: clean } : {}) });
 }
 
 /** Aplica un evento de objeto. Las guardas ignoran los imposibles, igual que project(). */
@@ -251,6 +281,10 @@ export function applyItemEvent(acc: ItemsAcc, e: ItemEventBody) {
       if (!cur) break;
       const next = { ...cur, ...e.patch, id: cur.id, createdAt: cur.createdAt };
       if (e.patch.kind !== undefined) next.kind = itemKindOf(e.patch.kind);
+      // La imagen nítida va con su imagen: si esta cambia (o se quita) sin traer otra, ya no vale.
+      const art = cleanArt(e.patch.art) ?? (e.patch.image === undefined ? cur.art : undefined);
+      if (art) next.art = art;
+      else delete next.art;
       acc.catalog.set(cur.id, next);
       // Si pasa a salir en los cofres, es coleccionable: los repetidos se queman.
       if (isCollectible(next) && (acc.inventory[cur.id] ?? 0) > 1) acc.inventory[cur.id] = 1;

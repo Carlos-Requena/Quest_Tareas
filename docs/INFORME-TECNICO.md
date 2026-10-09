@@ -55,7 +55,7 @@ Los comandos bajan como eventos (`dispatch`) y el estado nuevo sube; ningún com
 
 ## Diagrama de clases
 
-El modelo separa la definición de una quest (`QuestDef`, lo que viaja en el evento) de su estado de juego (`QuestState`). Todo lo que hay en `GameState` se calcula; lo único que se guarda es `GameEvent`.
+El modelo separa la definición de una quest (`QuestDef`, lo que viaja en el evento) de su estado de juego (`QuestState`). Todo lo que hay en `GameState` se calcula; lo único que se guarda es `GameEvent`. En memoria, `Projected` conserva el `ProjectionAcc` y la posición del último evento para aplicar los nuevos de forma incremental; `Settle` contiene las derivaciones entre entidades que se copian después, solo donde cambian.
 
 ![Diagrama de clases: dominio, store y almacenamiento](img/diagrama-clases.png)
 
@@ -67,13 +67,13 @@ Son tipos de TypeScript, no clases con métodos: la lógica vive en funciones pu
 - **Mercader y personaje.** `GearDef` (ranura `GearSlot`, rareza, icono y, en los fondos, `GearArt` en el `BlobStore`) en `GameState.gear`, que junta el catálogo del jugador y las piezas de serie. `PlayerState` suma `owned` (cada `Purchase` con su precio copiado), `equipped` y `attributes` (un `Attribute` por área).
 - **Agenda y menú.** `AgendaDef` / `AgendaState` (día `AAAA-MM-DD`, minutos, `AgendaRepeat`, días quitados) en `GameState.agenda`; `CharacterDef` (con su `CharacterArt` en el `BlobStore`: una imagen, una imagen animada o un vídeo, con `animated`) en `GameState.characters`, lo que dice cada personaje según la hora (`VoiceLine`, con su `Daypart`) en `GameState.voiceLines`, cómo se mueve (`StylePatch` sobre `CharacterStyle`) en `GameState.characterStyles` y el compañero de Mi día (`chosen` y sus `CompanionLine`, con su `Situation`) en `GameState.companion`. Ninguno toca al jugador.
 - **Calculado sin estado propio.** La crónica (`ChronicleEntry` en `GameState.chronicle`, apuntada por la proyección), los plazos (`Horizon`), el escaparate (`Showcase`), Mi día (`TodayPlan`), la búsqueda (`SearchHit`), el alta rápida (`QuickQuest`), los avisos (`Reminder`) y la rotación de personajes.
-- **Infraestructura.** `ProjectionAcc` (el acumulador, con `deletedQuests`, que guarda el `Snapshot`), `blobsInUse` (los binarios a los que apunta algún dato, para la limpieza y la sincronización), `GameStore` (`projected`, `state`, `dispatch` que devuelve el evento guardado), `EventStore` (`since`, `countUpTo`, `byDevice`, `merge`…), `BlobStore` (`ids`, `readBase64`) y los tipos de la sincronización (`RemoteFile`, `Cursors`, `SyncReport`, `SyncState` en Rust).
+- **Infraestructura.** `ProjectionAcc` (el acumulador, con `deletedQuests`), `Projected` (acumulador, último `EventPos` y contador), `Settle` (derivaciones pendientes de quests y recompensas), `Snapshot` (caché versionada del acumulador), `blobsInUse` (los binarios a los que apunta algún dato, para la limpieza y la sincronización), `GameStore` (`projected`, `state`, `dispatch` que devuelve el evento guardado), `EventStore` (`since`, `countUpTo`, `byDevice`, `merge`…), `BlobStore` (`ids`, `readBase64`) y los tipos de la sincronización (`RemoteFile`, `Cursors`, `SyncReport`, `SyncState` en Rust).
 
 El detalle de cada tipo está en el README de su funcionalidad. Si cambia el modelo, el diagrama se redibuja en la misma tarea ([runbook](runbooks/redibujar-diagramas.md)).
 
 ## Modelo de eventos y persistencia
 
-Cada acción se registra como un evento inmutable y el estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. Hay seis tipos de evento del núcleo (abajo); el resto los declara cada funcionalidad en su `events.ts`, y la lista completa, con dónde se documenta cada uno, se genera desde el código en [INDEX.md](INDEX.md#eventos--funcionalidad).
+Cada acción se registra como un evento inmutable y el estado se obtiene reproduciendo los eventos en orden (`ts`, luego `id`) con la función pura `project()`. En una acción normal, `GameStore` usa `applyNext`: `Immer` copia solo las ramas modificadas de `ProjectionAcc`, `pendingSettle` calcula las derivaciones entre entidades y `viewProjection` actualiza la vista sin reconstruir todo `GameState`. Hay seis tipos de evento del núcleo (abajo); el resto los declara cada funcionalidad en su `events.ts`, y la lista completa, con dónde se documenta cada uno, se genera desde el código en [INDEX.md](INDEX.md#eventos--funcionalidad).
 
 | Evento | Datos | Efecto en la proyección | Regla de conflicto |
 |---|---|---|---|

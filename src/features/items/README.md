@@ -54,6 +54,8 @@ De Genshin se toman los dos extremos conocidos: **legendario 0,6 %** y **épico 
 
 La imagen se reduce en el navegador a **160 px** (`image.ts`) y se guarda como *data URL* WebP (PNG si el WebView no codifica WebP) dentro de `item_created` / `item_updated`: de 3 a 30 KB. Sin imagen se pinta un **monograma** sobre el fondo de la rareza ([ADR-10](../../../docs/decisions/ADR-10-imagen-en-el-evento.md)).
 
+Además se guarda una **versión nítida** de hasta 512 px en el almacén de binarios, y el evento lleva su referencia (`art`). La usan solo las vistas grandes (`<ItemArt sharp />`: la oferta de Hu Tao, la ficha y el menú), con el icono mientras llega; en el teléfono el icono ampliado se veía pixelado. Va unida a su icono: cambiar o quitar la imagen sin traer otra nítida la quita. Los objetos anteriores siguen con el icono hasta que se vuelva a elegir su imagen ([ADR-55](../../../docs/decisions/ADR-55-imagen-nitida-de-los-objetos.md)).
+
 ### Edición por campos y retirada
 
 - `item_updated` lleva solo los campos que cambian (`patch`): dos equipos que editan campos distintos no se pisan.
@@ -106,6 +108,7 @@ classDiagram
         kind: ItemKind
         description: string
         image?: data URL
+        art?: ItemArtRef
         droppable: boolean
         createdAt: number
     }
@@ -188,7 +191,7 @@ El garantizado y los drops salen juntos de un cofre (`LootChest`), con técnicas
 | `legacy.ts` | `upcastReward`: texto antiguo → objeto del almanaque |
 | `almanac.ts` | Los almanaques por tipo: qué entra en cada uno, orden y progreso. Puro, solo para la interfaz (importa el modelo del mercader) |
 | `actions.ts` | `createItem`, `updateItem`, `deleteItem` |
-| `image.ts` | Reducción de la imagen con canvas (DOM) |
+| `image.ts` | Icono de 160 px (`fileToIcon`) e imagen nítida de 512 px (`fileToArt`) con canvas (DOM) |
 | `components/CollectionModal.tsx` | Ventana con Inventario, Almanaque y Probabilidades |
 | `components/AlmanacBook.tsx` | El almanaque como libro |
 | `components/ItemTile.tsx`, `ItemDetail.tsx`, `ItemForm.tsx` | Cromo, ficha y formulario de un objeto |
@@ -221,6 +224,7 @@ El garantizado y los drops salen juntos de un cofre (`LootChest`), con técnicas
 | Fuera de la carpeta | Cambio |
 |---|---|
 | `src/domain/types.ts` | `RewardDef.itemId`; `PlayerState.inventory`, `discovered`, `pity`; `GameState.items` |
+| `src/domain/blobs.ts` | `itemBlobIds`: las imágenes nítidas son binarios en uso (no se borran y se sincronizan) |
 | `src/domain/events.ts` | `ItemEventBody` en la unión; `quest_completed.drops?` |
 | `src/domain/projection.ts` | `upcastReward` al leer; `applyItemEvent`; `receiveItems` en `quest_completed` |
 | `src/domain/seed.ts` | Almanaque inicial (10 objetos) y objeto garantizado de las quests de ejemplo |
@@ -240,12 +244,13 @@ El garantizado y los drops salen juntos de un cofre (`LootChest`), con técnicas
 
 - **features/merchant** (`model.ts`, `ui.ts`, `GearArt`, `SlotGlyph`): el equipo de los almanaques de armaduras, fondos y emblemas, y «Ir a la tienda». Para tocar el catálogo, lee su README.
 - **features/armory** (`model.ts`, `labels.ts`): arte y nombres de las piezas de serie.
+- **features/equipment** (`useBlobUrl`): cargar la imagen nítida del almacén en las vistas grandes.
 - **features/mobile** (`index`): deslizar para pasar página, «Toca el cofre…» y, en el inventario y el almanaque, cerrar la ficha con su ✕ (`SheetClose`), arrastrando su asa (`SheetGrip`, `useDragDismiss`) o volviendo a tocar el objeto.
 - **La usan:** casi todo lo que habla de rarezas o del almanaque: `armory`, `chronicle`, `collectibles`, `equipment`, `merchant`, `menu` y `search`.
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-03, la ventana de objetos en el navegador al llevar la compra de coleccionables a Hu Tao; el cofre y el libro, el 2026-10-02 (fase a fase con el reloj de GSAP parado).
+- **Última verificación:** 2026-10-09, la imagen nítida (ADR-55) en el navegador: crear un objeto con una imagen de 1.024 px (icono WebP de 8 KB en el evento, nítida de 512 px y 29 KB en el almacén), la ficha la pinta y el cromo sigue con el icono; editar el nombre la conserva, otra imagen la cambia y quitarla la quita. El 2026-10-03, la ventana de objetos en el navegador al llevar la compra de coleccionables a Hu Tao; el cofre y el libro, el 2026-10-02 (fase a fase con el reloj de GSAP parado).
 - **Tests:** `model.test.ts`, `legacy.test.ts` y `almanac.test.ts`.
-- **Sin verificar:** ningún sonido nuevo se ha escuchado; el giro de página en movimiento; el rendimiento de tantas partículas en el WKWebView de macOS; la app nativa con SQLite, Windows, la codificación WebP en el WKWebView y el diálogo de archivos real.
+- **Sin verificar:** ningún sonido nuevo se ha escuchado; el giro de página en movimiento; el rendimiento de tantas partículas en el WKWebView de macOS; la app nativa con SQLite, Windows, la codificación WebP en el WKWebView (allí la nítida sale en PNG) y el diálogo de archivos real; la oferta nítida vista en un iPhone.
 - **Historial:** [docs/history/verificacion/items.md](../../../docs/history/verificacion/items.md).

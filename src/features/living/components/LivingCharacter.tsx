@@ -30,6 +30,9 @@ function fit(box: Size, media: Size) {
 
 const amounts = (s: CharacterStyle): StageParams => ({ breath: LEVEL_AMOUNT[s.breath], sway: LEVEL_AMOUNT[s.sway], wind: LEVEL_AMOUNT[s.wind] });
 
+/** Lo que tarda cada fundido entre la imagen y la malla (living.css, .lv-canvas y .lv-media). */
+const FADE_MS = 450;
+
 interface Props {
   c: MenuCharacter;
   style: CharacterStyle;
@@ -73,6 +76,10 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, hold, cl
 
   const [box, setBox] = useState<Size>();
   const [media, setMedia] = useState<MediaSize>();
+  // Cambiar la imagen por la malla de golpe se notaba como un tirón (y el filo y la sombra del
+  // marco, que en iOS solo se pintan en la imagen, desaparecían de golpe). Ahora es en dos fundidos
+  // de FADE_MS: 1, la malla aparece sobre la imagen; 2, la imagen se desvanece debajo; 3, oculta.
+  const [phase, setPhase] = useState(0);
   const [gl, setGl] = useState(false);
   const [loaded, setLoaded] = useState<string>();
   const wantGl = !still && !hold && !!full && loaded === full && !video && !c.animated && glSupported();
@@ -114,6 +121,22 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, hold, cl
     };
     // El estilo entra por setParams; aquí solo importa si hay malla y con qué imagen.
   }, [wantGl, mediaKey, rect?.width, rect?.height]);
+
+  useEffect(() => {
+    const canvas = stage.current?.canvas;
+    if (!gl || !canvas) return setPhase(0);
+    const raf = requestAnimationFrame(() => {
+      canvas.classList.add("is-in");
+      setPhase(1);
+    });
+    const out = setTimeout(() => setPhase(2), FADE_MS + 50);
+    const gone = setTimeout(() => setPhase(3), 2 * FADE_MS + 100);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(out);
+      clearTimeout(gone);
+    };
+  }, [gl]);
 
   useEffect(() => {
     if (gl && rect) stage.current?.resize(rect.width, rect.height, Math.min(2, window.devicePixelRatio || 1));
@@ -166,7 +189,12 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, hold, cl
     "--lv-pad-top": `${PAD.top * 100}%`,
   } as CSSProperties;
   const place: CSSProperties = rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : { inset: 0 };
-  const cssMotion = !gl && !still && (style.breath > 0 || style.sway > 0);
+  // La imagen se sigue moviendo con CSS mientras se ve, aunque sea por debajo de la malla.
+  const imageGone = gl && phase >= 3;
+  const cssMotion = !imageGone && !still && (style.breath > 0 || style.sway > 0);
+  // Si va a llegar la malla, el movimiento de CSS va solo en la imagen: en el cuerpo moverían
+  // también la malla y el brillo, y al quitarlo saltarían. Con vídeo o sin WebGL, en el cuerpo.
+  const meshComing = !video && !c.animated && glSupported();
   const thumb = !full;
 
   return (
@@ -175,7 +203,7 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, hold, cl
         {aura && <span className={`lv-aura ${still ? "" : "is-live"}`} />}
         <div ref={inRef} className="lv-in">
           <div className={`lv-frame ${style.fade ? "is-fade" : ""} ${aura ? "has-aura" : ""}`}>
-            <div className={`lv-body ${cssMotion ? "is-moving" : ""}`}>
+            <div className={`lv-body ${cssMotion && !meshComing ? "is-moving" : ""}`}>
               {video ? (
                 <video
                   className="lv-media"
@@ -194,7 +222,7 @@ export function LivingCharacter({ c, style, entrance, delay = 0, quiet, hold, cl
                 src && (
                   <img
                     ref={imgRef}
-                    className={`lv-media ${thumb ? "is-thumb" : ""} ${gl ? "is-hidden" : ""}`}
+                    className={`lv-media ${thumb ? "is-thumb" : ""} ${gl && phase >= 2 ? "is-out" : ""} ${imageGone ? "is-hidden" : ""} ${cssMotion && meshComing ? "is-moving" : ""}`}
                     src={src}
                     alt=""
                     draggable={false}

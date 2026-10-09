@@ -1,16 +1,22 @@
 import type { CSSProperties } from "react";
 import { RARITY_META, type ItemDef } from "../model";
+import { useBlobUrl } from "../../equipment/useBlobUrl";
 import "../items.css";
 
 /** Estilo con el color de la rareza en `--rc`, para cualquier elemento. */
 export const rarityStyle = (item: Pick<ItemDef, "rarity">) => ({ "--rc": RARITY_META[item.rarity].color }) as CSSProperties;
 
-/** Arte del objeto: imagen sobre el fondo de su rareza, o un monograma si no tiene imagen. */
-export function ItemArt({ item, locked = false }: { item: ItemDef; locked?: boolean }) {
+/**
+ * Arte del objeto: imagen sobre el fondo de su rareza, o un monograma si no tiene imagen.
+ * `sharp`, en las vistas grandes: la imagen nítida del almacén (image.ts) en cuanto llega; mientras,
+ * y en los objetos antiguos, el icono. En las fichas pequeñas basta el icono.
+ */
+export function ItemArt({ item, locked = false, sharp = false }: { item: ItemDef; locked?: boolean; sharp?: boolean }) {
+  const art = useBlobUrl(sharp && item.image ? item.art?.blobId : undefined);
   return (
     <span className="iart" style={rarityStyle(item)}>
       {item.image ? (
-        <img src={item.image} alt="" draggable={false} />
+        <img src={art ?? item.image} alt="" draggable={false} />
       ) : (
         <span className="iart-mono" aria-hidden>
           {[...item.name.trim()][0]?.toUpperCase() ?? "?"}

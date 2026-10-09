@@ -42,8 +42,13 @@
   inset: 0;
   transform-origin: 50% 100%;
 }
-/* Sin malla (vídeo, imagen animada o sin WebGL): respira y se mece entero, con CSS. */
-.lv-body.is-moving {
+/* Sin malla (vídeo, imagen animada o sin WebGL): respira y se mece entero, con CSS. Mientras
+   llega la malla, solo la imagen (LivingCharacter). */
+.lv-media.is-moving {
+  transform-origin: 50% 100%;
+}
+.lv-body.is-moving,
+.lv-media.is-moving {
   animation:
     lv-breath 5.4s ease-in-out infinite alternate,
     lv-sway 8s ease-in-out infinite;
@@ -77,6 +82,11 @@
   object-fit: contain;
   object-position: 50% 100%;
   user-select: none;
+  transition: opacity 0.45s ease;
+}
+/* Ya con la malla encima, la imagen se desvanece en vez de desaparecer de golpe (LivingCharacter). */
+.lv-media.is-out {
+  opacity: 0;
 }
 /* La malla pinta encima: la imagen sigue ahí (es su textura) pero no se ve. */
 .lv-media.is-hidden {
@@ -101,6 +111,12 @@
   display: block;
   width: 100%;
   height: 100%;
+  /* Entra fundiéndose sobre la imagen (FADE_MS en LivingCharacter): sin tirón al cambiar de una a otra. */
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.lv-canvas.is-in {
+  opacity: 1;
 }
 
 /* Barrido de luz: una banda que cruza la silueta (recortada con la propia imagen) cada pocos segundos. */
@@ -339,6 +355,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .lv-body.is-moving,
+  .lv-media.is-moving,
   .lv-aura.is-live,
   .lv-shine,
   .lv-fx i {

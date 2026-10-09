@@ -4,7 +4,7 @@ import { useGame } from "../../../store/game";
 import i18n from "../../../i18n";
 import { ITEM_KINDS, ITEM_LIMITS, KIND_GLYPH, RARITIES, RARITY_META, type ItemDef, type ItemKind } from "../model";
 import { createItem, draftOf, emptyItemDraft, isValidItemDraft, updateItem, type ItemDraft } from "../actions";
-import { fileToIcon } from "../image";
+import { fileToArt, fileToIcon } from "../image";
 import { ItemArt } from "./ItemTile";
 
 /** Formulario para crear o editar un objeto del almanaque. */
@@ -22,7 +22,9 @@ export function ItemForm({ item, onDone }: { item?: ItemDef; onDone(id?: string)
   const pick = async (file?: File) => {
     if (!file) return;
     try {
-      set({ image: await fileToIcon(file) });
+      // El icono para las fichas y el evento; la nítida, para las vistas grandes (se guarda al aceptar).
+      const [image, artFile] = await Promise.all([fileToIcon(file), fileToArt(file)]);
+      set({ image, artFile, art: undefined });
     } catch {
       say(() => i18n.t("items.form.imageError"));
     }
@@ -77,7 +79,7 @@ export function ItemForm({ item, onDone }: { item?: ItemDef; onDone(id?: string)
               {d.image ? t("items.form.changeImage") : t("items.form.pickImage")}
             </button>
             {d.image && (
-              <button type="button" className="add-cond is-danger" onClick={() => set({ image: undefined })}>
+              <button type="button" className="add-cond is-danger" onClick={() => set({ image: undefined, art: undefined, artFile: undefined })}>
                 {t("items.form.removeImage")}
               </button>
             )}

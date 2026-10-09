@@ -65,6 +65,7 @@ Una decisión por archivo: qué se decidió, qué se descartó, por qué y qué 
 | [ADR-52](ADR-52-personajes-vivos-y-companero.md) | Personajes vivos con una malla de WebGL y un compañero en Mi día, con su estilo y sus frases como eventos | aceptada | living, companion, menu, customize, today | 2026-10-08 |
 | [ADR-53](ADR-53-gestos-y-vibracion-en-el-telefono.md) | Gestos de iOS hechos en la web y vibración con el plugin haptics de Tauri | aceptada | mobile, quickadd, menu, merchant, items | 2026-10-09 |
 | [ADR-54](ADR-54-copia-selectiva-en-dispatch.md) | Copia selectiva del acumulador en dispatch (Immer) y estado que conserva su identidad | aceptada | snapshot | 2026-10-09 |
+| [ADR-55](ADR-55-imagen-nitida-de-los-objetos.md) | Imagen nítida de los objetos en el almacén de binarios, además del icono del evento | aceptada | items | 2026-10-09 |
 <!-- /generado:adr -->
 
 ## Añadir una ADR

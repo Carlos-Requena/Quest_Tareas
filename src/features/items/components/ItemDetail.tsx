@@ -35,7 +35,7 @@ export function ItemDetail({ item, count, onEdit }: { item: ItemDef; count: numb
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
       >
         <div className="idetail-art">
-          <ItemArt item={item} />
+          <ItemArt item={item} sharp />
         </div>
         <div className="idetail-rarity">
           <span className="tag">{meta.tag}</span>
