@@ -1185,6 +1185,34 @@
   }
 }
 
+/* ───────────── Ventana estrecha del escritorio ─────────────
+   Hasta 1.180 px: pestañas y vista previa más estrechas, y menos columnas (columns.ts), para
+   que los nombres de las tarjetas y de los tipos de encargo quepan. */
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  .cz {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+  .cz-bounty {
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 16px;
+  }
+  .cz-kind {
+    padding: 7px 8px;
+  }
+  .cz-tab {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .cz-tab.is-on {
+    padding-right: 24px;
+  }
+  .cz-tab-txt b {
+    font-size: 14px;
+    letter-spacing: 0.08em;
+  }
+}
+
 /* ───────────── Teléfono ───────────── */
 
 @media (max-width: 760px) {

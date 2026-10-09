@@ -129,6 +129,9 @@ body {
   font-family: var(--f-body);
   font-weight: 500;
   font-size: 14px;
+  /* Cifras de altura uniforme en toda la app. Cormorant Garamond trae por defecto las
+     elzevirianas (el 0 parece una «o» y los dígitos bailan): se heredan desde aquí. */
+  font-variant-numeric: lining-nums;
   -webkit-font-smoothing: antialiased;
   user-select: none;
   overflow: hidden;

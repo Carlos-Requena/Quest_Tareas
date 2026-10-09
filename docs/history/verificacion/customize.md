@@ -4,6 +4,15 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · Artefactos visuales: la ventana estrecha
+
+Hecho con `pnpm dev` en el navegador integrado, con una partida de pruebas con títulos largos (quests, encargos y bloques de agenda), a 1.024 × 768 (la ventana mínima), 1.512 × 945 y 402 × 874, en español y japonés. Un detector en la consola buscaba textos que se salen, se cortan o parten en dos líneas dentro de un botón, y cajas más anchas que su contenedor. `tsc`, `pnpm test`, `pnpm build` y `pnpm docs:check`, en verde.
+
+- **Problema:** a 1.024 px la rejilla mantenía 6 y 4 columnas de 95 y 70 px: los nombres, «Añadir ilustración» y «DE SERIE» se cortaban, «Expedición» acababa en «…» y «BOUNTIES» pisaba el número de su pestaña.
+- **Comprobado:** 5 y 3 columnas hasta 1.180 px (`useGridCols`), pestañas de 210 px y vista previa de 250 px; a 1.512 px, igual que antes; en el teléfono, 3 columnas.
+
+**No verificado:** la app nativa, el iPhone de verdad.
+
 ## 2026-10-08 · Pestañas del personaje: Menú, Mi día y Movimiento
 
 En el navegador del panel (Chromium) con datos de prueba, que se dejaron como estaban al terminar.

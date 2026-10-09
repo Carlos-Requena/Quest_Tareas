@@ -46,7 +46,9 @@ Una app móvil aparte duplicaría las pantallas, y una PWA no podría guardar el
 - **Menú**: su propia distribución, como la pantalla de inicio de un gacha, con la barra de abajo flotando encima ([menu](../menu/README.md#en-el-teléfono), [ADR-49](../../../docs/decisions/ADR-49-menu-de-opciones.md)).
 - **Rombo de crear** (`MobileCreate`): dorado, girado 45°. En el tablón abre la hoja del alta rápida ([quickadd](../quickadd/README.md); desde ella, «Más detalles» abre el formulario completo); en el de encargos, un encargo; en el calendario, un bloque.
 - **Avisos** encima de la barra (`.m-toast`), para que se vean con el detalle cerrado. El botón «Deshacer» del aviso sí recibe el toque, aunque el aviso deje pasar los demás.
-- **Editar** va en el detalle con su nombre; en el escritorio, solo el icono ✎.
+- **Editar** va en el detalle con su nombre; en el escritorio, solo el icono ✎. Los botones del detalle van en **dos filas**: la acción principal a lo ancho y, debajo, abandonar (o retirar) y editar a partes iguales.
+- **Tarjetas del tablón** de 112 px de alto: caben la cabecera con su plazo, un título de dos líneas y el pie.
+- **Botones segmentados** (categoría, repetición, vistas del calendario…): cada uno mide lo que su texto, sin partirlo en dos líneas, y si no caben todos pasan a otra fila.
 
 ### El detalle, una hoja a pantalla completa
 
@@ -146,7 +148,7 @@ No tiene eventos: es presentación. No cambia `project()`, el modelo ni el snaps
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-09, gestos en el navegador (eventos de puntero táctiles) y con el dedo en el simulador de iOS: deslizar una tarjeta la acepta sin abrir el detalle (y el desplazamiento vertical sigue), volver desde el borde, bajar la hoja de ajustes; en el navegador también el alta rápida y la ficha del mercader. La fila «Vibración» sale en la app nativa. Antes, la barra de cristal y su selector; «Mi día» sin barra ni arrastre lateral; la ficha del mercader y la del almanaque se cierran con ✕ y volviendo a tocar. La del inventario no se probó con objetos (la partida de pruebas no tenía). El propietario abrió la app en su iPhone y sincronizó con ella el 2026-10-06.
+- **Última verificación:** 2026-10-09, artefactos de texto a 402 × 874 en español y japonés: el detalle con un objetivo largo y sus botones en dos filas, tarjetas con títulos de dos líneas, los formularios de quest, encargo y bloque (caben en el ancho; «Días de la semana» en una línea), el cartel abierto, el mercader, la personalización y los ajustes. Antes, el mismo día, gestos en el navegador (eventos de puntero táctiles) y con el dedo en el simulador de iOS: deslizar una tarjeta la acepta sin abrir el detalle (y el desplazamiento vertical sigue), volver desde el borde, bajar la hoja de ajustes; en el navegador también el alta rápida y la ficha del mercader. La fila «Vibración» sale en la app nativa. Antes, la barra de cristal y su selector; «Mi día» sin barra ni arrastre lateral; la ficha del mercader y la del almanaque se cierran con ✕ y volviendo a tocar. La del inventario no se probó con objetos (la partida de pruebas no tenía). El propietario abrió la app en su iPhone y sincronizó con ella el 2026-10-06.
 - **Tests:** `actions.test.ts`, `swipe-action.test.ts`.
 - **Sin verificar:** **la vibración** (el simulador no vibra: solo se sabe que el plugin compila y la fila sale); los gestos con el dedo en un iPhone real; el sonido y la música en iOS (el interruptor de silencio puede callar los efectos); los PDF adjuntos (iOS puede enseñar solo la primera página); el teclado de iOS encima de los formularios; el giro a horizontal; el iPad.
 - **Historial:** [docs/history/verificacion/mobile.md](../../../docs/history/verificacion/mobile.md).

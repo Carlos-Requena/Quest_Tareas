@@ -4,6 +4,15 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · Artefactos visuales: el marco del cuadro
+
+Hecho con `pnpm dev` en el navegador integrado, con una partida de pruebas con títulos largos (quests, encargos y bloques de agenda), a 1.024 × 768 (la ventana mínima), 1.512 × 945 y 402 × 874, en español y japonés. Un detector en la consola buscaba textos que se salen, se cortan o parten en dos líneas dentro de un botón, y cajas más anchas que su contenedor. `tsc`, `pnpm test`, `pnpm build` y `pnpm docs:check`, en verde.
+
+- **Problema:** en Mi día, el contorno (3 px) y las esquinas doradas (5 px), que asoman fuera de la caja, se recortaban contra el borde de la vista, que se desplaza; además daban 2 px de desplazamiento lateral.
+- **Comprobado:** el cuadro con margen alrededor, entero a 1.024 × 768 y 402 × 874.
+
+**No verificado:** la app nativa.
+
 ## 2026-10-08 · Primera versión: el cuadro de diálogo y sus frases
 
 En el navegador del panel (Chromium) con datos de prueba, no los del propietario.

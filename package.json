@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test": "vitest run",
     "docs:index": "node scripts/docs.mjs",
-    "docs:check": "node scripts/docs.mjs --check"
+    "docs:check": "node scripts/docs.mjs --check",
+    "iphone": "bash scripts/iphone.sh"
   },
   "dependencies": {
     "@fontsource/cinzel": "^5.3.0",

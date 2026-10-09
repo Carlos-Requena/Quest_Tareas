@@ -17,7 +17,7 @@
 }
 .rw-preview .reward b {
   min-width: 3ch;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .rw-hint {
   margin: 6px 0 0;

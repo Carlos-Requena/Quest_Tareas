@@ -50,6 +50,7 @@ No tiene eventos propios: los de las frases del menú son de [menu](../menu/READ
 
 - **Teclado.** Con la ventana abierta, el del menú y el del tablón esperan (`customizeBusy`, en `windowOpen` del menú y en `App.tsx`). Los campos marcan su `Escape` como atendido (`preventDefault`) para que la ventana no lo use.
 - **Animaciones.** La ventana entra desde la derecha con un leve sesgo (Motion) y sale con `BACKDROP_EXIT` / `MODAL_EXIT`; las tarjetas llegan una tras otra; las frases entran y salen de lado. Con «reducir movimiento», sin desplazamientos.
+- **Ventana estrecha** (hasta 1.180 px): columna de pestañas de 210 px, vista previa de 250 px y menos columnas de tarjetas (5 personajes, 3 ilustraciones; `useGridCols`), para que quepan los nombres y los tipos de encargo.
 - **Teléfono.** A pantalla completa; las dos pestañas, arriba en fila; tres columnas de tarjetas (las etiquetas pasan a una segunda línea); quitar se ve siempre (sin pasar el ratón); el personaje elegido y la pestaña de ilustraciones, en una columna que se desplaza entera (sin `min-height: 0`, para que cada bloque mida su contenido); las pestañas Menú · Mi día · Movimiento, debajo del título; en Movimiento, la vista previa de 300 px de alto y cada control debajo de su nombre; las situaciones y los tipos de encargo, deslizables. Botones de 40 px y campos de 16 px.
 
 ## Archivos
@@ -81,6 +82,7 @@ No tiene eventos propios: los de las frases del menú son de [menu](../menu/READ
 | Frases por situación y elegir compañero | [`CompanionPanel`](components/CompanionPanel.tsx); las acciones, de [companion](../companion/actions.ts) |
 | Ajustes de movimiento | [`MotionPanel`](components/MotionPanel.tsx); las acciones, `setCharacterStyle` y `resetCharacterStyle` de [living](../living/actions.ts) |
 | Ilustraciones por tipo y vista previa | [`BountyPanel`](components/BountyPanel.tsx); las acciones, `addTemporalArt` y `removeTemporalArt` de [temporal](../temporal/actions.ts) |
+| Columnas de las rejillas (escritorio, ventana estrecha y teléfono) | [`useGridCols`](columns.ts) |
 
 ## Integración
 
@@ -99,12 +101,12 @@ No tiene eventos propios: los de las frases del menú son de [menu](../menu/READ
 - **features/companion** (`index` y `model.ts`): las frases de Mi día, quién acompaña y sus acciones.
 - **features/temporal** (`model.ts`, `heroes.ts`, `actions.ts`, `IllustrationArt`, `quote`): las ilustraciones, sus acciones y cómo se imprimen. Para cambiar la impresión en sepia, lee su README.
 - **features/equipment** (`useBlobUrl`): la imagen de lo añadido, del almacén de binarios.
-- **features/mobile** (`useIsPhone`): tres columnas en el teléfono.
+- **features/mobile** (`useIsPhone`, en `columns.ts`): tres columnas en el teléfono.
 - **La usan:** `menu` (la tarjeta y `windowOpen`).
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-08, navegador a 1.280 × 800, 1.024 × 700 y 402 × 874, en español y japonés: las pestañas Menú · Mi día · Movimiento, cambiar el viento y la entrada con la vista previa viva, elegir compañero y escribirle una frase, la tarjeta de un personaje en vídeo. Antes, el mismo día: frases del menú e ilustraciones.
+- **Última verificación:** 2026-10-09, navegador a 1.024 × 768 y 402 × 874: las dos pestañas con 5 y 3 columnas en la ventana estrecha (nombres, «Añadir ilustración» y «Expedición» enteros). El 2026-10-08, a 1.280 × 800, 1.024 × 700 y 402 × 874, en español y japonés: las pestañas Menú · Mi día · Movimiento, la vista previa viva, el compañero y un personaje en vídeo.
 - **Tests:** los de `src/features/menu/model.test.ts`, `src/features/living/model.test.ts`, `src/features/companion/model.test.ts` y `src/features/temporal/model.test.ts` (los datos son de esas funcionalidades).
 - **Sin verificar:** la app nativa de macOS y Windows, el iPhone de verdad (el selector de archivos de iOS, con vídeos), una frase, un estilo o una ilustración llegando a otro equipo por Drive.
 - **Historial:** [docs/history/verificacion/customize.md](../../../docs/history/verificacion/customize.md).

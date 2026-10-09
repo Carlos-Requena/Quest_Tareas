@@ -340,6 +340,10 @@
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
+}
+/* El «…» va en el texto: en una caja flex, text-overflow no se aplica y se cortaba a media letra. */
+.grow-name-txt {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -696,7 +700,8 @@
   }
   .ht-box {
     min-height: 0;
-    padding: 18px 16px 14px;
+    /* Abajo, sitio para la flecha ▼: si no, pisaba la última palabra. */
+    padding: 18px 16px 24px;
   }
   .ht-text {
     font-size: 14px;

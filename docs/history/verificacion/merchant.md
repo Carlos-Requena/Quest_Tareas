@@ -4,6 +4,15 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · Artefactos visuales: nombres y diálogo
+
+Hecho con `pnpm dev` en el navegador integrado, con una partida de pruebas con títulos largos (quests, encargos y bloques de agenda), a 1.024 × 768 (la ventana mínima), 1.512 × 945 y 402 × 874, en español y japonés. Un detector en la consola buscaba textos que se salen, se cortan o parten en dos líneas dentro de un botón, y cajas más anchas que su contenedor. `tsc`, `pnpm test`, `pnpm build` y `pnpm docs:check`, en verde.
+
+- **Problema:** los nombres largos de la lista se cortaban a media letra bajo el precio, sin «…» (el «…» estaba en una caja flex, donde no se aplica); en el teléfono, la flecha ▼ de Hu Tao pisaba la última palabra.
+- **Comprobado:** «Guanteletes del Estilo del Dios del Norte» acaba en «…» a 1.024 y 402 px; la flecha, debajo del texto.
+
+**No verificado:** la app nativa.
+
 ## Registro hasta el 2026-10-07
 
 Hecho el 2026-10-02:

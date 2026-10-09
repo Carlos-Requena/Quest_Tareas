@@ -459,7 +459,8 @@
   }
   .grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-auto-rows: 104px;
+    /* Cabe la cabecera con su plazo, un título de dos líneas y el pie sin pisarse. */
+    grid-auto-rows: 112px;
     /* Hueco para que el rombo de crear no tape la última tarjeta. */
     padding: 2px 2px 92px;
     -webkit-overflow-scrolling: touch;
@@ -554,21 +555,26 @@
     height: 38px;
     font-size: 18px;
   }
+  /* En dos filas: la acción principal a lo ancho y, debajo, abandonar y editar a partes iguales.
+     En una sola, «Faltan objetivos» no cabía y se salía del botón. */
   .actions {
+    flex-wrap: wrap;
     gap: 8px;
     padding: 10px 0 14px;
     border-top: 1px solid var(--line);
   }
   .actions .btn {
     height: 46px;
+    justify-content: center;
   }
   .actions .btn-primary {
-    flex: 1;
+    flex: 1 1 100%;
     min-width: 0;
-    justify-content: center;
     padding: 0 22px 0 14px;
   }
   .actions .btn-ghost {
+    flex: 1 1 0;
+    min-width: 0;
     padding: 0 22px 0 14px;
   }
 
@@ -641,10 +647,20 @@
   }
   /* Filas de tres campos: dos arriba y el tercero a lo ancho. */
   .row3 {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .row3 > :nth-child(3) {
     grid-column: 1 / -1;
+  }
+  /* Botones segmentados: cada uno mide lo que su texto, sin partirlo en dos líneas
+     («Días de la semana»), y si no caben todos pasan a otra fila. */
+  .seg {
+    flex-wrap: wrap;
+  }
+  .seg-btn,
+  .ag-repeat .seg-btn {
+    flex: 1 1 auto;
+    white-space: nowrap;
   }
   .add-conds {
     flex-wrap: wrap;

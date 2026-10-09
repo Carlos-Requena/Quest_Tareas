@@ -4,7 +4,9 @@
 
 .cp {
   --cp-aura: var(--gold);
-  margin-bottom: 18px;
+  /* Hueco para el contorno (3 px) y las esquinas doradas (5 px), que asoman fuera de la caja:
+     sin él, el contenedor que se desplaza los recortaba. */
+  margin: 6px 6px 18px;
 }
 .cp-box {
   position: relative;

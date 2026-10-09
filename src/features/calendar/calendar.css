@@ -24,10 +24,14 @@
   gap: 18px;
 }
 .cal-views {
-  width: 200px;
+  flex: none;
 }
+/* Cada vista mide lo que su nombre: con un ancho fijo para las tres, «今日の予定» no cabía. */
 .cal-views .seg-btn {
+  flex: 0 0 auto;
+  min-width: 62px;
   height: 32px;
+  padding: 0 12px;
   font-size: 13px;
 }
 .cal-nav {
@@ -255,7 +259,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  /* Cormorant tiene el ojo pequeño: por debajo de 12 px sus cifras se ven raquíticas. */
+  font-size: 12px;
+  white-space: nowrap;
   color: var(--c);
 }
 .cal-rep {
@@ -341,7 +347,8 @@
 
 /* ── Día: lo de todo el día arriba y la rejilla por horas ── */
 .cal-dayview {
-  --cal-gutter: 56px;
+  /* Columna de las horas, a la izquierda de la rejilla. */
+  --cal-gutter: 60px;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -352,16 +359,18 @@
 .cal-allday {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 8px 10px 8px 0;
   border-bottom: 1px solid var(--line);
 }
+/* Alineado a la derecha, como las horas de debajo. */
 .cal-allday-lbl {
   flex: none;
-  width: calc(var(--cal-gutter) - 10px);
-  padding-top: 6px;
-  font-size: 10.5px;
-  line-height: 1.2;
+  width: var(--cal-gutter);
+  padding: 7px 8px 0 4px;
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: right;
   color: var(--muted);
 }
 .cal-allday-items {
@@ -382,22 +391,39 @@
 }
 .cal-grid {
   position: relative;
+  /* Margen para que la etiqueta de las 00:00 (centrada en su línea) no se corte arriba. */
+  margin: 10px 0;
   cursor: copy;
 }
+/* Cada hora: la línea empieza después de la columna de las horas y la etiqueta va en esa
+   columna, centrada en la línea (antes colgaba debajo y parecía de la franja siguiente). */
 .cal-hour {
   position: absolute;
-  left: 0;
+  left: var(--cal-gutter);
   right: 0;
   height: 0;
   border-top: 1px solid var(--line);
   pointer-events: none;
 }
+/* La media hora, más tenue (48 px por hora: la media, a 24). */
+.cal-hour::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 23px;
+  border-top: 1px dashed rgba(216, 190, 132, 0.07);
+}
 .cal-hour span {
   position: absolute;
-  left: 8px;
-  top: 2px;
-  font-size: 11px;
-  color: var(--muted);
+  right: calc(100% + 8px);
+  top: 0;
+  translate: 0 -50%;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--text-2);
 }
 .cal-block {
   position: absolute;
@@ -452,7 +478,7 @@
 .cal-now {
   position: absolute;
   z-index: 3;
-  left: calc(var(--cal-gutter) - 6px);
+  left: var(--cal-gutter);
   right: 0;
   height: 2px;
   background: var(--elite);
@@ -526,6 +552,9 @@
     flex: 1;
     width: auto;
   }
+  .cal-views .seg-btn {
+    flex: 1 1 auto;
+  }
   .cal-views .seg-btn,
   .cal-nav-btn,
   .cal-today {
@@ -571,7 +600,7 @@
     font-size: 15px;
   }
   .cal-dayview {
-    --cal-gutter: 48px;
+    --cal-gutter: 54px;
     margin-bottom: 80px;
   }
   .cal-allday-items .cal-chip {

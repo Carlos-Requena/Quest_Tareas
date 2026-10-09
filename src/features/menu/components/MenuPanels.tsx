@@ -128,7 +128,7 @@ export function MenuVoice({ speaker, characterId }: { speaker: string; character
     <motion.div className="mn-voice" {...enter(0.3)}>
       <span className="mn-voice-who">
         <span className="tag">Voice</span>
-        {speaker}
+        <span className="mn-voice-name">{speaker}</span>
         <button
           className="mn-voice-swap"
           title={t("menu.cast.open")}

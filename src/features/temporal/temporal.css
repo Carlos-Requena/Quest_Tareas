@@ -502,7 +502,8 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 2px 4px;
+  /* Abajo, el hueco del sello «ACCEPTED»: sin él, con un título largo caía encima de la recompensa. */
+  padding: 2px 4px 20px;
 }
 .tp-landscape .tp-text {
   border: 1px solid rgba(59, 42, 26, 0.3);
@@ -519,10 +520,14 @@
   letter-spacing: 0.02em;
   color: var(--ink);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  /* Dos líneas en el tablón (el cartel abierto lo muestra entero): con tres, la recompensa
+     bajaba hasta el sello. */
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-variant: small-caps;
+  flex: none;
+  max-height: calc(2 * 1.3em);
+  font-variant-caps: small-caps;
 }
 .tp-when {
   font-size: 10.5px;
@@ -569,13 +574,14 @@
 /* Cinta de abajo: el lugar, o «Enquire within» como en los carteles de la referencia. */
 .tp-ribbon {
   position: relative;
-  max-width: 82%;
+  /* Más estrecha que el cartel: las calaveras de la esquina no tapan su texto. */
+  max-width: 72%;
   margin-top: 6px;
-  padding: 2px 14px;
+  padding: 2px 12px;
   font-family: var(--f-tag);
   font-size: 8.5px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(59, 42, 26, 0.85);
   border: 1px solid rgba(59, 42, 26, 0.45);
@@ -706,6 +712,8 @@
   inset: 0;
   z-index: 3;
   pointer-events: none;
+  /* Un poco por debajo del borde: pisan el canto del cartel y dejan leer la cinta. */
+  translate: 0 9px;
 }
 .tp-skulls .skull {
   position: absolute;
@@ -1070,7 +1078,7 @@
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: 0.03em;
-  font-variant: small-caps;
+  font-variant-caps: small-caps;
 }
 .pv-grid {
   display: grid;
@@ -1883,6 +1891,7 @@
 .field .tq-pick {
   flex: 1;
   width: auto;
+  min-width: 0;
   padding: 5px 10px;
   font-size: 12px;
 }
@@ -2024,7 +2033,7 @@
 }
 :lang(ja) .tp-title,
 :lang(ja) .pv-title {
-  font-variant: normal;
+  font-variant-caps: normal;
   letter-spacing: 0.06em;
 }
 :lang(ja) .tpo-line,
@@ -2249,7 +2258,7 @@
     grid-template-areas:
       "title title"
       "count tools";
-    gap: 2px 10px;
+    gap: 6px 10px;
     padding: 14px 40px 2px;
   }
   .tb-title {
@@ -2312,6 +2321,22 @@
   .pv-skulls .skull {
     width: 42px;
     height: 42px;
+  }
+  /* Abajo, sitio para las calaveras (a la derecha) y el sello (a la izquierda): en el ancho del
+     teléfono caían encima de la recompensa. */
+  .pv-frame {
+    padding-bottom: 92px;
+  }
+  .pv-seal {
+    left: 7%;
+    right: auto;
+    bottom: 5%;
+    padding: 3px 10px 1px;
+    font-size: 18px;
+    border-width: 2px;
+  }
+  .pv-seal small {
+    font-size: 10px;
   }
   .pv-clear {
     font-size: 40px;
@@ -2377,6 +2402,18 @@
   .tf-accept .tf-check {
     font-size: 15px;
     min-height: 40px;
+  }
+  /* La hora, entera; «Todo el día» debajo (en media fila no cabían las dos y la hora se cortaba). */
+  .tf-time {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .tf-time input[type="time"] {
+    flex: 1 1 100%;
+  }
+  .tf-check {
+    min-height: 32px;
+    font-size: 13px;
   }
   .tf-accept .tf-check input {
     width: 20px;

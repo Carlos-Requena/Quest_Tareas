@@ -213,7 +213,7 @@ export const QuestCard = forwardRef<HTMLButtonElement, Props>(function QuestCard
               <span>{t("complex.card.locked", { count: lock.length, title: lock[0].title })}</span>
             </span>
           ) : (
-            <span className="muted">{quest.kind}</span>
+            quest.kind && <span className="muted card-kind">{quest.kind}</span>
           )}
           <b className="num">{num(quest.reward.xp)}</b>
           <span className="card-unit">XP</span>

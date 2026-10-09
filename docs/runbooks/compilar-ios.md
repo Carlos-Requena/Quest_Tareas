@@ -21,6 +21,23 @@ rustup component add llvm-tools
 - **CocoaPods** hace falta para `tauri ios init`: `brew install cocoapods` (con `gem` pide `sudo`).
 - **`llvm-tools`**: swift-rs lo necesita para hacer globales las funciones de Swift; sin él, «Undefined symbols» al enlazar.
 
+## Instalar en tu iPhone con un comando
+
+```bash
+pnpm iphone
+```
+
+`scripts/iphone.sh` compila la release firmada, busca el primer iPhone real emparejado (por cable o en la misma Wi-Fi), la instala y la abre. Instala lo que haya en la carpeta en ese momento, también los cambios sin commit: el script dice qué rama y qué commit. Los datos de la app se conservan.
+
+| Opción | Para qué |
+|---|---|
+| `--sin-compilar` | Reinstala el último `.ipa` (no renueva la firma de 7 días) |
+| `--no-abrir` | Solo instala |
+| `--dispositivo <UDID>` | Otro iPhone (o la variable `IPHONE_UDID`) |
+| `--prueba` | Busca el iPhone y enseña los comandos, sin compilar ni instalar |
+
+Antes, una vez: [preparar el Mac](#preparar-el-mac-una-vez) y [firmar](#firmar-con-un-apple-id-gratuito). El iPhone tiene que estar desbloqueado al instalar; si está bloqueado al abrir, se queda instalada y se abre desde su icono.
+
 ## Compilar
 
 ```bash
@@ -39,7 +56,7 @@ Instalar el `.ipa` en un iPhone conectado: `xcrun devicectl device install app -
 3. Conecta el iPhone con el modo desarrollador activado y ejecuta `pnpm tauri ios dev --open` (o compila desde Xcode).
 4. La primera vez, en el iPhone: Ajustes → General → VPN y gestión de dispositivos → confía en el certificado.
 
-**Caduca a los 7 días**: hay que volver a instalarla desde Xcode. Los datos se conservan si no se borra la app.
+**Caduca a los 7 días**: hay que volver a instalarla (`pnpm iphone`, que la vuelve a firmar). Los datos se conservan si no se borra la app.
 
 El *bundle ID* de iOS es `com.requenadonacarlos.quests` (`src-tauri/tauri.ios.conf.json`), porque `com.quests.app` lo tenía registrado otra cuenta de Apple. El cliente iOS de Google tiene que usar el mismo ([verificar-sync.md](verificar-sync.md)).
 

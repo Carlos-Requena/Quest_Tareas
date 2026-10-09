@@ -2,13 +2,13 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../../../store/game";
 import { sfx } from "../../../lib/sfx";
-import { useIsPhone } from "../../mobile";
 import { KIND_META, TEMPORAL_KINDS, type TemporalKind } from "../../temporal/model";
 import { illustrationsOf, type Illustration } from "../../temporal/heroes";
 import { addTemporalArt, removeTemporalArt } from "../../temporal/actions";
 import { IllustrationArt } from "../../temporal/components/IllustrationArt";
 import { quote } from "../../temporal/components/PostedOverlay";
 import { useCustomizeUi } from "../ui";
+import { useGridCols } from "../columns";
 import { AddSlots, Card, slotsFor } from "./Cards";
 
 /**
@@ -21,7 +21,7 @@ export function BountyPanel() {
   const kind = useCustomizeUi((s) => s.kind);
   const selected = useCustomizeUi((s) => s.art);
   const arts = useGame((s) => s.state.temporalArts);
-  const cols = useIsPhone() ? 3 : 4;
+  const cols = useGridCols(4, 3);
   const byKind = useMemo(() => new Map(TEMPORAL_KINDS.map((k) => [k, illustrationsOf(k, arts.values())])), [arts]);
   const list = byKind.get(kind) ?? [];
   const shown = list.find((i) => i.id === selected) ?? list[0];

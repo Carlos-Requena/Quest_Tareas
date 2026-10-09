@@ -177,7 +177,7 @@ En el teléfono: Hu Tao arriba, la mercancía debajo y la ficha de la pieza eleg
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-02, tests (con prueba de mutación) y navegador (Chromium, WebM) a 1.280 × 780: piezas con imagen, fondo en IndexedDB, compra con el sello, japonés y de 1.024 a 1.440 px; el vídeo en memoria, mudo y avanzando.
+- **Última verificación:** 2026-10-09, navegador a 1.024 × 768 y 402 × 874: los nombres largos de la lista acaban en «…» y la flecha ▼ de Hu Tao no pisa la última palabra en el teléfono. El 2026-10-02, tests (con prueba de mutación) y navegador (Chromium, WebM) a 1.280 × 780: piezas con imagen, fondo en IndexedDB, compra con el sello, japonés y de 1.024 a 1.440 px; el vídeo en memoria, mudo y avanzando.
 - **Tests:** `model.test.ts`, `actions.test.ts` y, en `src/domain/projection.test.ts`, el oro y el doble gasto entre dispositivos.
 - **Sin verificar:** el vídeo MP4 en el WKWebView de la app nativa de macOS (el propietario lo vio quieto antes del cambio a `blob:`; no se ha vuelto a comprobar); la imagen grande del fondo en la tabla `blobs` de SQLite; Windows; los sonidos.
 - **Historial:** [docs/history/verificacion/merchant.md](../../../docs/history/verificacion/merchant.md).

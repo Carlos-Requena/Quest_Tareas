@@ -411,7 +411,7 @@ function GearRow({ gear, selected, fresh, onSale, catalog, onClick }: RowProps) 
       <GearArt gear={gear} stars={false} className="grow-art" />
       <span className="grow-main">
         <span className="grow-name">
-          {gearName(gear, t)}
+          <span className="grow-name-txt">{gearName(gear, t)}</span>
           {fresh && <span className="grow-new tag">NEW</span>}
         </span>
         <span className="grow-sub">

@@ -294,7 +294,9 @@ Sintetizados con Web Audio en `src/lib/sfx.ts`; las recetas salen de medir el au
 | `purify(i)` | Campanilla de si5 a la6 | Las calaveras que se vuelven de oro |
 | `pin`, `paperRip`, `unfold` | Clic y golpe en madera; ráfagas de ruido; ruido que barre | Chincheta, papel rasgado y cartel que se despliega |
 
-En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una columna y los botones en dos filas.
+En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una columna y los botones en dos filas; abajo deja sitio para las calaveras (a la derecha) y el sello «ACCEPTED», más pequeño y a la izquierda, para que no tapen la recompensa.
+
+En el tablón, el título del cartel llega a **dos líneas** (abierto se ve entero) y el texto reserva abajo el hueco del sello, así la recompensa nunca queda debajo de él; la cinta mide como mucho el 72 % del cartel y las calaveras bajan un poco más allá del borde, para que no tapen su texto.
 
 ## Archivos
 
@@ -385,7 +387,7 @@ En el teléfono: el cartel abierto ocupa casi todo el ancho, los datos en una co
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-08, ilustraciones al cumplir: tests y navegador a 1.024 px y 402 × 874 (Kazuma en una cacería, Subaru en una citación, la silueta en una entrega; añadir un archivo a una carpeta con `pnpm dev`; una ilustración añadida desde la personalización sale al azar con la de serie y, al quitarla, se borra su imagen). Aceptados y sin aceptar, el 2026-10-03: tests (con prueba de mutación) y navegador a 800 × 600 y 402 × 874. El tablón, los adjuntos, las animaciones y las quests enlazadas, el 2026-10-02 (dominio en tres zonas horarias, datos antiguos idénticos, sonido grabado con `OfflineAudioContext`).
+- **Última verificación:** 2026-10-09, navegador a 1.024 × 768 y 402 × 874: carteles con títulos largos (el sello ya no pisa la recompensa), el cartel abierto en el teléfono y el formulario de encargo (cabe en el ancho; la hora entera). El 2026-10-08, ilustraciones al cumplir: tests y navegador a 1.024 px y 402 × 874 (Kazuma en una cacería, Subaru en una citación, la silueta en una entrega; añadir un archivo a una carpeta con `pnpm dev`; una ilustración añadida desde la personalización sale al azar con la de serie y, al quitarla, se borra su imagen). Aceptados y sin aceptar, el 2026-10-03: tests (con prueba de mutación) y navegador a 800 × 600 y 402 × 874. El tablón, los adjuntos, las animaciones y las quests enlazadas, el 2026-10-02 (dominio en tres zonas horarias, datos antiguos idénticos, sonido grabado con `OfflineAudioContext`).
 - **Tests:** `model.test.ts`, `src/domain/projection.test.ts` y `src/store/game.test.ts`.
 - **Sin verificar:** las ilustraciones en la app nativa (WKWebView: `mask-composite` y el multiplicado) y en Windows; la app nativa con la tabla `blobs` de SQLite y archivos grandes en base64; el visor de PDF dentro del WebView de Tauri (en Chromium sin interfaz sale en blanco); la descarga de adjuntos en Tauri; Windows; escuchar los sonidos de verdad; el rendimiento de los textos gigantes con filtros en el WKWebView.
 - **Historial:** [docs/history/verificacion/temporal.md](../../../docs/history/verificacion/temporal.md).

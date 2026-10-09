@@ -404,7 +404,10 @@ kbd {
 }
 .card-title {
   position: relative;
-  flex: 1;
+  /* Sin flex: 1: con la caja más alta que dos líneas, -webkit-line-clamp deja asomar la tercera. */
+  flex: none;
+  margin-bottom: auto;
+  max-height: calc(2 * 1.4em);
   font-size: 15px;
   font-weight: 700;
   line-height: 1.4;
@@ -420,10 +423,25 @@ kbd {
   display: flex;
   align-items: baseline;
   gap: 6px;
+  min-width: 0;
   font-size: 11px;
 }
 .card-foot .muted {
   margin-right: 4px;
+}
+.card-kind {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-foot > b,
+.card-unit {
+  flex: none;
+}
+/* El sello «EN CURSO» ocupa la esquina de abajo: el pie no se mete debajo. */
+.card.is-active .card-foot {
+  padding-right: 92px;
 }
 .card-foot b {
   font-size: 16px;
@@ -514,6 +532,7 @@ kbd {
 
 .detail {
   position: relative;
+  container: detail / inline-size;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -592,7 +611,9 @@ kbd {
 }
 .cond {
   display: grid;
-  grid-template-columns: minmax(70px, 110px) minmax(0, 1fr) minmax(60px, 140px) 64px 58px;
+  /* Todo en fr: con columnas minmax fijas, la rejilla las estira al máximo antes de repartir
+     y al objetivo (1fr) le quedaban 0 px en la ventana estrecha (se escribía en vertical). */
+  grid-template-columns: minmax(56px, 0.6fr) minmax(0, 2fr) minmax(36px, 0.8fr) auto auto;
   align-items: center;
   gap: 14px;
   padding: 11px 14px;
@@ -613,8 +634,10 @@ kbd {
   color: var(--gold);
 }
 .cond-label {
+  min-width: 0;
   font-size: 15px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 .cond-bar {
   height: 3px;
@@ -628,8 +651,10 @@ kbd {
   box-shadow: 0 0 6px rgba(242, 214, 143, 0.5);
 }
 .cond-val {
+  min-width: 52px;
   text-align: right;
   font-size: 19px;
+  white-space: nowrap;
 }
 .cond-val small {
   font-size: 13px;
@@ -720,6 +745,7 @@ kbd {
   white-space: nowrap;
 }
 .btn-key {
+  flex: none;
   width: 20px;
   height: 20px;
   display: grid;
@@ -777,6 +803,59 @@ kbd {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Texto de un botón que puede encoger: se corta con «…» en vez de salirse. */
+.btn-lbl {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.actions .btn-primary {
+  flex: 0 1 230px;
+  min-width: 0;
+}
+.actions .btn-ghost {
+  flex: none;
+}
+/* Detalle estrecho (ventana de 1.024 px): sin los círculos de las teclas, que ya están en el pie,
+   para que «Faltan objetivos» quepa entero. */
+@container detail (max-width: 520px) {
+  .actions {
+    gap: 8px;
+  }
+  .actions .btn {
+    gap: 8px;
+    padding: 0 22px 0 14px;
+    letter-spacing: 0.03em;
+  }
+  .actions .btn-key {
+    display: none;
+  }
+  /* Cada objetivo en tres filas, como en el teléfono: el tipo arriba, el texto con su valor
+     y la barra con los botones. En una sola fila el texto se quedaba en una columna mínima. */
+  .cond {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "kind kind"
+      "label val"
+      "bar btns";
+    gap: 6px 12px;
+  }
+  .cond-kind {
+    grid-area: kind;
+  }
+  .cond-label {
+    grid-area: label;
+  }
+  .cond-bar {
+    grid-area: bar;
+  }
+  .cond-val {
+    grid-area: val;
+  }
+  .cond-btns {
+    grid-area: btns;
+  }
 }
 /* Editar la quest (features/editing): en el escritorio, solo el icono; en el teléfono, con su nombre. */
 .btn-edit-ico {
@@ -905,6 +984,9 @@ kbd {
 }
 .modal-body {
   display: grid;
+  /* Una columna del ancho de la ventana: con la columna automática, un campo ancho (los cinco
+     tipos de cartel, un campo de fecha) la estiraba y el formulario se salía por la derecha. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   padding: 4px 26px 12px;
   overflow-y: auto;
@@ -912,12 +994,18 @@ kbd {
 .field {
   display: grid;
   gap: 6px;
+  /* Igual que .modal-body: un desplegable con opciones largas no ensancha el campo. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
+  min-width: 0;
 }
 .field input,
 .field textarea,
 .field select {
   width: 100%;
+  /* En una fila flex, un desplegable mediría lo que su opción más larga (un título de quest)
+     y empujaría el formulario fuera de la ventana. */
+  min-width: 0;
   padding: 9px 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
@@ -952,7 +1040,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 .row3 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 .seg {
@@ -966,6 +1054,8 @@ input[type="number"]::-webkit-inner-spin-button {
   align-items: center;
   justify-content: center;
   gap: 9px;
+  /* Sin relleno, un texto largo (o en japonés) llegaba al borde del botón. */
+  padding: 0 8px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
   color: var(--text-2);

@@ -32,6 +32,7 @@ pnpm build              # tipos + build del frontend a dist/
 pnpm docs:index         # regenera las tablas de docs/INDEX.md y docs/decisions/README.md
 pnpm docs:check         # comprueba la documentación (la CI lo pasa)
 pnpm tauri build        # instalador para el sistema actual
+pnpm iphone             # release firmada instalada en el iPhone emparejado (compilar-ios.md)
 ```
 
 - El puerto **1420 es fijo** (`strictPort`). Si está ocupado, probablemente el propietario tiene la app abierta: **úsala** (`http://localhost:1420`) en vez de arrancar otra copia. Si arrancas un servidor tú, **páralo al terminar**.
@@ -137,6 +138,7 @@ src/features/<nombre>/
 - **Teléfono:** cada funcionalidad pone sus ajustes en un `@media (max-width: 760px)` **al final de su CSS**; el JavaScript solo distingue el teléfono cuando el CSS no basta (`isPhone()` / `useIsPhone()`). Nada solo con `hover`, botones de 40 px o más, campos de 16 px o más, y «Pulsa Enter» pasa a «Toca» (`KeyHint`). Gestos de iOS con `useDragDismiss` (`features/mobile`): lo que entra por la derecha se cierra desde el borde y toda hoja de abajo lleva asa (`SheetGrip`); los campos dicen qué hace Intro (`enterKeyHint`). Si tocas una pantalla, mírala también a 402 × 874.
 - **Ventanas:** el fondo sale con `BACKDROP_EXIT` y la ventana con `MODAL_EXIT` (`src/lib/motion.ts`); si no, el fondo invisible se traga el clic siguiente. Una ventana nueva se abre desde una tarjeta del menú de opciones, no desde un botón más en la cabecera.
 - **Nada de saltos de layout** en controles: lo que se despliega va en capas absolutas.
+- **Que el texto quepa** a 1.024 px, a 402 × 874 y en japonés: «…» en el elemento de texto (no en una caja flex), columnas `minmax(0, 1fr)` y `min-width: 0` en lo que encoge. Detalle en [COMO-FUNCIONA §11](COMO-FUNCIONA.md#11-estilos-y-fuentes).
 - **Colores:** siempre los tokens de `theme.css`, sin colores sueltos. **Fuentes:** solo subconjuntos latinos (`@fontsource/<fuente>/latin-<peso>.css`); el japonés usa el mincho del sistema.
 - **Sonido:** los efectos van en `src/lib/sfx.ts` y respetan `isMuted()`; cada uno vibra en el teléfono (`src/lib/haptics.ts`, con su propia preferencia). Un efecto nuevo lleva su vibración. **Celebraciones:** partículas y sacudidas con `src/lib/fx.ts`, que respeta «reducir movimiento»; las sacudidas mueven el contenido (`.cl-stage`), nunca una capa `position: fixed`.
 

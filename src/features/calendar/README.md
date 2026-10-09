@@ -40,6 +40,10 @@ La sección de planificación, junto al Quest Board y el tablón de encargos (se
 
 Los bloques que se pisan forman un grupo y se reparten en columnas: cada uno usa la primera columna libre a su hora y el grupo tiene tantas columnas como bloques a la vez llega a tener. Los que no se pisan van a lo ancho.
 
+### La rejilla del día
+
+Las horas van en su propia columna (`--cal-gutter`), a la izquierda de la rejilla, alineadas a la derecha y **centradas en su línea**; la de las 00:00 tiene margen arriba para no cortarse. La media hora se marca con una línea a trazos, más tenue. La línea de «ahora» empieza donde empieza la rejilla, así que su punto no pisa las horas. «Todo el día» va en la misma columna. Las horas, a 13 px y las de los bloques a 12 px: Cormorant tiene el ojo pequeño y por debajo de eso sus cifras se ven raquíticas.
+
 ### Abrir y añadir
 
 - **Abrir:** un bloque abre su formulario (con el día, para «Quitar solo este día»); un encargo, su cartel en el tablón de encargos; una quest, el Quest Board con ella elegida.
@@ -112,7 +116,7 @@ En el teléfono la semana va en filas (un día debajo de otro), el «+» de cada
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-06, tests y navegador a 1100 × 720 y 402 × 874, en español y japonés (Mi día, quests por días, `V` por las tres vistas, chips de lo quemado y lo fracturado).
+- **Última verificación:** 2026-10-09, navegador a 1.024 × 768 y 402 × 874, en español y japonés: la rejilla del día con las horas en su columna, la línea de «ahora» y bloques que se solapan; el selector de vistas con «今日の予定» entero.
 - **Tests:** `model.test.ts` y `src/features/today/model.test.ts`.
 - **Sin verificar:** la app nativa y el iPhone de verdad (el gesto de deslizar se probó con eventos de puntero simulados); el sonido de los botones.
 - **Historial:** [docs/history/verificacion/calendar.md](../../../docs/history/verificacion/calendar.md).

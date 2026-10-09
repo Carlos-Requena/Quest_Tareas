@@ -84,7 +84,7 @@ Quitar un personaje (`character_removed`) se lleva sus frases y, si era el compa
 
 ## Estado actual
 
-- **Última verificación:** 2026-10-08, tests y navegador a 1.280 × 800 y 402 × 874, en español y japonés: el cuadro con Kazuma en «Toca hoy», tocarlo para otra frase, elegir a Aqua como compañera y escribirle una frase con `{{title}}` y `{{n}}`, que sale rellena en Mi día.
+- **Última verificación:** 2026-10-09, navegador a 1.024 × 768 y 402 × 874: el contorno y las esquinas doradas del cuadro se ven enteros, también en la ventana estrecha. El 2026-10-08, tests y navegador a 1.280 × 800 y 402 × 874, en español y japonés: el cuadro con Kazuma en «Toca hoy», tocarlo para otra frase, elegir a Aqua como compañera y escribirle una frase con `{{title}}` y `{{n}}`, que sale rellena en Mi día.
 - **Tests:** `model.test.ts`.
 - **Sin verificar:** cada situación en la vista de verdad (solo «Toca hoy»; las demás, en los tests), la app nativa, el iPhone de verdad y un compañero elegido llegando a otro equipo por Drive.
 - **Historial:** [docs/history/verificacion/companion.md](../../../docs/history/verificacion/companion.md).

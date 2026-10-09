@@ -2,12 +2,12 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useGame } from "../../../store/game";
 import { sfx } from "../../../lib/sfx";
-import { useIsPhone } from "../../mobile";
 import { addCharacter, removeCharacter } from "../../menu/actions";
 import { CHARACTER_ACCEPT, characterName, useCast } from "../../menu/components/MenuCast";
 import { companionOf } from "../../companion";
 import type { VoiceLine } from "../../menu/model";
 import { useCustomizeUi } from "../ui";
+import { useGridCols } from "../columns";
 import { AddSlots, Card, slotsFor } from "./Cards";
 import { CharacterEditor } from "./CharacterEditor";
 
@@ -21,7 +21,7 @@ export function CastPanel() {
   const lines = useGame((s) => s.state.voiceLines);
   const chosen = useGame((s) => s.state.companion.chosen);
   const editing = useCustomizeUi((s) => s.character);
-  const cols = useIsPhone() ? 3 : 6;
+  const cols = useGridCols(6, 5);
   const counts = useMemo(() => countBy(lines.values()), [lines]);
 
   const companion = companionOf(

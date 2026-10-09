@@ -4,6 +4,15 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · Artefactos visuales en la ventana de 1.024 px
+
+Hecho con `pnpm dev` en el navegador integrado, con una partida de pruebas con títulos largos (quests, encargos y bloques de agenda), a 1.024 × 768 (la ventana mínima), 1.512 × 945 y 402 × 874, en español y japonés. Un detector en la consola buscaba textos que se salen, se cortan o parten en dos líneas dentro de un botón, y cajas más anchas que su contenedor. `tsc`, `pnpm test`, `pnpm build` y `pnpm docs:check`, en verde.
+
+- **Problema:** el nombre de quien habla partía en dos líneas y «Personajes» se montaba sobre él; «CUSTOMIZE» y «ALMANAC» tocaban el borde de su tarjeta y «Personalización» acababa en «…».
+- **Comprobado:** a 1.024 y 1.512 px, en español y japonés. En el teléfono, el lienzo WebGL del personaje se ve blanco en el navegador integrado al emular un móvil, aunque sus píxeles (leídos con `readPixels`) son correctos: es de la captura de este navegador, no de la app (en el escritorio, el mismo lienzo se ve bien).
+
+**No verificado:** el menú del teléfono con el personaje a la vista (por lo anterior), la app nativa, el iPhone de verdad.
+
 ## 2026-10-09 · Menú del teléfono al estilo gacha
 
 - **Primero llevó una barra en arco** (la parte de abajo de un anillo enorme, con los botones girados sobre la curva) que tapaba la de abajo. El propietario prefirió no perder alto de pantalla: el mismo día se quitó y la barra de abajo pasó a ser una cápsula de cristal con selector, la misma en todas las pantallas ([mobile](mobile.md)).

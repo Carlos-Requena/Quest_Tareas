@@ -227,12 +227,12 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
           onClick={() => detailPrimaryAction(quest.id)}
         >
           <span className="btn-key">A</span>
-          {primary.label}
+          <span className="btn-lbl">{primary.label}</span>
         </button>
         {active ? (
           <button className="btn btn-ghost btn-danger" onClick={() => abandonQuest(quest.id)}>
             <span className="btn-key">X</span>
-            {t("actions.abandon")}
+            <span className="btn-lbl">{t("actions.abandon")}</span>
           </button>
         ) : (
           <button
@@ -242,7 +242,7 @@ export function QuestDetail({ quest, status, now }: { quest?: QuestState; status
               await retireQuest(quest.id);
             }}
           >
-            {confirmDelete ? t("actions.retireConfirm") : t("actions.retire")}
+            <span className="btn-lbl">{confirmDelete ? t("actions.retireConfirm") : t("actions.retire")}</span>
           </button>
         )}
         <button className="btn btn-ghost btn-edit" onClick={() => openEdit(quest.id)} title={`${t("editing.open")} (R)`} aria-label={t("editing.open")}>

@@ -492,7 +492,8 @@
   margin-top: 22px;
   padding: 12px 22px 14px 16px;
   border-left: 2px solid var(--gold);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 94%, transparent), color-mix(in srgb, var(--bg) 78%, transparent) 70%, transparent);
+  /* Opaco hasta el final del texto: el personaje pasa por detrás y no debe confundirse con él. */
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 94%, transparent), color-mix(in srgb, var(--bg) 84%, transparent) 75%, color-mix(in srgb, var(--bg) 40%, transparent));
 }
 .mn-voice-who {
   display: flex;
@@ -501,7 +502,14 @@
   color: var(--gold);
   font-size: 13px;
 }
+.mn-voice-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .mn-voice-swap {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -855,16 +863,20 @@ button.mn-tile:hover .mn-logo {
 .mn-cell.is-calendar .mn-title,
 .mn-cell.is-search .mn-title,
 .mn-cell.is-customize .mn-title {
-  font-size: 2.95cqi;
+  /* Con 2,95cqi, «CUSTOMIZE» se salía de su tarjeta en la ventana de 1.024 px. */
+  font-size: 2.6cqi;
 }
 /* Cuatro en fila: el nombre, en dos líneas si no cabe. */
 .mn-cell.is-chronicle .mn-sub,
 .mn-cell.is-calendar .mn-sub,
 .mn-cell.is-search .mn-sub,
 .mn-cell.is-customize .mn-sub {
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.2;
   white-space: normal;
+  /* Una sola palabra larga («Personalización») se parte con guion en vez de cortarse. */
+  hyphens: auto;
+  -webkit-hyphens: auto;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1206,7 +1218,8 @@ button.mn-tile:hover .mn-logo {
   transform: translateZ(40px);
 }
 .mn-col-in .mn-title {
-  font-size: 3.7cqi;
+  /* Con 3,7cqi, «ALMANAC» tocaba el borde de su botón. */
+  font-size: 3.3cqi;
   color: var(--ink);
   text-shadow:
     0 1px 0 var(--gold-hi),
@@ -1565,6 +1578,13 @@ button.mn-tile:hover .mn-logo {
   }
   .mn-voice {
     max-width: 280px;
+  }
+  /* Sin sitio para «Personajes»: solo el icono (lleva su nombre en title y aria-label). */
+  .mn-voice-swap span {
+    display: none;
+  }
+  .mn-voice-swap {
+    padding: 4px 6px;
   }
   .mn-voice p {
     font-size: 14px;

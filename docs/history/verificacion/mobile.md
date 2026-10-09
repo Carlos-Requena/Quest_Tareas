@@ -4,6 +4,15 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · Artefactos visuales en el teléfono
+
+Hecho con `pnpm dev` en el navegador integrado, con una partida de pruebas con títulos largos (quests, encargos y bloques de agenda), a 1.024 × 768 (la ventana mínima), 1.512 × 945 y 402 × 874, en español y japonés. Un detector en la consola buscaba textos que se salen, se cortan o parten en dos líneas dentro de un botón, y cajas más anchas que su contenedor. `tsc`, `pnpm test`, `pnpm build` y `pnpm docs:check`, en verde.
+
+- **Problema:** «Faltan objetivos» se salía de su botón en el detalle; en tarjetas con plazo y título de dos líneas, el pie pisaba el título; «Días de la semana» partía en dos líneas; los formularios de encargo y de quest se salían por la derecha por un desplegable largo.
+- **Comprobado:** detalle con objetivos largos y botones en dos filas, tarjetas de 112 px, botones segmentados por su texto, formularios de quest, encargo y bloque, ajustes, mercader y personalización a 402 × 874.
+
+**No verificado:** el iPhone de verdad (el teclado de iOS encima de los formularios), teléfonos más estrechos que 402 px.
+
 ## 2026-10-09 · La lente de la barra se mantiene y se arrastra
 
 - La lente deja de ir dentro de cada botón (`layoutId`) y pasa a ser una sola en la barra, movida con valores de Motion: el dedo la arrastra y al soltar va con un muelle.

@@ -4,6 +4,15 @@ Cómo se verificó esta funcionalidad, fecha a fecha. Es un registro: las cifras
 
 Lo nuevo va arriba: añade una sección `## AAAA-MM-DD · qué se verificó` encima de las anteriores.
 
+## 2026-10-09 · Artefactos visuales: carteles y formulario
+
+Hecho con `pnpm dev` en el navegador integrado, con una partida de pruebas con títulos largos (quests, encargos y bloques de agenda), a 1.024 × 768 (la ventana mínima), 1.512 × 945 y 402 × 874, en español y japonés. Un detector en la consola buscaba textos que se salen, se cortan o parten en dos líneas dentro de un botón, y cajas más anchas que su contenedor. `tsc`, `pnpm test`, `pnpm build` y `pnpm docs:check`, en verde.
+
+- **Problema:** con un título de tres líneas, el sello «ACCEPTED» caía sobre la recompensa y las calaveras tapaban la cinta; en el teléfono, el cartel abierto tapaba la recompensa con las calaveras y el sello, y el formulario de encargo se salía por la derecha (el desplegable «Enlazar una quest» medía lo que el título de quest más largo) con la hora cortada.
+- **Comprobado:** carteles de una a cinco calaveras con títulos largos, cinta legible, cartel abierto en 1.024 y 402 px, formulario entero con la hora y «Todo el día» debajo.
+
+**No verificado:** la app nativa, el iPhone de verdad, Windows.
+
 ## 2026-10-08 · Ilustraciones añadidas por el jugador
 
 Con `pnpm dev` en el navegador del panel (Chromium), con datos de prueba. La ventana donde se añaden está en [customize](customize.md).
